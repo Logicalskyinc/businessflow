@@ -16,16 +16,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const STORAGE_KEY = "businessflow-goals-v1";
 
     if (!pages.length) {
-        console.error("BusinessFlow: No dashboard pages were found.");
+        console.error("BusinessFlow: No dashboard pages found.");
         return;
     }
 
     function showPage(pageId) {
         const target = document.getElementById(pageId);
 
-        if (!target || !target.classList.contains("page")) {
-            return;
-        }
+        if (!target || !target.classList.contains("page")) return;
 
         pages.forEach(function (page) {
             page.classList.toggle("active", page.id === pageId);
@@ -53,9 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 : "Workspace";
         }
 
-        if (sidebar) {
-            sidebar.classList.remove("mobile-open");
-        }
+        if (sidebar) sidebar.classList.remove("mobile-open");
 
         if (window.location.hash !== "#" + pageId) {
             window.history.replaceState(null, "", "#" + pageId);
@@ -73,17 +69,15 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    const startingPage = window.location.hash.slice(1);
+    const initialPage = window.location.hash.slice(1);
 
-    if (
-        startingPage &&
-        document.getElementById(startingPage) &&
-        document.getElementById(startingPage).classList.contains("page")
-    ) {
-        showPage(startingPage);
-    } else {
-        showPage("overview");
-    }
+    showPage(
+        initialPage &&
+        document.getElementById(initialPage) &&
+        document.getElementById(initialPage).classList.contains("page")
+            ? initialPage
+            : "overview"
+    );
 
     if (sidebar && topbar) {
         const breadcrumb = topbar.querySelector(".breadcrumb");
@@ -92,38 +86,25 @@ document.addEventListener("DOMContentLoaded", function () {
             breadcrumb &&
             !document.getElementById("mobile-menu-button")
         ) {
-            const menuButton = document.createElement("button");
+            const menu = document.createElement("button");
 
-            menuButton.type = "button";
-            menuButton.id = "mobile-menu-button";
-            menuButton.className = "menu-button";
-            menuButton.textContent = "☰";
-            menuButton.setAttribute(
-                "aria-label",
-                "Toggle navigation"
-            );
-            menuButton.setAttribute("aria-expanded", "false");
+            menu.type = "button";
+            menu.id = "mobile-menu-button";
+            menu.className = "menu-button";
+            menu.textContent = "☰";
+            menu.setAttribute("aria-label", "Toggle navigation");
+            menu.setAttribute("aria-expanded", "false");
 
-            breadcrumb.parentNode.insertBefore(
-                menuButton,
-                breadcrumb
-            );
+            breadcrumb.parentNode.insertBefore(menu, breadcrumb);
 
-            menuButton.addEventListener("click", function () {
+            menu.addEventListener("click", function () {
                 const open = sidebar.classList.toggle("mobile-open");
-
-                menuButton.setAttribute(
-                    "aria-expanded",
-                    String(open)
-                );
+                menu.setAttribute("aria-expanded", String(open));
             });
 
             navigationLinks.forEach(function (link) {
                 link.addEventListener("click", function () {
-                    menuButton.setAttribute(
-                        "aria-expanded",
-                        "false"
-                    );
+                    menu.setAttribute("aria-expanded", "false");
                 });
             });
         }
@@ -131,29 +112,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function readGoals() {
         try {
-            const raw = window.localStorage.getItem(STORAGE_KEY);
+            const value = window.localStorage.getItem(STORAGE_KEY);
 
-            if (!raw) return [];
+            if (!value) return [];
 
-            const parsed = JSON.parse(raw);
+            const parsed = JSON.parse(value);
 
             if (!Array.isArray(parsed)) {
-                console.error("BusinessFlow: Saved goals are invalid.");
-                return [];
+                throw new Error("Stored goals are not an array.");
             }
 
             return parsed.filter(function (goal) {
-                return (
-                    goal &&
-                    typeof goal.name === "string" &&
-                    goal.name.trim() !== ""
-                );
+                return goal && typeof goal.name === "string";
             });
         } catch (error) {
-            console.error(
-                "BusinessFlow: Could not read saved goals.",
-                error
-            );
+            console.error("BusinessFlow: Cannot read goals.", error);
             return [];
         }
     }
@@ -168,10 +141,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const title = document.createElement("strong");
         title.textContent = goal.name;
 
-        const percent = document.createElement("span");
-        percent.textContent = "0%";
+        const percentage = document.createElement("span");
+        percentage.textContent = "0%";
 
-        header.append(title, percent);
+        header.append(title, percentage);
 
         const track = document.createElement("div");
         track.className = "progress-track";
@@ -180,7 +153,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const fill = document.createElement("div");
         fill.className = "progress-fill";
         fill.style.width = "0%";
-
         track.appendChild(fill);
 
         const note = document.createElement("small");
@@ -188,30 +160,36 @@ document.addEventListener("DOMContentLoaded", function () {
             "Saved locally · Progress tracking is not connected.";
 
         item.append(header, track, note);
-        goalList.appendChild(item);
+
+        return item;
     }
 
-    function displaySavedGoals() {
+    function displayGoals() {
         if (!goalList) {
             console.error(
-                "BusinessFlow: Could not find the element with id goal-list."
+                "BusinessFlow: #goal-list was not found in index.html."
             );
             return;
         }
 
         goalList.replaceChildren();
 
-        readGoals().forEach(function (goal) {
-            renderGoal(goal);
+        const goals = readGoals();
+
+        goals.forEach(function (goal) {
+            goalList.appendChild(renderGoal(goal));
         });
+
+        console.info(
+            "BusinessFlow: Rendered " + goals.length + " saved goal(s)."
+        );
     }
 
     function createGoal() {
         if (!goalList) {
             window.alert(
-                "The goal list is missing from the dashboard HTML."
+                "Goal list is missing. The dashboard HTML needs checking."
             );
-            console.error("Missing element: #goal-list");
             return;
         }
 
@@ -241,23 +219,38 @@ document.addEventListener("DOMContentLoaded", function () {
                 JSON.stringify(goals)
             );
 
-            displaySavedGoals();
+            const savedValue = window.localStorage.getItem(STORAGE_KEY);
+
+            if (!savedValue) {
+                throw new Error("Browser storage returned no saved value.");
+            }
+
+            const verifiedGoals = JSON.parse(savedValue);
+
+            if (!Array.isArray(verifiedGoals)) {
+                throw new Error("Saved goals could not be verified.");
+            }
+
+            goalList.appendChild(renderGoal({
+                name: name
+            }));
 
             window.alert(
-                "Goal saved in this browser on this device. " +
-                "Cloud sync and progress tracking are not connected."
+                "Goal saved and displayed: " + name +
+                ". Browser storage confirmed. Cloud sync is not connected."
             );
+
+            console.info("BusinessFlow: Goal saved and displayed.", name);
         } catch (error) {
-            console.error(
-                "BusinessFlow: Could not save the goal.",
-                error
-            );
+            console.error("BusinessFlow: Goal save failed.", error);
 
-            renderGoal({ name: name });
+            goalList.appendChild(renderGoal({
+                name: name
+            }));
 
             window.alert(
-                "The goal was added to this page, but browser storage " +
-                "failed. It may disappear after refreshing."
+                "Your goal was added to the current page, but saving " +
+                "failed. Check browser storage settings."
             );
         }
     }
@@ -266,11 +259,11 @@ document.addEventListener("DOMContentLoaded", function () {
         goalButton.addEventListener("click", createGoal);
     } else {
         console.error(
-            "BusinessFlow: Create a goal button (#goal-button) was not found."
+            "BusinessFlow: #goal-button was not found in index.html."
         );
     }
 
-    displaySavedGoals();
+    displayGoals();
 
     const reports = {
         "7": {
@@ -295,22 +288,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateReport(period) {
         const report = reports[period];
-
         if (!report) return;
 
-        const fields = [
+        [
             ["revenue-value", report.revenue],
             ["customers-value", report.customers],
             ["conversion-value", report.conversion],
             ["experiments-value", report.experiments]
-        ];
-
-        fields.forEach(function (field) {
-            const element = document.getElementById(field[0]);
-
-            if (element) {
-                element.textContent = field[1];
-            }
+        ].forEach(function (entry) {
+            const element = document.getElementById(entry[0]);
+            if (element) element.textContent = entry[1];
         });
 
         const disclaimer = document.querySelector(".chart-disclaimer");
