@@ -1,44 +1,42 @@
 
 "use strict";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function () {
     const pages = document.querySelectorAll(".page");
     const navigationLinks = document.querySelectorAll(
         '.nav-link[data-page]'
     );
+    const sidebar = document.querySelector(".sidebar");
+    const topbar = document.querySelector(".topbar");
     const currentSection = document.getElementById("current-section");
     const goalButton = document.getElementById("goal-button");
     const goalList = document.getElementById("goal-list");
     const periodSelect = document.getElementById("period-select");
-    const sidebar = document.querySelector(".sidebar");
-    const topbar = document.querySelector(".topbar");
 
-    const GOALS_STORAGE_KEY = "businessflow-goals-v1";
+    const STORAGE_KEY = "businessflow-goals-v1";
 
-    if (!pages.length || !sidebar || !topbar) {
-        console.error(
-            "BusinessFlow could not initialize. Check index.html."
-        );
+    if (!pages.length) {
+        console.error("BusinessFlow: No dashboard pages were found.");
         return;
     }
 
     function showPage(pageId) {
-        const targetPage = document.getElementById(pageId);
+        const target = document.getElementById(pageId);
 
-        if (!targetPage || !targetPage.classList.contains("page")) {
+        if (!target || !target.classList.contains("page")) {
             return;
         }
 
-        pages.forEach((page) => {
+        pages.forEach(function (page) {
             page.classList.toggle("active", page.id === pageId);
         });
 
-        navigationLinks.forEach((link) => {
-            const isActive = link.dataset.page === pageId;
+        navigationLinks.forEach(function (link) {
+            const active = link.dataset.page === pageId;
 
-            link.classList.toggle("active", isActive);
+            link.classList.toggle("active", active);
 
-            if (isActive) {
+            if (active) {
                 link.setAttribute("aria-current", "page");
             } else {
                 link.removeAttribute("aria-current");
@@ -47,228 +45,234 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (currentSection) {
             const activeLink = document.querySelector(
-                `.nav-link[data-page="${pageId}"]`
+                '.nav-link[data-page="' + pageId + '"]'
             );
 
             currentSection.textContent = activeLink
                 ? activeLink.textContent.trim()
-                : targetPage.querySelector("h1")?.textContent.trim()
-                    || "Workspace";
+                : "Workspace";
         }
 
-        sidebar.classList.remove("mobile-open");
+        if (sidebar) {
+            sidebar.classList.remove("mobile-open");
+        }
 
-        if (window.location.hash !== `#${pageId}`) {
-            window.history.replaceState(null, "", `#${pageId}`);
+        if (window.location.hash !== "#" + pageId) {
+            window.history.replaceState(null, "", "#" + pageId);
         }
     }
 
-    navigationLinks.forEach((link) => {
-        link.addEventListener("click", (event) => {
+    navigationLinks.forEach(function (link) {
+        link.addEventListener("click", function (event) {
             const pageId = link.dataset.page;
 
-            if (!pageId) {
-                return;
-            }
+            if (!pageId) return;
 
             event.preventDefault();
             showPage(pageId);
         });
     });
 
-    const initialPageId = window.location.hash.slice(1);
+    const startingPage = window.location.hash.slice(1);
 
     if (
-        initialPageId &&
-        document.getElementById(initialPageId)?.classList.contains("page")
+        startingPage &&
+        document.getElementById(startingPage) &&
+        document.getElementById(startingPage).classList.contains("page")
     ) {
-        showPage(initialPageId);
+        showPage(startingPage);
     } else {
         showPage("overview");
     }
 
-    const breadcrumb = topbar.querySelector(".breadcrumb");
+    if (sidebar && topbar) {
+        const breadcrumb = topbar.querySelector(".breadcrumb");
 
-    if (breadcrumb && !document.getElementById("mobile-menu-button")) {
-        const menuButton = document.createElement("button");
+        if (
+            breadcrumb &&
+            !document.getElementById("mobile-menu-button")
+        ) {
+            const menuButton = document.createElement("button");
 
-        menuButton.type = "button";
-        menuButton.id = "mobile-menu-button";
-        menuButton.className = "menu-button";
-        menuButton.textContent = "☰";
-        menuButton.setAttribute("aria-label", "Toggle navigation");
-        menuButton.setAttribute("aria-expanded", "false");
-
-        breadcrumb.parentNode.insertBefore(menuButton, breadcrumb);
-
-        menuButton.addEventListener("click", () => {
-            const isOpen = sidebar.classList.toggle("mobile-open");
-
+            menuButton.type = "button";
+            menuButton.id = "mobile-menu-button";
+            menuButton.className = "menu-button";
+            menuButton.textContent = "☰";
             menuButton.setAttribute(
-                "aria-expanded",
-                String(isOpen)
+                "aria-label",
+                "Toggle navigation"
             );
-        });
+            menuButton.setAttribute("aria-expanded", "false");
 
-        navigationLinks.forEach((link) => {
-            link.addEventListener("click", () => {
-                menuButton.setAttribute("aria-expanded", "false");
+            breadcrumb.parentNode.insertBefore(
+                menuButton,
+                breadcrumb
+            );
+
+            menuButton.addEventListener("click", function () {
+                const open = sidebar.classList.toggle("mobile-open");
+
+                menuButton.setAttribute(
+                    "aria-expanded",
+                    String(open)
+                );
             });
-        });
+
+            navigationLinks.forEach(function (link) {
+                link.addEventListener("click", function () {
+                    menuButton.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+                });
+            });
+        }
     }
 
-    function createGoalElement(goalName) {
-        const goalItem = document.createElement("div");
-        goalItem.className = "goal-item";
+    function readGoals() {
+        try {
+            const raw = window.localStorage.getItem(STORAGE_KEY);
 
-        const goalTop = document.createElement("div");
-        goalTop.className = "goal-top";
+            if (!raw) return [];
+
+            const parsed = JSON.parse(raw);
+
+            if (!Array.isArray(parsed)) {
+                console.error("BusinessFlow: Saved goals are invalid.");
+                return [];
+            }
+
+            return parsed.filter(function (goal) {
+                return (
+                    goal &&
+                    typeof goal.name === "string" &&
+                    goal.name.trim() !== ""
+                );
+            });
+        } catch (error) {
+            console.error(
+                "BusinessFlow: Could not read saved goals.",
+                error
+            );
+            return [];
+        }
+    }
+
+    function renderGoal(goal) {
+        const item = document.createElement("div");
+        item.className = "goal-item";
+
+        const header = document.createElement("div");
+        header.className = "goal-top";
 
         const title = document.createElement("strong");
-        title.textContent = goalName;
+        title.textContent = goal.name;
 
-        const percentage = document.createElement("span");
-        percentage.textContent = "0%";
+        const percent = document.createElement("span");
+        percent.textContent = "0%";
 
-        goalTop.append(title, percentage);
+        header.append(title, percent);
 
-        const progressTrack = document.createElement("div");
-        progressTrack.className = "progress-track";
-        progressTrack.setAttribute(
-            "aria-label",
-            "Goal progress: 0%"
-        );
+        const track = document.createElement("div");
+        track.className = "progress-track";
+        track.setAttribute("aria-label", "Goal progress: 0%");
 
-        const progressFill = document.createElement("div");
-        progressFill.className = "progress-fill";
-        progressFill.style.width = "0%";
+        const fill = document.createElement("div");
+        fill.className = "progress-fill";
+        fill.style.width = "0%";
 
-        progressTrack.appendChild(progressFill);
+        track.appendChild(fill);
 
         const note = document.createElement("small");
         note.textContent =
-            "New goal · Progress updates are not connected yet.";
+            "Saved locally · Progress tracking is not connected.";
 
-        goalItem.append(goalTop, progressTrack, note);
-
-        return goalItem;
+        item.append(header, track, note);
+        goalList.appendChild(item);
     }
 
-    function loadSavedGoals() {
+    function displaySavedGoals() {
         if (!goalList) {
+            console.error(
+                "BusinessFlow: Could not find the element with id goal-list."
+            );
             return;
         }
 
-        try {
-            const storedGoals = window.localStorage.getItem(
-                GOALS_STORAGE_KEY
-            );
+        goalList.replaceChildren();
 
-            if (!storedGoals) {
-                return;
-            }
-
-            const goals = JSON.parse(storedGoals);
-
-            if (!Array.isArray(goals)) {
-                console.error("Saved goals data is invalid.");
-                return;
-            }
-
-            goals.forEach((goal) => {
-                if (
-                    goal &&
-                    typeof goal.name === "string" &&
-                    goal.name.trim()
-                ) {
-                    goalList.appendChild(
-                        createGoalElement(goal.name.trim())
-                    );
-                }
-            });
-        } catch (error) {
-            console.warn(
-                "Saved goals could not be loaded.",
-                error
-            );
-        }
+        readGoals().forEach(function (goal) {
+            renderGoal(goal);
+        });
     }
 
     function createGoal() {
         if (!goalList) {
-            window.alert("The goal list could not be found.");
+            window.alert(
+                "The goal list is missing from the dashboard HTML."
+            );
+            console.error("Missing element: #goal-list");
             return;
         }
 
-        const goalName = window.prompt(
+        const answer = window.prompt(
             "What business goal do you want to create?"
         );
 
-        if (goalName === null) {
-            return;
-        }
+        if (answer === null) return;
 
-        const cleanGoalName = goalName.trim();
+        const name = answer.trim();
 
-        if (!cleanGoalName) {
+        if (!name) {
             window.alert("Please enter a goal name.");
             return;
         }
 
-        const newGoal = {
-            name: cleanGoalName,
-            createdAt: new Date().toISOString()
-        };
+        const goals = readGoals();
 
-        let savedSuccessfully = false;
+        goals.push({
+            name: name,
+            createdAt: new Date().toISOString()
+        });
 
         try {
-            const storedGoals = window.localStorage.getItem(
-                GOALS_STORAGE_KEY
-            );
-
-            const goals = storedGoals
-                ? JSON.parse(storedGoals)
-                : [];
-
-            if (!Array.isArray(goals)) {
-                throw new Error("Saved goals data is invalid.");
-            }
-
-            goals.push(newGoal);
-
             window.localStorage.setItem(
-                GOALS_STORAGE_KEY,
+                STORAGE_KEY,
                 JSON.stringify(goals)
             );
 
-            savedSuccessfully = true;
-        } catch (error) {
-            console.warn("Goal could not be saved locally.", error);
-        }
+            displaySavedGoals();
 
-        goalList.appendChild(createGoalElement(cleanGoalName));
-
-        if (savedSuccessfully) {
             window.alert(
-                "Goal added and saved in this browser on this device. " +
-                "Cloud sync and progress tracking are not connected yet."
+                "Goal saved in this browser on this device. " +
+                "Cloud sync and progress tracking are not connected."
             );
-        } else {
+        } catch (error) {
+            console.error(
+                "BusinessFlow: Could not save the goal.",
+                error
+            );
+
+            renderGoal({ name: name });
+
             window.alert(
-                "Goal added to the current page, but browser storage " +
-                "was unavailable. It may disappear when you reload."
+                "The goal was added to this page, but browser storage " +
+                "failed. It may disappear after refreshing."
             );
         }
     }
-
-    loadSavedGoals();
 
     if (goalButton) {
         goalButton.addEventListener("click", createGoal);
+    } else {
+        console.error(
+            "BusinessFlow: Create a goal button (#goal-button) was not found."
+        );
     }
 
-    const sampleReports = {
+    displaySavedGoals();
+
+    const reports = {
         "7": {
             revenue: "₦2,450,000",
             customers: "184",
@@ -290,39 +294,42 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     function updateReport(period) {
-        const report = sampleReports[period];
+        const report = reports[period];
 
-        if (!report) {
-            return;
-        }
+        if (!report) return;
 
-        const revenue = document.getElementById("revenue-value");
-        const customers = document.getElementById("customers-value");
-        const conversion = document.getElementById("conversion-value");
-        const experiments = document.getElementById("experiments-value");
+        const fields = [
+            ["revenue-value", report.revenue],
+            ["customers-value", report.customers],
+            ["conversion-value", report.conversion],
+            ["experiments-value", report.experiments]
+        ];
 
-        if (revenue) revenue.textContent = report.revenue;
-        if (customers) customers.textContent = report.customers;
-        if (conversion) conversion.textContent = report.conversion;
-        if (experiments) experiments.textContent = report.experiments;
+        fields.forEach(function (field) {
+            const element = document.getElementById(field[0]);
 
-        const chartDisclaimer = document.querySelector(".chart-disclaimer");
+            if (element) {
+                element.textContent = field[1];
+            }
+        });
 
-        if (chartDisclaimer) {
-            const periodLabel = period === "7"
+        const disclaimer = document.querySelector(".chart-disclaimer");
+
+        if (disclaimer) {
+            const label = period === "7"
                 ? "7 days"
                 : period === "30"
                     ? "30 days"
                     : "90 days";
 
-            chartDisclaimer.textContent =
-                `Illustrative ${periodLabel} sample data. ` +
-                "No live data connected.";
+            disclaimer.textContent =
+                "Illustrative " + label +
+                " sample data. No live data connected.";
         }
     }
 
     if (periodSelect) {
-        periodSelect.addEventListener("change", () => {
+        periodSelect.addEventListener("change", function () {
             updateReport(periodSelect.value);
         });
 
@@ -330,6 +337,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     console.info(
-        "BusinessFlow prototype initialized. Sample data only."
+        "BusinessFlow initialized. Dashboard figures are sample data."
     );
 });
