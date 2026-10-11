@@ -1,21 +1,6 @@
 
 "use strict";
 
-/*
- * BusinessFlow frontend prototype
- * Organization: HackyTech Digitals
- *
- * Current scope:
- * - Dashboard page navigation
- * - Mobile sidebar toggle
- * - Goal creation in the browser
- * - Illustrative reporting-period figures
- *
- * Important:
- * All figures are sample data. No backend or live business
- * integrations are connected yet.
- */
-
 document.addEventListener("DOMContentLoaded", () => {
     const pages = document.querySelectorAll(".page");
     const navigationLinks = document.querySelectorAll(
@@ -28,17 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const sidebar = document.querySelector(".sidebar");
     const topbar = document.querySelector(".topbar");
 
-    // Stop safely if the expected HTML structure is missing.
+    const GOALS_STORAGE_KEY = "businessflow-goals-v1";
+
     if (!pages.length || !sidebar || !topbar) {
         console.error(
             "BusinessFlow could not initialize. Check index.html."
         );
         return;
     }
-
-    // --------------------------------------------------
-    // 1. Page navigation
-    // --------------------------------------------------
 
     function showPage(pageId) {
         const targetPage = document.getElementById(pageId);
@@ -74,10 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     || "Workspace";
         }
 
-        // Close the mobile sidebar after selecting a page.
         sidebar.classList.remove("mobile-open");
 
-        // Keep the URL in sync with the selected page.
         if (window.location.hash !== `#${pageId}`) {
             window.history.replaceState(null, "", `#${pageId}`);
         }
@@ -96,7 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Open the correct page if the URL already has a valid hash.
     const initialPageId = window.location.hash.slice(1);
 
     if (
@@ -108,49 +87,116 @@ document.addEventListener("DOMContentLoaded", () => {
         showPage("overview");
     }
 
-    // --------------------------------------------------
-    // 2. Mobile navigation button
-    // --------------------------------------------------
+    const breadcrumb = topbar.querySelector(".breadcrumb");
 
-    if (sidebar && topbar) {
-        const breadcrumb = topbar.querySelector(".breadcrumb");
+    if (breadcrumb && !document.getElementById("mobile-menu-button")) {
+        const menuButton = document.createElement("button");
 
-        if (breadcrumb && !document.getElementById("mobile-menu-button")) {
-            const menuButton = document.createElement("button");
+        menuButton.type = "button";
+        menuButton.id = "mobile-menu-button";
+        menuButton.className = "menu-button";
+        menuButton.textContent = "☰";
+        menuButton.setAttribute("aria-label", "Toggle navigation");
+        menuButton.setAttribute("aria-expanded", "false");
 
-            menuButton.type = "button";
-            menuButton.id = "mobile-menu-button";
-            menuButton.className = "menu-button";
-            menuButton.textContent = "☰";
-            menuButton.setAttribute("aria-label", "Toggle navigation");
-            menuButton.setAttribute("aria-expanded", "false");
+        breadcrumb.parentNode.insertBefore(menuButton, breadcrumb);
 
-            breadcrumb.parentNode.insertBefore(menuButton, breadcrumb);
+        menuButton.addEventListener("click", () => {
+            const isOpen = sidebar.classList.toggle("mobile-open");
 
-            menuButton.addEventListener("click", () => {
-                const isOpen = sidebar.classList.toggle("mobile-open");
+            menuButton.setAttribute(
+                "aria-expanded",
+                String(isOpen)
+            );
+        });
 
-                menuButton.setAttribute(
-                    "aria-expanded",
-                    String(isOpen)
-                );
+        navigationLinks.forEach((link) => {
+            link.addEventListener("click", () => {
+                menuButton.setAttribute("aria-expanded", "false");
             });
+        });
+    }
 
-            navigationLinks.forEach((link) => {
-                link.addEventListener("click", () => {
-                    menuButton.setAttribute("aria-expanded", "false");
-                });
+    function createGoalElement(goalName) {
+        const goalItem = document.createElement("div");
+        goalItem.className = "goal-item";
+
+        const goalTop = document.createElement("div");
+        goalTop.className = "goal-top";
+
+        const title = document.createElement("strong");
+        title.textContent = goalName;
+
+        const percentage = document.createElement("span");
+        percentage.textContent = "0%";
+
+        goalTop.append(title, percentage);
+
+        const progressTrack = document.createElement("div");
+        progressTrack.className = "progress-track";
+        progressTrack.setAttribute(
+            "aria-label",
+            "Goal progress: 0%"
+        );
+
+        const progressFill = document.createElement("div");
+        progressFill.className = "progress-fill";
+        progressFill.style.width = "0%";
+
+        progressTrack.appendChild(progressFill);
+
+        const note = document.createElement("small");
+        note.textContent =
+            "New goal · Progress updates are not connected yet.";
+
+        goalItem.append(goalTop, progressTrack, note);
+
+        return goalItem;
+    }
+
+    function loadSavedGoals() {
+        if (!goalList) {
+            return;
+        }
+
+        try {
+            const storedGoals = window.localStorage.getItem(
+                GOALS_STORAGE_KEY
+            );
+
+            if (!storedGoals) {
+                return;
+            }
+
+            const goals = JSON.parse(storedGoals);
+
+            if (!Array.isArray(goals)) {
+                console.error("Saved goals data is invalid.");
+                return;
+            }
+
+            goals.forEach((goal) => {
+                if (
+                    goal &&
+                    typeof goal.name === "string" &&
+                    goal.name.trim()
+                ) {
+                    goalList.appendChild(
+                        createGoalElement(goal.name.trim())
+                    );
+                }
             });
+        } catch (error) {
+            console.warn(
+                "Saved goals could not be loaded.",
+                error
+            );
         }
     }
 
-    // --------------------------------------------------
-    // 3. Create a goal
-    // --------------------------------------------------
-
     function createGoal() {
         if (!goalList) {
-            console.error("Goal list was not found in index.html.");
+            window.alert("The goal list could not be found.");
             return;
         }
 
@@ -169,49 +215,58 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const goalItem = document.createElement("div");
-        goalItem.className = "goal-item";
+        const newGoal = {
+            name: cleanGoalName,
+            createdAt: new Date().toISOString()
+        };
 
-        const goalTop = document.createElement("div");
-        goalTop.className = "goal-top";
+        let savedSuccessfully = false;
 
-        const title = document.createElement("strong");
-        title.textContent = cleanGoalName;
+        try {
+            const storedGoals = window.localStorage.getItem(
+                GOALS_STORAGE_KEY
+            );
 
-        const percentage = document.createElement("span");
-        percentage.textContent = "0%";
+            const goals = storedGoals
+                ? JSON.parse(storedGoals)
+                : [];
 
-        goalTop.append(title, percentage);
+            if (!Array.isArray(goals)) {
+                throw new Error("Saved goals data is invalid.");
+            }
 
-        const progressTrack = document.createElement("div");
-        progressTrack.className = "progress-track";
-        progressTrack.setAttribute("aria-label", "Goal progress: 0%");
+            goals.push(newGoal);
 
-        const progressFill = document.createElement("div");
-        progressFill.className = "progress-fill";
-        progressFill.style.width = "0%";
+            window.localStorage.setItem(
+                GOALS_STORAGE_KEY,
+                JSON.stringify(goals)
+            );
 
-        progressTrack.appendChild(progressFill);
+            savedSuccessfully = true;
+        } catch (error) {
+            console.warn("Goal could not be saved locally.", error);
+        }
 
-        const note = document.createElement("small");
-        note.textContent =
-            "New goal · Progress tracking is not connected yet.";
+        goalList.appendChild(createGoalElement(cleanGoalName));
 
-        goalItem.append(goalTop, progressTrack, note);
-        goalList.appendChild(goalItem);
-
-        window.alert(
-            "Goal added to this page. It is temporary and will be lost when the page reloads."
-        );
+        if (savedSuccessfully) {
+            window.alert(
+                "Goal added and saved in this browser on this device. " +
+                "Cloud sync and progress tracking are not connected yet."
+            );
+        } else {
+            window.alert(
+                "Goal added to the current page, but browser storage " +
+                "was unavailable. It may disappear when you reload."
+            );
+        }
     }
+
+    loadSavedGoals();
 
     if (goalButton) {
         goalButton.addEventListener("click", createGoal);
     }
-
-    // --------------------------------------------------
-    // 4. Illustrative reporting-period figures
-    // --------------------------------------------------
 
     const sampleReports = {
         "7": {
@@ -261,7 +316,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     : "90 days";
 
             chartDisclaimer.textContent =
-                `Illustrative ${periodLabel} sample data. No live data connected.`;
+                `Illustrative ${periodLabel} sample data. ` +
+                "No live data connected.";
         }
     }
 
@@ -272,10 +328,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         updateReport(periodSelect.value);
     }
-
-    // --------------------------------------------------
-    // 5. Prototype initialization
-    // --------------------------------------------------
 
     console.info(
         "BusinessFlow prototype initialized. Sample data only."
