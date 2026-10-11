@@ -71,13 +71,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const initialPage = window.location.hash.slice(1);
 
-    showPage(
+    if (
         initialPage &&
         document.getElementById(initialPage) &&
         document.getElementById(initialPage).classList.contains("page")
-            ? initialPage
-            : "overview"
-    );
+    ) {
+        showPage(initialPage);
+    } else {
+        showPage("overview");
+    }
 
     if (sidebar && topbar) {
         const breadcrumb = topbar.querySelector(".breadcrumb");
@@ -112,26 +114,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function readGoals() {
         try {
-            const value = window.localStorage.getItem(STORAGE_KEY);
+            const stored = window.localStorage.getItem(STORAGE_KEY);
 
-            if (!value) return [];
+            if (!stored) return [];
 
-            const parsed = JSON.parse(value);
+            const goals = JSON.parse(stored);
 
-            if (!Array.isArray(parsed)) {
-                throw new Error("Stored goals are not an array.");
+            if (!Array.isArray(goals)) {
+                throw new Error("Saved goals are not a list.");
             }
 
-            return parsed.filter(function (goal) {
+            return goals.filter(function (goal) {
                 return goal && typeof goal.name === "string";
+            }).map(function (goal) {
+                return {
+                    name: goal.name,
+                    createdAt: goal.createdAt || "",
+                    completed: goal.completed === true
+                };
             });
         } catch (error) {
-            console.error("BusinessFlow: Cannot read goals.", error);
+            console.error("BusinessFlow: Could not read goals.", error);
             return [];
         }
     }
 
-    function renderGoal(goal) {
+    function saveGoals(goals) {
+        try {
+            window.localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(goals)
+            );
+            return true;
+        } catch (error) {
+            console.error("BusinessFlow: Could not save goals.", error);
+            return false;
+        }
+    }
+
+    function renderGoal(goal, index) {
+        const completed = goal.completed === true;
         const item = document.createElement("div");
         item.className = "goal-item";
 
@@ -141,25 +163,75 @@ document.addEventListener("DOMContentLoaded", function () {
         const title = document.createElement("strong");
         title.textContent = goal.name;
 
+        if (completed) {
+            title.style.textDecoration = "line-through";
+        }
+
         const percentage = document.createElement("span");
-        percentage.textContent = "0%";
+        percentage.textContent = completed ? "100%" : "0%";
 
         header.append(title, percentage);
 
         const track = document.createElement("div");
         track.className = "progress-track";
-        track.setAttribute("aria-label", "Goal progress: 0%");
+        track.setAttribute(
+            "aria-label",
+            "Goal progress: " + (completed ? "100%" : "0%")
+        );
 
         const fill = document.createElement("div");
         fill.className = "progress-fill";
-        fill.style.width = "0%";
+        fill.style.width = completed ? "100%" : "0%";
+
         track.appendChild(fill);
 
-        const note = document.createElement("small");
-        note.textContent =
-            "Saved locally · Progress tracking is not connected.";
+        const status = document.createElement("small");
+        status.textContent = completed
+            ? "Completed"
+            : "In progress";
 
-        item.append(header, track, note);
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "goal-complete-button";
+        toggleButton.textContent = completed
+            ? "Mark as in progress"
+            : "Mark as completed";
+        toggleButton.setAttribute(
+            "aria-pressed",
+            String(completed)
+        );
+
+        toggleButton.style.marginTop = "10px";
+        toggleButton.style.padding = "8px 12px";
+        toggleButton.style.borderRadius = "8px";
+        toggleButton.style.border = "1px solid #cbd5e1";
+        toggleButton.style.cursor = "pointer";
+        toggleButton.style.fontSize = "14px";
+
+        toggleButton.addEventListener("click", function () {
+            const goals = readGoals();
+
+            if (!goals[index]) {
+                window.alert(
+                    "This goal could not be found. Please refresh the page."
+                );
+                return;
+            }
+
+            goals[index].completed = !goals[index].completed;
+
+            if (!saveGoals(goals)) {
+                window.alert(
+                    "The status could not be saved. " +
+                    "Your browser storage may be unavailable."
+                );
+                return;
+            }
+
+            displayGoals();
+        });
+
+        item.append(header, track, status, toggleButton);
 
         return item;
     }
@@ -176,20 +248,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const goals = readGoals();
 
-        goals.forEach(function (goal) {
-            goalList.appendChild(renderGoal(goal));
+        goals.forEach(function (goal, index) {
+            goalList.appendChild(renderGoal(goal, index));
         });
 
         console.info(
-            "BusinessFlow: Rendered " + goals.length + " saved goal(s)."
+            "BusinessFlow: Displayed " + goals.length + " goal(s)."
         );
     }
 
     function createGoal() {
         if (!goalList) {
-            window.alert(
-                "Goal list is missing. The dashboard HTML needs checking."
-            );
+            window.alert("The dashboard goal list could not be found.");
             return;
         }
 
@@ -210,49 +280,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
         goals.push({
             name: name,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            completed: false
         });
 
-        try {
-            window.localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify(goals)
-            );
-
-            const savedValue = window.localStorage.getItem(STORAGE_KEY);
-
-            if (!savedValue) {
-                throw new Error("Browser storage returned no saved value.");
-            }
-
-            const verifiedGoals = JSON.parse(savedValue);
-
-            if (!Array.isArray(verifiedGoals)) {
-                throw new Error("Saved goals could not be verified.");
-            }
-
-            goalList.appendChild(renderGoal({
-                name: name
-            }));
-
+        if (!saveGoals(goals)) {
             window.alert(
-                "Goal saved and displayed: " + name +
-                ". Browser storage confirmed. Cloud sync is not connected."
+                "The goal could not be saved in browser storage."
             );
-
-            console.info("BusinessFlow: Goal saved and displayed.", name);
-        } catch (error) {
-            console.error("BusinessFlow: Goal save failed.", error);
-
-            goalList.appendChild(renderGoal({
-                name: name
-            }));
-
-            window.alert(
-                "Your goal was added to the current page, but saving " +
-                "failed. Check browser storage settings."
-            );
+            return;
         }
+
+        displayGoals();
+
+        window.alert(
+            "Goal created: " + name +
+            ". You can now mark it as completed when you achieve it."
+        );
     }
 
     if (goalButton) {
@@ -288,6 +332,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateReport(period) {
         const report = reports[period];
+
         if (!report) return;
 
         [
@@ -297,7 +342,10 @@ document.addEventListener("DOMContentLoaded", function () {
             ["experiments-value", report.experiments]
         ].forEach(function (entry) {
             const element = document.getElementById(entry[0]);
-            if (element) element.textContent = entry[1];
+
+            if (element) {
+                element.textContent = entry[1];
+            }
         });
 
         const disclaimer = document.querySelector(".chart-disclaimer");
@@ -324,6 +372,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     console.info(
-        "BusinessFlow initialized. Dashboard figures are sample data."
+        "BusinessFlow initialized. Analytics figures are sample data."
     );
 });
