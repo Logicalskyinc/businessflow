@@ -1,5 +1,4 @@
-/* BusinessFlow — Frontend interactions
-Business Goals + Local Persistence
+/* BusinessFlow — Business Goals + Local Persistence
 Browser prototype only. No backend or database connection.
 */
 
@@ -9,9 +8,17 @@ const STORAGE_KEY = “businessflow_goals_v1”;
 
 const DEFAULT_GOALS = [
 {
+id: “revenue-1000000”,
+title: “Increase revenue”,
+current: 680000,
+target: 1000000,
+unit: “₦”,
+createdAt: new Date().toISOString()
+},
+{
 id: “customers-100”,
-title: “I want 100 customers”,
-current: 0,
+title: “Acquire customers”,
+current: 45,
 target: 100,
 unit: “customers”,
 createdAt: new Date().toISOString()
@@ -86,38 +93,22 @@ function formatNumber(value) {
 return new Intl.NumberFormat().format(Number(value) || 0);
 }
 
-function findGoalContainer() {
-const selectors = [
-“#goals-list”,
-“#goal-list”,
-“.goal-list”,
-“[data-goals-list]”
-];
+function formatGoalValue(value, unit) {
+const number = formatNumber(value);
 
-for (const selector of selectors) {
-const element = document.querySelector(selector);
-if (element) return element;
+if (unit === “₦”) {
+return “₦” + number;
 }
 
-return null;
+return number + (unit ? “ “ + escapeHTML(unit) : “”);
 }
 
-function renderGoals() {
-const container = findGoalContainer();
-
-if (!container) {
-console.warn(
-“BusinessFlow: Could not find the goals list container. “ +
-“Check the goal-list element in index.html.”
-);
-updateStorageStatus();
-return;
-}
+function renderGoalList(container) {
+if (!container) return;
 
 if (goals.length === 0) {
 container.innerHTML =
 ‘No goals yet. Create your first business goal.’;
-updateStorageStatus();
 return;
 }
 
@@ -125,11 +116,12 @@ container.innerHTML = goals.map(goal => {
 const progress = getProgress(goal);
 const current = Math.max(0, Number(goal.current) || 0);
 const target = Number(goal.target) || 1;
-const unit = escapeHTML(goal.unit || “units”);
 const title = escapeHTML(goal.title);
+const id = escapeHTML(goal.id);
+const unit = goal.unit || “units”;
 
 return `
-  <article class="goal-item" data-goal-id="${escapeHTML(goal.id)}">
+  <article class="goal-item" data-goal-id="${id}">
     <div class="goal-top">
       <strong>${title}</strong>
       <span>${progress}%</span>
@@ -148,38 +140,46 @@ return `
       ></div>
     </div>
     <small>
-      ${formatNumber(current)} of ${formatNumber(target)} ${unit}
+      ${formatGoalValue(current, unit)} of ${formatGoalValue(target, unit)} target
     </small>
     <div class="record-actions">
       <button
         class="small-button"
         type="button"
         data-action="update"
-        data-id="${escapeHTML(goal.id)}"
+        data-id="${id}"
       >Update progress</button>
       <button
         class="small-button"
         type="button"
         data-action="edit"
-        data-id="${escapeHTML(goal.id)}"
+        data-id="${id}"
       >Edit goal</button>
     </div>
   </article>
 `;
 
 }).join(””);
+}
+
+function renderGoals() {
+renderGoalList(document.querySelector(”#goal-list”));
+renderGoalList(document.querySelector(”#all-goals-list”));
+
+const count = document.querySelector(”#goal-count”);
+if (count) {
+count.textContent = String(goals.length);
+}
 
 updateStorageStatus();
 }
 
 function updateStorageStatus() {
-const statusElements = document.querySelectorAll(
+document.querySelectorAll(
 “[data-storage-status], #goal-storage-status”
-);
-
-statusElements.forEach(element => {
+).forEach(element => {
 element.textContent = storageAvailable
-? “Saved locally in this browser · Progress tracking is local”
+? “Saved locally in this browser · Not synced across devices”
 : “Browser storage unavailable · Changes may not persist”;
 });
 }
@@ -204,46 +204,67 @@ toast.classList.remove(“show”);
 }, 3000);
 }
 
-function createGoal() {
-const title = prompt(“What business goal do you want to achieve?”);
-if (title === null || !title.trim()) return;
-
-const targetInput = prompt(“What is your target number?”, “100”);
-if (targetInput === null) return;
-
-const target = Number(targetInput);
-
-if (!Number.isFinite(target) || target <= 0) {
-showToast(“Enter a target greater than zero.”);
-return;
+function createId() {
+if (window.crypto && typeof window.crypto.randomUUID === “function”) {
+return window.crypto.randomUUID();
 }
 
-const unit = prompt(“What are you measuring? (customers, sales, etc.)”, “customers”);
-if (unit === null) return;
+return “goal-” + Date.now() + “-” +
+Math.random().toString(36).slice(2, 10);
+}
+
+function createGoalFromValues(title, current, target, unit) {
+const cleanTitle = title.trim();
+const currentValue = Number(current);
+const targetValue = Number(target);
+
+if (!cleanTitle) {
+showToast(“Enter a goal name.”);
+return false;
+}
+
+if (!Number.isFinite(currentValue) || currentValue < 0) {
+showToast(“Enter a valid current progress.”);
+return false;
+}
+
+if (!Number.isFinite(targetValue) || targetValue <= 0) {
+showToast(“Enter a target greater than zero.”);
+return false;
+}
 
 const goal = {
 id: createId(),
-title: title.trim(),
-current: 0,
-target,
+title: cleanTitle,
+current: currentValue,
+target: targetValue,
 unit: unit.trim() || “units”,
 createdAt: new Date().toISOString()
 };
 
 goals.push(goal);
 
-if (saveGoals()) {
+if (!saveGoals()) {
+goals.pop();
+return false;
+}
+
 renderGoals();
 showToast(“Goal created and saved in this browser.”);
-}
-}
-
-function createId() {
-if (window.crypto && typeof window.crypto.randomUUID === “function”) {
-return window.crypto.randomUUID();
+return true;
 }
 
-return “goal-” + Date.now() + “-” + Math.random().toString(36).slice(2, 10);
+function createGoal() {
+const title = prompt(“What business goal do you want to achieve?”);
+if (title === null) return;
+
+const targetInput = prompt(“What is your target value?”, “100”);
+if (targetInput === null) return;
+
+const unit = prompt(“What are you measuring?”, “customers”);
+if (unit === null) return;
+
+createGoalFromValues(title, 0, targetInput, unit);
 }
 
 function updateGoal(id) {
@@ -251,7 +272,7 @@ const goal = goals.find(item => item.id === id);
 if (!goal) return;
 
 const input = prompt(
-Current progress for "${goal.title}" (${goal.unit}):,
+Current progress for "${goal.title}":,
 String(goal.current)
 );
 
@@ -264,11 +285,14 @@ showToast(“Enter a valid number of zero or greater.”);
 return;
 }
 
+const previous = goal.current;
 goal.current = current;
 
 if (saveGoals()) {
 renderGoals();
 showToast(“Progress updated and saved locally.”);
+} else {
+goal.current = previous;
 }
 }
 
@@ -292,6 +316,8 @@ return;
 const unit = prompt(“Measurement unit:”, goal.unit || “units”);
 if (unit === null) return;
 
+const previous = { …goal };
+
 goal.title = title.trim();
 goal.target = target;
 goal.unit = unit.trim() || “units”;
@@ -299,23 +325,47 @@ goal.unit = unit.trim() || “units”;
 if (saveGoals()) {
 renderGoals();
 showToast(“Goal updated and saved locally.”);
+} else {
+Object.assign(goal, previous);
 }
+}
+
+function setupGoalForm() {
+const form = document.querySelector(”#goal-form”);
+if (!form) return;
+
+form.addEventListener(“submit”, event => {
+event.preventDefault();
+
+const title = document.querySelector("#goal-title")?.value || "";
+const current = document.querySelector("#goal-current")?.value || "0";
+const target = document.querySelector("#goal-target")?.value || "";
+const unit = document.querySelector("#goal-unit")?.value || "units";
+const created = createGoalFromValues(title, current, target, unit);
+if (created) {
+  form.reset();
+  const currentField = document.querySelector("#goal-current");
+  if (currentField) currentField.value = "0";
+}
+
+});
 }
 
 function setupGoalActions() {
 document.addEventListener(“click”, event => {
-const actionButton = event.target.closest(”[data-action]”);
-if (actionButton) {
-const id = actionButton.dataset.id;
-const action = actionButton.dataset.action;
+const target = event.target;
+if (!(target instanceof Element)) return;
 
+const actionButton = target.closest("[data-action]");
+if (actionButton) {
+  const id = actionButton.dataset.id;
+  const action = actionButton.dataset.action;
   if (action === "update") updateGoal(id);
   if (action === "edit") editGoal(id);
+  if (action === "create-goal") createGoal();
   return;
 }
-const createButton = event.target.closest(
-  "#create-goal, #add-goal, [data-action='create-goal']"
-);
+const createButton = target.closest("#goal-button, #create-goal, #add-goal");
 if (createButton) {
   event.preventDefault();
   createGoal();
@@ -331,18 +381,20 @@ const sidebar = document.querySelector(”.sidebar”);
 if (menuButton && sidebar) {
 menuButton.addEventListener(“click”, () => {
 sidebar.classList.toggle(“open”);
-menuButton.setAttribute(
-“aria-expanded”,
-String(sidebar.classList.contains(“open”))
-);
+
+  menuButton.setAttribute(
+    "aria-expanded",
+    String(sidebar.classList.contains("open"))
+  );
 });
+
 }
 
 document.querySelectorAll(”.nav-link”).forEach(link => {
 link.addEventListener(“click”, event => {
 const href = link.getAttribute(“href”);
-if (!href || !href.startsWith(”#”)) return;
 
+  if (!href || !href.startsWith("#")) return;
   const target = document.querySelector(href);
   if (!target) return;
   event.preventDefault();
@@ -355,7 +407,9 @@ if (!href || !href.startsWith(”#”)) return;
   link.classList.add("active");
   target.classList.add("active");
   const breadcrumb = document.querySelector(".breadcrumb strong");
-  if (breadcrumb) breadcrumb.textContent = link.textContent.trim();
+  if (breadcrumb) {
+    breadcrumb.textContent = link.textContent.trim();
+  }
   if (sidebar) sidebar.classList.remove("open");
   history.replaceState(null, "", href);
 });
@@ -366,6 +420,7 @@ if (!href || !href.startsWith(”#”)) return;
 function initializeBusinessFlow() {
 loadGoals();
 setupGoalActions();
+setupGoalForm();
 setupNavigation();
 renderGoals();
 }
