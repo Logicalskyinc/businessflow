@@ -2,25 +2,25 @@
 Browser prototype only. No backend or database connection.
 */
 
-“use strict”;
+"use strict";
 
-const STORAGE_KEY = “businessflow_goals_v1”;
+const STORAGE_KEY = "businessflow_goals_v1";
 
 const DEFAULT_GOALS = [
 {
-id: “revenue-1000000”,
-title: “Increase revenue”,
+id: "revenue-1000000",
+title: "Increase revenue",
 current: 680000,
 target: 1000000,
-unit: “₦”,
+unit: "₦",
 createdAt: new Date().toISOString()
 },
 {
-id: “customers-100”,
-title: “Acquire customers”,
+id: "customers-100",
+title: "Acquire customers",
 current: 45,
 target: 100,
-unit: “customers”,
+unit: "customers",
 createdAt: new Date().toISOString()
 }
 ];
@@ -52,8 +52,8 @@ goals = parsed.filter(goal =>
 
 } catch (error) {
 storageAvailable = false;
-goals = DEFAULT_GOALS.map(goal => ({ …goal }));
-console.error(“BusinessFlow could not load saved goals:”, error);
+goals = DEFAULT_GOALS.map(goal => ({ ...goal }));
+console.error("BusinessFlow could not load saved goals:", error);
 }
 }
 
@@ -66,19 +66,19 @@ return true;
 } catch (error) {
 storageAvailable = false;
 updateStorageStatus();
-console.error(“BusinessFlow could not save goals:”, error);
-showToast(“Could not save changes. Browser storage may be unavailable.”);
+console.error("BusinessFlow could not save goals:", error);
+showToast("Could not save changes. Browser storage may be unavailable.");
 return false;
 }
 }
 
 function escapeHTML(value) {
-return String(value).replace(/[&<>”’]/g, character => ({
-“&”: “&”,
-“<”: “<”,
-“>”: “>”,
-‘”’: “"”,
-“’”: “'”
+return String(value).replace(/[&<>"']/g, character => ({
+"&": "&",
+"<": "<",
+">": ">",
+'"': """,
+"'": "'"
 })[character]);
 }
 
@@ -96,11 +96,11 @@ return new Intl.NumberFormat().format(Number(value) || 0);
 function formatGoalValue(value, unit) {
 const number = formatNumber(value);
 
-if (unit === “₦”) {
-return “₦” + number;
+if (unit === "₦") {
+return "₦" + number;
 }
 
-return number + (unit ? “ “ + escapeHTML(unit) : “”);
+return number + (unit ? " " + escapeHTML(unit) : "");
 }
 
 function renderGoalList(container) {
@@ -108,7 +108,7 @@ if (!container) return;
 
 if (goals.length === 0) {
 container.innerHTML =
-‘No goals yet. Create your first business goal.’;
+'No goals yet. Create your first business goal.';
 return;
 }
 
@@ -118,7 +118,7 @@ const current = Math.max(0, Number(goal.current) || 0);
 const target = Number(goal.target) || 1;
 const title = escapeHTML(goal.title);
 const id = escapeHTML(goal.id);
-const unit = goal.unit || “units”;
+const unit = goal.unit || "units";
 
 return `
   <article class="goal-item" data-goal-id="${id}">
@@ -159,14 +159,14 @@ return `
   </article>
 `;
 
-}).join(””);
+}).join("");
 }
 
 function renderGoals() {
-renderGoalList(document.querySelector(”#goal-list”));
-renderGoalList(document.querySelector(”#all-goals-list”));
+renderGoalList(document.querySelector("#goal-list"));
+renderGoalList(document.querySelector("#all-goals-list"));
 
-const count = document.querySelector(”#goal-count”);
+const count = document.querySelector("#goal-count");
 if (count) {
 count.textContent = String(goals.length);
 }
@@ -176,40 +176,40 @@ updateStorageStatus();
 
 function updateStorageStatus() {
 document.querySelectorAll(
-“[data-storage-status], #goal-storage-status”
+"[data-storage-status], #goal-storage-status"
 ).forEach(element => {
 element.textContent = storageAvailable
-? “Saved locally in this browser · Not synced across devices”
-: “Browser storage unavailable · Changes may not persist”;
+? "Saved locally in this browser · Not synced across devices"
+: "Browser storage unavailable · Changes may not persist";
 });
 }
 
 function showToast(message) {
-let toast = document.querySelector(”.toast”);
+let toast = document.querySelector(".toast");
 
 if (!toast) {
-toast = document.createElement(“div”);
-toast.className = “toast”;
-toast.setAttribute(“role”, “status”);
-toast.setAttribute(“aria-live”, “polite”);
+toast = document.createElement("div");
+toast.className = "toast";
+toast.setAttribute("role", "status");
+toast.setAttribute("aria-live", "polite");
 document.body.appendChild(toast);
 }
 
 toast.textContent = message;
-toast.classList.add(“show”);
+toast.classList.add("show");
 
 clearTimeout(showToast.timer);
 showToast.timer = setTimeout(() => {
-toast.classList.remove(“show”);
+toast.classList.remove("show");
 }, 3000);
 }
 
 function createId() {
-if (window.crypto && typeof window.crypto.randomUUID === “function”) {
+if (window.crypto && typeof window.crypto.randomUUID === "function") {
 return window.crypto.randomUUID();
 }
 
-return “goal-” + Date.now() + “-” +
+return "goal-" + Date.now() + "-" +
 Math.random().toString(36).slice(2, 10);
 }
 
@@ -219,17 +219,17 @@ const currentValue = Number(current);
 const targetValue = Number(target);
 
 if (!cleanTitle) {
-showToast(“Enter a goal name.”);
+showToast("Enter a goal name.");
 return false;
 }
 
 if (!Number.isFinite(currentValue) || currentValue < 0) {
-showToast(“Enter a valid current progress.”);
+showToast("Enter a valid current progress.");
 return false;
 }
 
 if (!Number.isFinite(targetValue) || targetValue <= 0) {
-showToast(“Enter a target greater than zero.”);
+showToast("Enter a target greater than zero.");
 return false;
 }
 
@@ -238,7 +238,7 @@ id: createId(),
 title: cleanTitle,
 current: currentValue,
 target: targetValue,
-unit: unit.trim() || “units”,
+unit: unit.trim() || "units",
 createdAt: new Date().toISOString()
 };
 
@@ -250,18 +250,18 @@ return false;
 }
 
 renderGoals();
-showToast(“Goal created and saved in this browser.”);
+showToast("Goal created and saved in this browser.");
 return true;
 }
 
 function createGoal() {
-const title = prompt(“What business goal do you want to achieve?”);
+const title = prompt("What business goal do you want to achieve?");
 if (title === null) return;
 
-const targetInput = prompt(“What is your target value?”, “100”);
+const targetInput = prompt("What is your target value?", "100");
 if (targetInput === null) return;
 
-const unit = prompt(“What are you measuring?”, “customers”);
+const unit = prompt("What are you measuring?", "customers");
 if (unit === null) return;
 
 createGoalFromValues(title, 0, targetInput, unit);
@@ -272,8 +272,8 @@ const goal = goals.find(item => item.id === id);
 if (!goal) return;
 
 const input = prompt(
-Current progress for "${goal.title}":,
-String(goal.current)
+  `Current progress for "${goal.title}":`,
+  String(goal.current)
 );
 
 if (input === null) return;
@@ -281,7 +281,7 @@ if (input === null) return;
 const current = Number(input);
 
 if (!Number.isFinite(current) || current < 0) {
-showToast(“Enter a valid number of zero or greater.”);
+showToast("Enter a valid number of zero or greater.");
 return;
 }
 
@@ -290,7 +290,7 @@ goal.current = current;
 
 if (saveGoals()) {
 renderGoals();
-showToast(“Progress updated and saved locally.”);
+showToast("Progress updated and saved locally.");
 } else {
 goal.current = previous;
 }
@@ -300,41 +300,41 @@ function editGoal(id) {
 const goal = goals.find(item => item.id === id);
 if (!goal) return;
 
-const title = prompt(“Goal name:”, goal.title);
+const title = prompt("Goal name:", goal.title);
 if (title === null || !title.trim()) return;
 
-const targetInput = prompt(“Target value:”, String(goal.target));
+const targetInput = prompt("Target value:", String(goal.target));
 if (targetInput === null) return;
 
 const target = Number(targetInput);
 
 if (!Number.isFinite(target) || target <= 0) {
-showToast(“Enter a target greater than zero.”);
+showToast("Enter a target greater than zero.");
 return;
 }
 
-const unit = prompt(“Measurement unit:”, goal.unit || “units”);
+const unit = prompt("Measurement unit:", goal.unit || "units");
 if (unit === null) return;
 
-const previous = { …goal };
+const previous = { ...goal };
 
 goal.title = title.trim();
 goal.target = target;
-goal.unit = unit.trim() || “units”;
+goal.unit = unit.trim() || "units";
 
 if (saveGoals()) {
 renderGoals();
-showToast(“Goal updated and saved locally.”);
+showToast("Goal updated and saved locally.");
 } else {
 Object.assign(goal, previous);
 }
 }
 
 function setupGoalForm() {
-const form = document.querySelector(”#goal-form”);
+const form = document.querySelector("#goal-form");
 if (!form) return;
 
-form.addEventListener(“submit”, event => {
+form.addEventListener("submit", event => {
 event.preventDefault();
 
 const title = document.querySelector("#goal-title")?.value || "";
@@ -352,7 +352,7 @@ if (created) {
 }
 
 function setupGoalActions() {
-document.addEventListener(“click”, event => {
+document.addEventListener("click", event => {
 const target = event.target;
 if (!(target instanceof Element)) return;
 
@@ -375,12 +375,12 @@ if (createButton) {
 }
 
 function setupNavigation() {
-const menuButton = document.querySelector(”.menu-button”);
-const sidebar = document.querySelector(”.sidebar”);
+const menuButton = document.querySelector(".menu-button");
+const sidebar = document.querySelector(".sidebar");
 
 if (menuButton && sidebar) {
-menuButton.addEventListener(“click”, () => {
-sidebar.classList.toggle(“open”);
+menuButton.addEventListener("click", () => {
+sidebar.classList.toggle("open");
 
   menuButton.setAttribute(
     "aria-expanded",
@@ -390,9 +390,9 @@ sidebar.classList.toggle(“open”);
 
 }
 
-document.querySelectorAll(”.nav-link”).forEach(link => {
-link.addEventListener(“click”, event => {
-const href = link.getAttribute(“href”);
+document.querySelectorAll(".nav-link").forEach(link => {
+link.addEventListener("click", event => {
+const href = link.getAttribute("href");
 
   if (!href || !href.startsWith("#")) return;
   const target = document.querySelector(href);
@@ -425,8 +425,8 @@ setupNavigation();
 renderGoals();
 }
 
-if (document.readyState === “loading”) {
-document.addEventListener(“DOMContentLoaded”, initializeBusinessFlow);
+if (document.readyState === "loading") {
+document.addEventListener("DOMContentLoaded", initializeBusinessFlow);
 } else {
 initializeBusinessFlow();
 }
