@@ -18,6 +18,7 @@
   <nav class="navigation" aria-label="Main navigation">
     <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
     <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
+    <a href="#content-studio" class="nav-link" data-page="content-studio"><span>✳</span> Content Studio</a>
     <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
     <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
     <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
@@ -137,6 +138,98 @@
       <div class="page-heading"><p class="eyebrow">PERFORMANCE</p><h1>Analytics</h1><p class="subtitle">Explore business performance and trends.</p></div>
       <div class="panel"><h2>Analytics workspace</h2><p class="muted">Real analytics require connected business data. Dashboard figures are illustrative.</p></div>
     </section>
+    <section class="page" id="content-studio">
+      <div class="page-heading">
+        <p class="eyebrow">EMAN · CONTENT CREATION</p>
+        <h1>Content Studio</h1>
+        <p class="subtitle">Turn a business goal into clear, platform-ready marketing drafts.</p>
+      </div>
+      <div class="notice">
+        <strong>INTEGRATION STATUS</strong>
+        <span>Demo preview works in this prototype. Live AI generation requires the secure EMAN server endpoint; no API key is stored in this page.</span>
+      </div>
+      <div class="studio-layout">
+        <article class="panel">
+          <h2>Build your content brief</h2>
+          <p class="muted">Describe the business and what you want the content to achieve.</p>
+          <form id="content-form" class="form-grid studio-form">
+            <label class="form-label full-span">Business name
+              <input name="businessName" maxlength="120" placeholder="e.g. Grand-Bassam Bakery" required>
+            </label>
+            <label class="form-label">Industry
+              <input name="industry" maxlength="120" placeholder="e.g. Food and hospitality" required>
+            </label>
+            <label class="form-label">Business location
+              <input name="location" maxlength="120" placeholder="e.g. Grand-Bassam">
+            </label>
+            <label class="form-label full-span">Who is your target audience?
+              <input name="audience" maxlength="300" placeholder="e.g. Families and working professionals" required>
+            </label>
+            <label class="form-label full-span">What do you offer?
+              <textarea name="offer" maxlength="300" rows="2" placeholder="Describe your product or service" required></textarea>
+            </label>
+            <label class="form-label full-span">Marketing goal
+              <select name="goal" required>
+                <option value="Increase brand awareness">Increase brand awareness</option>
+                <option value="Attract new customers">Attract new customers</option>
+                <option value="Promote a product or service">Promote a product or service</option>
+                <option value="Increase enquiries and leads">Increase enquiries and leads</option>
+                <option value="Encourage repeat purchases">Encourage repeat purchases</option>
+              </select>
+            </label>
+            <label class="form-label full-span">What should this content be about?
+              <textarea name="topic" maxlength="500" rows="3" placeholder="Describe the message, offer or update. Avoid including private customer data." required></textarea>
+            </label>
+            <label class="form-label">Content format
+              <select name="contentType">
+                <option value="social_post">Social media post</option>
+                <option value="caption">Caption</option>
+                <option value="campaign_ideas">Campaign ideas</option>
+                <option value="email">Marketing email</option>
+                <option value="product_description">Product description</option>
+                <option value="blog_outline">Blog outline</option>
+              </select>
+            </label>
+            <label class="form-label">Language
+              <select name="language">
+                <option>English</option>
+                <option>French</option>
+                <option>Nigerian Pidgin</option>
+              </select>
+            </label>
+            <fieldset class="studio-platforms full-span">
+              <legend>Choose platforms (select up to four)</legend>
+              <label><input type="checkbox" name="platforms" value="instagram" checked> Instagram</label>
+              <label><input type="checkbox" name="platforms" value="facebook" checked> Facebook</label>
+              <label><input type="checkbox" name="platforms" value="whatsapp"> WhatsApp</label>
+              <label><input type="checkbox" name="platforms" value="linkedin"> LinkedIn</label>
+              <label><input type="checkbox" name="platforms" value="tiktok"> TikTok</label>
+              <label><input type="checkbox" name="platforms" value="website"> Website</label>
+            </fieldset>
+            <label class="form-label full-span">Brand voice
+              <select name="brandVoice">
+                <option value="clear, trustworthy, and helpful">Clear and trustworthy</option>
+                <option value="warm and friendly">Warm and friendly</option>
+                <option value="professional and data-focused">Professional and data-focused</option>
+                <option value="bold, energetic, and persuasive">Bold and energetic</option>
+              </select>
+            </label>
+            <label class="studio-checkbox full-span"><input type="checkbox" name="includeCta" checked> Include a suggested call to action</label>
+            <div class="studio-actions full-span">
+              <button type="button" class="secondary-button" id="preview-content">Preview demo</button>
+              <button type="button" class="primary-button" id="generate-content">Generate with EMAN</button>
+            </div>
+          </form>
+        </article>
+        <section class="panel studio-output" aria-labelledby="content-output-title">
+          <h2 id="content-output-title">Your drafts</h2>
+          <p class="muted">Generated content appears here. Review all facts and offers before publishing.</p>
+          <p id="content-result-status" class="studio-result-status" role="status">Ready when you are. Choose Preview demo to try the layout without calling an AI service.</p>
+          <div id="content-results" class="studio-results"></div>
+          <div class="studio-safety-note"><strong>Human approval required</strong><span>BusinessFlow does not publish posts from this screen. Confirm prices, availability, claims and contact details yourself.</span></div>
+        </section>
+      </div>
+    </section>
     <section class="page" id="experiments">
       <div class="page-heading"><p class="eyebrow">LEARN</p><h1>Experiments</h1><p class="subtitle">Test business ideas and record what you learn.</p></div>
       <div class="panel"><h2>Experiment workspace</h2><p class="muted">Experiment management is not implemented yet.</p></div>
@@ -192,5 +285,6 @@
   </div>
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="script.js" defer></script>
+  <script src="content-studio.js" defer></script>
 </body>
 </html>
