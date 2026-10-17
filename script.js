@@ -81,7 +81,6 @@ return String(value).replace(/[&<>"']/g, character => ({
   "'": "&#39;"
 })[character]);
 }
-}
 
 function getProgress(goal) {
 const current = Math.max(0, Number(goal.current) || 0);
