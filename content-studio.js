@@ -136,6 +136,15 @@ function setupContentStudio() {
   const preview = studioElement("#preview-content");
   if (!form || !generate || !preview) return;
 
+  form.addEventListener("change", event => {
+    if (!(event.target instanceof HTMLInputElement) || event.target.name !== "platforms") return;
+    const checked = Array.from(form.querySelectorAll('input[name="platforms"]:checked'));
+    if (checked.length > 4) {
+      event.target.checked = false;
+      studioToast("Choose no more than four platforms per request.");
+    }
+  });
+
   form.addEventListener("submit", event => event.preventDefault());
 
   preview.addEventListener("click", () => {
