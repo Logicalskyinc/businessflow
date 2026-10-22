@@ -199,9 +199,57 @@ function renderGoalList(container) {
   }).join("");
 }
 
+/* New: display saved goal progress in Analytics. */
+function renderAnalyticsGoals() {
+  const container = document.querySelector("#analytics-goals");
+  if (!container) return;
+
+  if (goals.length === 0) {
+    container.innerHTML = `
+      <p class="empty-state">
+        No saved goals yet. Create a goal to start tracking progress.
+      </p>
+    `;
+    return;
+  }
+
+  container.innerHTML = goals.map(goal => {
+    const title = escapeHTML(goal.title);
+    const progress = getProgress(goal);
+    const unit = goal.unit || "units";
+
+    return `
+      <article class="goal-item">
+        <div class="goal-top">
+          <strong>${title}</strong>
+          <span>${progress}% complete</span>
+        </div>
+
+        <div class="progress-track"
+          role="progressbar"
+          aria-label="${title} completion"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="${progress}">
+          <div class="progress-fill ${progress >= 100 ? "complete" : ""}"
+            style="width:${progress}%"></div>
+        </div>
+
+        <small>
+          ${formatGoalValue(goal.current, unit)}
+          of ${formatGoalValue(goal.target, unit)}
+        </small>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderGoals() {
   renderGoalList(document.querySelector("#goal-list"));
   renderGoalList(document.querySelector("#all-goals-list"));
+
+  /* Refresh Analytics whenever goals change. */
+  renderAnalyticsGoals();
 
   const count = document.querySelector("#goal-count");
   if (count) count.textContent = String(goals.length);
