@@ -189,6 +189,10 @@ function renderGoalList(container) {
             data-action="edit" data-id="${id}">
             Edit goal
           </button>
+          <button class="small-button danger" type="button"
+            data-action="delete" data-id="${id}">
+            Delete goal
+          </button>
         </div>
       </article>
     `;
@@ -290,7 +294,9 @@ function navigateTo(pageId) {
   }
 
   document.querySelector("#sidebar")?.classList.remove("open");
-  document.querySelector(".menu-button")?.setAttribute("aria-expanded", "false");
+  document.querySelector(".menu-button")?.setAttribute(
+    "aria-expanded", "false"
+  );
 
   if (location.hash !== "#" + pageId) {
     history.replaceState(null, "", "#" + pageId);
@@ -302,6 +308,30 @@ function handleGoalAction(action, id) {
 
   if (!goal) {
     showToast("Goal not found. Refresh and try again.");
+    return;
+  }
+
+  if (action === "delete") {
+    const confirmed = window.confirm(
+      'Delete "' + goal.title +
+      '"? This removes the goal from this browser only.'
+    );
+
+    if (!confirmed) return;
+
+    const index = goals.findIndex(item => item.id === id);
+    if (index < 0) return;
+
+    const removedGoal = goals.splice(index, 1)[0];
+
+    if (!saveGoals()) {
+      goals.splice(index, 0, removedGoal);
+      renderGoals();
+      return;
+    }
+
+    renderGoals();
+    showToast("Goal deleted from this browser.");
     return;
   }
 
@@ -330,6 +360,7 @@ function handleGoalAction(action, id) {
 
     renderGoals();
     showToast("Progress updated locally.");
+    return;
   }
 
   if (action === "edit") {
@@ -346,7 +377,11 @@ function handleGoalAction(action, id) {
 
     const target = Number(targetInput);
 
-    if (targetInput.trim() === "" || !Number.isFinite(target) || target <= 0) {
+    if (
+      targetInput.trim() === "" ||
+      !Number.isFinite(target) ||
+      target <= 0
+    ) {
       showToast("Target must be greater than zero.");
       return;
     }
