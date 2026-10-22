@@ -250,10 +250,52 @@
             <h1>Experiments</h1>
             <p class="subtitle">Test business ideas and record what you learn.</p>
           </div>
-          <div class="panel">
-            <h2>Experiment workspace</h2>
-            <p class="muted">Experiment management is not implemented yet.</p>
+          <div class="notice">
+            <strong>LOCAL STORAGE</strong>
+            <span>Experiments are saved in this browser only. They are not synced across devices or connected to live business data.</span>
           </div>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><h2>Your experiments</h2><p class="muted">Track a hypothesis, baseline, outcome, and what you learned.</p></div>
+              <span class="count-pill" id="experiment-count">0</span>
+            </div>
+            <div id="experiment-list" class="record-list">
+              <p class="empty-state">Loading experiments…</p>
+            </div>
+            <p class="muted" data-storage-status role="status"></p>
+          </article>
+
+          <article class="panel">
+            <h2>Create an experiment</h2>
+            <p class="muted">Start with a clear, measurable hypothesis.</p>
+            <form id="experiment-form" class="form-grid">
+              <label class="form-label full-span">Experiment name
+                <input id="experiment-title" name="title" maxlength="120" placeholder="e.g. Test a new pricing offer" required>
+              </label>
+              <label class="form-label full-span">Hypothesis
+                <textarea id="experiment-hypothesis" name="hypothesis" rows="3" maxlength="1000" placeholder="If we do X, we expect Y because..." required></textarea>
+              </label>
+              <label class="form-label">Baseline value
+                <input id="experiment-baseline" name="baseline" type="number" min="0" step="any" placeholder="0" required>
+              </label>
+              <label class="form-label">Test result (optional)
+                <input id="experiment-result" name="result" type="number" min="0" step="any" placeholder="Leave blank until measured">
+              </label>
+              <label class="form-label full-span">Status
+                <select id="experiment-status" name="status" required>
+                  <option value="planned">Planned</option>
+                  <option value="running">Running</option>
+                  <option value="review">Review</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </label>
+              <label class="form-label full-span">Learning notes (optional)
+                <textarea id="experiment-notes" name="notes" rows="3" maxlength="2000" placeholder="Record observations and what you learned."></textarea>
+              </label>
+              <button type="submit" class="primary-button full-span">Save experiment</button>
+            </form>
+          </article>
         </section>
 
         <section class="page" id="goals">
@@ -304,10 +346,51 @@
             <h1>Business Memory</h1>
             <p class="subtitle">Organize important business knowledge.</p>
           </div>
-          <div class="panel">
-            <h2>Business memory workspace</h2>
-            <p class="muted">Business memory is not implemented yet.</p>
+          <div class="notice">
+            <strong>LOCAL STORAGE</strong>
+            <span>Notes are saved in this browser only. Do not store passwords, customer secrets, or sensitive company information here.</span>
           </div>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><h2>Business knowledge</h2><p class="muted">Keep decisions, customer insights, lessons, and follow-ups in one place.</p></div>
+              <span class="count-pill" id="memory-count">0</span>
+            </div>
+            <label class="form-label">Search saved notes
+              <input id="memory-search" type="search" maxlength="120" placeholder="Search titles, categories, or notes">
+            </label>
+            <div id="memory-list" class="record-list">
+              <p class="empty-state">Loading business memory…</p>
+            </div>
+            <p class="muted" data-storage-status role="status"></p>
+          </article>
+
+          <article class="panel">
+            <h2>Add a business memory</h2>
+            <p class="muted">Capture knowledge you will want to find later.</p>
+            <form id="memory-form" class="form-grid">
+              <label class="form-label full-span">Title
+                <input id="memory-title" name="title" maxlength="120" placeholder="e.g. Customers prefer weekly packages" required>
+              </label>
+              <label class="form-label">Category
+                <select id="memory-category" name="category" required>
+                  <option value="Decision">Decision</option>
+                  <option value="Customer insight">Customer insight</option>
+                  <option value="Lesson learned">Lesson learned</option>
+                  <option value="Process">Process</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label class="form-label">Date
+                <input id="memory-date" name="date" type="date" required>
+              </label>
+              <label class="form-label full-span">Details
+                <textarea id="memory-content" name="content" rows="4" maxlength="4000" placeholder="Write the decision, insight, or lesson..." required></textarea>
+              </label>
+              <button type="submit" class="primary-button full-span">Save memory</button>
+            </form>
+          </article>
         </section>
 
         <section class="page" id="settings">
@@ -327,6 +410,6 @@
   </div>
 
   <div class="toast" role="status" aria-live="polite"></div>
-  <script src="script.js" defer></script>
+  <script src="script.js?v=3" defer></script>
 </body>
 </html>
