@@ -44,6 +44,7 @@ const EXPERIMENT_STATUSES = [
 
 let goals = [];
 let experiments = [];
+let editingExperimentId = null;
 let memories = [];
 let storageAvailable = true;
 
@@ -539,8 +540,9 @@ function isValidExperiment(item) {
     item.title.trim() &&
     typeof item.hypothesis === "string" &&
     item.hypothesis.trim() &&
-    Number.isFinite(Number(item.baseline)) &&
-    Number(item.baseline) >= 0 &&
+    (item.baseline === null ||
+      item.baseline === undefined ||
+      (Number.isFinite(Number(item.baseline)) && Number(item.baseline) >= 0)) &&
     (item.result === null ||
       item.result === undefined ||
       (Number.isFinite(Number(item.result)) && Number(item.result) >= 0)) &&
@@ -556,7 +558,7 @@ function loadExperiments() {
       id: item.id,
       title: item.title.trim().slice(0, 120),
       hypothesis: item.hypothesis.trim().slice(0, 1000),
-      baseline: Number(item.baseline),
+      baseline: item.baseline === null || item.baseline === undefined ? null : Number(item.baseline),
       result: item.result === null || item.result === undefined
         ? null
         : Number(item.result),
@@ -609,7 +611,9 @@ function renderExperiments() {
 
         <div class="record-details">
           <p><strong>Baseline:</strong>
-            ${escapeHTML(new Intl.NumberFormat().format(item.baseline))}
+            ${item.baseline === null
+              ? "Not recorded yet"
+              : escapeHTML(new Intl.NumberFormat().format(item.baseline))}
           </p>
           <p><strong>Test result:</strong> ${result}</p>
         </div>
@@ -634,9 +638,31 @@ function renderExperiments() {
   }).join("");
 }
 
+function setExperimentFormMode(isEditing) {
+  const form = document.querySelector("#experiment-form");
+  const submitButton = form?.querySelector('button[type="submit"]');
+  const cancelButton = document.querySelector("#experiment-cancel-edit");
+
+  if (submitButton) {
+    submitButton.textContent = isEditing ? "Save changes" : "Save experiment";
+  }
+
+  if (cancelButton) cancelButton.hidden = !isEditing;
+}
+
+function cancelExperimentEdit() {
+  editingExperimentId = null;
+  const form = document.querySelector("#experiment-form");
+  form?.reset();
+  setExperimentFormMode(false);
+}
+
 function setupExperimentForm() {
   const form = document.querySelector("#experiment-form");
   if (!form) return;
+
+  const cancelButton = document.querySelector("#experiment-cancel-edit");
+  cancelButton?.addEventListener("click", cancelExperimentEdit);
 
   form.addEventListener("submit", event => {
     event.preventDefault();
@@ -655,7 +681,7 @@ function setupExperimentForm() {
     const status = document.querySelector("#experiment-status").value;
     const notes = document.querySelector("#experiment-notes").value.trim();
 
-    const baseline = Number(baselineInput);
+    const baseline = baselineInput === "" ? null : Number(baselineInput);
     const result = resultInput === "" ? null : Number(resultInput);
 
     if (!title || title.length > 120) {
@@ -668,8 +694,11 @@ function setupExperimentForm() {
       return;
     }
 
-    if (baselineInput === "" || !Number.isFinite(baseline) || baseline < 0) {
-      showToast("Baseline must be zero or greater.");
+    if (
+      baselineInput !== "" &&
+      (!Number.isFinite(baseline) || baseline < 0)
+    ) {
+      showToast("Baseline must be zero or greater, or left blank until measured.");
       return;
     }
 
@@ -692,6 +721,37 @@ function setupExperimentForm() {
     }
 
     const now = new Date().toISOString();
+
+    if (editingExperimentId !== null) {
+      const item = experiments.find(entry => entry.id === editingExperimentId);
+
+      if (!item) {
+        cancelExperimentEdit();
+        showToast("Experiment not found. Please try editing it again.");
+        return;
+      }
+
+      const previous = { ...item };
+      Object.assign(item, {
+        title,
+        hypothesis,
+        baseline,
+        result,
+        status,
+        notes,
+        updatedAt: now
+      });
+
+      if (!saveExperiments()) {
+        Object.assign(item, previous);
+        return;
+      }
+
+      renderExperiments();
+      cancelExperimentEdit();
+      showToast("Experiment updated in this browser.");
+      return;
+    }
 
     experiments.unshift({
       id: createId(),
@@ -739,6 +799,7 @@ function handleExperimentAction(action, id) {
       return;
     }
 
+    if (editingExperimentId === id) cancelExperimentEdit();
     renderExperiments();
     showToast("Experiment deleted.");
     return;
@@ -746,90 +807,25 @@ function handleExperimentAction(action, id) {
 
   if (action !== "edit") return;
 
-  const title = prompt("Experiment name:", item.title);
-  if (title === null) return;
-
-  const hypothesis = prompt("Hypothesis:", item.hypothesis);
-  if (hypothesis === null) return;
-
-  const baselineInput = prompt("Baseline value:", String(item.baseline));
-  if (baselineInput === null) return;
-
-  const resultInput = prompt(
-    "Test result (leave blank if not recorded):",
-    item.result === null ? "" : String(item.result)
-  );
-  if (resultInput === null) return;
-
-  const statusInput = prompt(
-    "Status: planned, running, review, or completed",
-    item.status
-  );
-  if (statusInput === null) return;
-
-  const notes = prompt("Learning notes:", item.notes);
-  if (notes === null) return;
-
-  const baseline = Number(baselineInput);
-  const result = resultInput.trim() === "" ? null : Number(resultInput);
-  const status = statusInput.trim().toLowerCase();
-
-  if (!title.trim() || title.trim().length > 120) {
-    showToast("Experiment name must contain 1–120 characters.");
+  const form = document.querySelector("#experiment-form");
+  if (!form) {
+    showToast("The experiment form is unavailable.");
     return;
   }
 
-  if (!hypothesis.trim() || hypothesis.trim().length > 1000) {
-    showToast("Hypothesis must contain 1–1,000 characters.");
-    return;
-  }
+  editingExperimentId = id;
+  document.querySelector("#experiment-title").value = item.title;
+  document.querySelector("#experiment-hypothesis").value = item.hypothesis;
+  document.querySelector("#experiment-baseline").value =
+    item.baseline === null ? "" : String(item.baseline);
+  document.querySelector("#experiment-result").value =
+    item.result === null ? "" : String(item.result);
+  document.querySelector("#experiment-status").value = item.status;
+  document.querySelector("#experiment-notes").value = item.notes;
 
-  if (
-    baselineInput.trim() === "" ||
-    !Number.isFinite(baseline) ||
-    baseline < 0
-  ) {
-    showToast("Baseline must be zero or greater.");
-    return;
-  }
-
-  if (
-    resultInput.trim() !== "" &&
-    (!Number.isFinite(result) || result < 0)
-  ) {
-    showToast("Test result must be zero or greater.");
-    return;
-  }
-
-  if (!EXPERIMENT_STATUSES.includes(status)) {
-    showToast("Use planned, running, review, or completed.");
-    return;
-  }
-
-  if (notes.length > 2000) {
-    showToast("Learning notes must be 2,000 characters or fewer.");
-    return;
-  }
-
-  const previous = { ...item };
-
-  Object.assign(item, {
-    title: title.trim(),
-    hypothesis: hypothesis.trim(),
-    baseline,
-    result,
-    status,
-    notes: notes.trim(),
-    updatedAt: new Date().toISOString()
-  });
-
-  if (!saveExperiments()) {
-    Object.assign(item, previous);
-    return;
-  }
-
-  renderExperiments();
-  showToast("Experiment updated.");
+  setExperimentFormMode(true);
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.querySelector("#experiment-title").focus({ preventScroll: true });
 }
 
 function setupExperimentActions() {
