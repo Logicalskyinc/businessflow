@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
+  <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,182 +16,316 @@
         <span class="brand-icon">B</span>
         <span>BusinessFlow<small>BUSINESS INTELLIGENCE</small></span>
       </a>
-  <p class="nav-label">WORKSPACE</p>
-  <nav class="navigation" aria-label="Main navigation">
-    <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
-    <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
-    <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
-    <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
-    <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
-  </nav>
-  <div class="sidebar-bottom">
-    <div class="ai-status">
-      <span class="status-dot"></span>
-      <div><strong>BusinessFlow AI</strong><small>Prototype mode</small></div>
-    </div>
-    <a href="#settings" class="nav-link" data-page="settings"><span>⚙</span> Settings</a>
-    <div class="profile">
-      <div class="avatar">HT</div>
-      <div class="profile-copy"><strong>My Business</strong><small>Business workspace</small></div>
-    </div>
-  </div>
-</aside>
-<main class="main-content">
-  <header class="topbar">
-    <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
-    <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
-    <span class="prototype-badge">DEMO</span>
-  </header>
-  <div class="page-container">
-    <section class="page active" id="overview">
-      <div class="notice">
-        <strong>PROTOTYPE</strong>
-        <span>Sample business metrics are illustrative. Goals are saved in this browser only. No backend or live business data is connected.</span>
-      </div>
-      <div class="welcome-row">
-        <div>
-          <p class="eyebrow">BUSINESS INTELLIGENCE</p>
-          <h1>Good morning.</h1>
-          <p class="subtitle">Understand your business. Make better decisions.</p>
+
+      <p class="nav-label">WORKSPACE</p>
+
+      <nav class="navigation" aria-label="Main navigation">
+        <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
+        <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
+        <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
+        <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
+        <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="ai-status">
+          <span class="status-dot"></span>
+          <div>
+            <strong>BusinessFlow AI</strong>
+            <small>Prototype mode</small>
+          </div>
         </div>
-        <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
-      </div>
-      <div class="insight-banner">
-        <div class="insight-icon">✳</div>
-        <div>
-          <strong>Your business, understood.</strong>
-          <p>Turn business data into experiments, decisions, and measurable progress.</p>
+
+        <a href="#settings" class="nav-link" data-page="settings"><span>⚙</span> Settings</a>
+
+        <div class="profile">
+          <div class="avatar">HT</div>
+          <div class="profile-copy">
+            <strong>My Business</strong>
+            <small>Business workspace</small>
+          </div>
         </div>
       </div>
-      <div class="section-heading">
-        <div>
-          <h2>Business overview</h2>
-          <p class="muted">Sample figures for this prototype.</p>
-        </div>
-        <label class="period-control">Period
-          <select id="period-select">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
-        </label>
-      </div>
-      <div class="metrics-grid">
-        <article class="metric-card">
-          <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-          <strong class="metric-value">₦2,450,000</strong>
-          <p class="metric-note">Sample data · Not live</p>
-        </article>
-        <article class="metric-card">
-          <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-          <strong class="metric-value">184</strong>
-          <p class="metric-note">Sample data · Not live</p>
-        </article>
-        <article class="metric-card">
-          <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-          <strong class="metric-value">4.8%</strong>
-          <p class="metric-note">Sample data · Not live</p>
-        </article>
-        <article class="metric-card">
-          <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-          <strong class="metric-value">3</strong>
-          <p class="metric-note">Sample data · Not live</p>
-        </article>
-      </div>
-      <div class="content-grid">
-        <article class="panel">
-          <h2>Revenue performance</h2>
-          <p class="muted">Illustrative weekly activity</p>
-          <div class="chart" role="img" aria-label="Illustrative weekly revenue chart">
-            <div class="chart-bars">
-              <div class="bar-column"><div class="bar" style="--bar-height:42%"></div><span>Mon</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:58%"></div><span>Tue</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:48%"></div><span>Wed</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:76%"></div><span>Thu</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:62%"></div><span>Fri</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:88%"></div><span>Sat</span></div>
-              <div class="bar-column"><div class="bar" style="--bar-height:68%"></div><span>Sun</span></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
+        <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
+        <span class="prototype-badge">DEMO</span>
+      </header>
+
+      <div class="page-container">
+        <section class="page active" id="overview">
+          <div class="notice">
+            <strong>PROTOTYPE</strong>
+            <span>Sample business metrics are illustrative. Goals are saved in this browser only. No backend or live business data is connected.</span>
+          </div>
+
+          <div class="welcome-row">
+            <div>
+              <p class="eyebrow">BUSINESS INTELLIGENCE</p>
+              <h1>Good morning.</h1>
+              <p class="subtitle">Understand your business. Make better decisions.</p>
+            </div>
+            <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
+          </div>
+
+          <div class="insight-banner">
+            <div class="insight-icon">✳</div>
+            <div>
+              <strong>Your business, understood.</strong>
+              <p>Turn business data into experiments, decisions, and measurable progress.</p>
             </div>
           </div>
-          <p class="chart-disclaimer">Sample data only. No live data connected.</p>
-        </article>
-        <article class="panel">
-          <div class="panel-heading">
-            <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
-            <button type="button" class="text-button" data-go-to="goals">View all</button>
+
+          <div class="section-heading">
+            <div>
+              <h2>Business overview</h2>
+              <p class="muted">Sample figures for this prototype.</p>
+            </div>
+            <label class="period-control">Period
+              <select id="period-select">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
           </div>
-          <div id="goal-list" class="goal-list"></div>
-          <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-        </article>
+
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
+              <strong class="metric-value">₦2,450,000</strong>
+              <p class="metric-note">Sample data · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
+              <strong class="metric-value">184</strong>
+              <p class="metric-note">Sample data · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
+              <strong class="metric-value">4.8%</strong>
+              <p class="metric-note">Sample data · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
+              <strong class="metric-value">3</strong>
+              <p class="metric-note">Sample data · Not live</p>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <article class="panel">
+              <h2>Revenue performance</h2>
+              <p class="muted">Illustrative weekly activity</p>
+              <div class="chart" role="img" aria-label="Illustrative weekly revenue chart">
+                <div class="chart-bars">
+                  <div class="bar-column"><div class="bar" style="--bar-height:42%"></div><span>Mon</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:58%"></div><span>Tue</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:48%"></div><span>Wed</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:76%"></div><span>Thu</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:62%"></div><span>Fri</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:88%"></div><span>Sat</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:68%"></div><span>Sun</span></div>
+                </div>
+              </div>
+              <p class="chart-disclaimer">Sample data only. No live data connected.</p>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
+                <button type="button" class="text-button" data-go-to="goals">View all</button>
+              </div>
+              <div id="goal-list" class="goal-list"></div>
+              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+            </article>
+          </div>
+
+          <article class="panel">
+            <h2>Recent experiments</h2>
+            <p class="muted">Sample experiments for this prototype.</p>
+            <div class="simple-list">
+              <div class="simple-item"><div><strong>Test a new pricing offer</strong><p>Pricing</p></div><span class="status-pill running">Running</span></div>
+              <div class="simple-item"><div><strong>Improve checkout conversion</strong><p>Conversion</p></div><span class="status-pill review">Review</span></div>
+              <div class="simple-item"><div><strong>Test a referral offer</strong><p>Marketing</p></div><span class="status-pill planned">Planned</span></div>
+            </div>
+          </article>
+
+          <footer class="app-footer">BusinessFlow · Frontend prototype</footer>
+        </section>
+
+        <section class="page" id="analytics">
+          <div class="page-heading">
+            <p class="eyebrow">PERFORMANCE INTELLIGENCE</p>
+            <h1>Analytics</h1>
+            <p class="subtitle">Understand performance, track trends, and measure progress.</p>
+          </div>
+
+          <div class="notice">
+            <strong>DEMO DATA</strong>
+            <span>Revenue, customer, and conversion figures are illustrative examples, not live business data. Goal progress is calculated from your goals saved in this browser.</span>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <h2>Performance overview</h2>
+              <p class="muted">Illustrative business indicators</p>
+            </div>
+            <label class="period-control">Period
+              <select id="analytics-period">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
+              <strong class="metric-value">₦2,450,000</strong>
+              <p class="metric-note">Illustrative · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
+              <strong class="metric-value">184</strong>
+              <p class="metric-note">Illustrative · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
+              <strong class="metric-value">4.8%</strong>
+              <p class="metric-note">Illustrative · Not live</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
+              <strong class="metric-value">3</strong>
+              <p class="metric-note">Illustrative · Not live</p>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <article class="panel">
+              <h2>Revenue trend</h2>
+              <p class="muted">Illustrative daily performance</p>
+              <div class="chart" role="img" aria-label="Illustrative revenue trend">
+                <div class="chart-bars">
+                  <div class="bar-column"><div class="bar" style="--bar-height:42%"></div><span>Mon</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:58%"></div><span>Tue</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:48%"></div><span>Wed</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:76%"></div><span>Thu</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:62%"></div><span>Fri</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:88%"></div><span>Sat</span></div>
+                  <div class="bar-column"><div class="bar" style="--bar-height:68%"></div><span>Sun</span></div>
+                </div>
+              </div>
+              <p class="chart-disclaimer">Illustrative trend only. No revenue records are connected.</p>
+            </article>
+
+            <article class="panel">
+              <h2>Goal performance</h2>
+              <p class="muted">Progress calculated from your saved goals</p>
+              <div id="analytics-goals" class="goal-list">
+                <p class="empty-state">Goal performance will appear here.</p>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <h2>Business insights</h2>
+            <p class="muted">Insights should be based on reliable data, not assumptions.</p>
+            <div class="empty-state">
+              No verified business insights yet. Connect reliable business data to identify trends and opportunities.
+            </div>
+          </article>
+
+          <footer class="app-footer">BusinessFlow · Analytics prototype</footer>
+        </section>
+
+        <section class="page" id="experiments">
+          <div class="page-heading">
+            <p class="eyebrow">LEARN</p>
+            <h1>Experiments</h1>
+            <p class="subtitle">Test business ideas and record what you learn.</p>
+          </div>
+          <div class="panel">
+            <h2>Experiment workspace</h2>
+            <p class="muted">Experiment management is not implemented yet.</p>
+          </div>
+        </section>
+
+        <section class="page" id="goals">
+          <div class="page-heading">
+            <p class="eyebrow">BUSINESS PLANNING</p>
+            <h1>Business Goals</h1>
+            <p class="subtitle">Set measurable targets and track progress.</p>
+          </div>
+
+          <div class="notice">
+            <strong>LOCAL STORAGE</strong>
+            <span>Your goals are saved in this browser on this device. They are not synced to a server or another device.</span>
+          </div>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><h2>Your goals</h2><p class="muted">Update your current result to calculate progress.</p></div>
+              <span class="count-pill" id="goal-count">0</span>
+            </div>
+            <div id="all-goals-list" class="record-list"></div>
+            <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+          </article>
+
+          <article class="panel">
+            <h2>Create a business goal</h2>
+            <p class="muted">Choose a target that you can measure.</p>
+            <form id="goal-form" class="form-grid">
+              <label class="form-label full-span">Goal name
+                <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
+              </label>
+              <label class="form-label">Current value
+                <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
+              </label>
+              <label class="form-label">Target value
+                <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
+              </label>
+              <label class="form-label full-span">Measurement unit
+                <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
+              </label>
+              <button type="submit" class="primary-button full-span">Save goal</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="page" id="business-memory">
+          <div class="page-heading">
+            <p class="eyebrow">KNOWLEDGE</p>
+            <h1>Business Memory</h1>
+            <p class="subtitle">Organize important business knowledge.</p>
+          </div>
+          <div class="panel">
+            <h2>Business memory workspace</h2>
+            <p class="muted">Business memory is not implemented yet.</p>
+          </div>
+        </section>
+
+        <section class="page" id="settings">
+          <div class="page-heading">
+            <p class="eyebrow">WORKSPACE</p>
+            <h1>Settings</h1>
+            <p class="subtitle">Configure your workspace.</p>
+          </div>
+          <div class="panel">
+            <h2>Storage and prototype status</h2>
+            <p class="muted">Goal data uses browser-local storage. No backend, account system, or cloud synchronization is connected.</p>
+            <p class="muted" data-storage-status role="status"></p>
+          </div>
+        </section>
       </div>
-      <article class="panel">
-        <h2>Recent experiments</h2>
-        <p class="muted">Sample experiments for this prototype.</p>
-        <div class="simple-list">
-          <div class="simple-item"><div><strong>Test a new pricing offer</strong><p>Pricing</p></div><span class="status-pill running">Running</span></div>
-          <div class="simple-item"><div><strong>Improve checkout conversion</strong><p>Conversion</p></div><span class="status-pill review">Review</span></div>
-          <div class="simple-item"><div><strong>Test a referral offer</strong><p>Marketing</p></div><span class="status-pill planned">Planned</span></div>
-        </div>
-      </article>
-      <footer class="app-footer">BusinessFlow · Frontend prototype</footer>
-    </section>
-    <section class="page" id="analytics">
-      <div class="page-heading"><p class="eyebrow">PERFORMANCE</p><h1>Analytics</h1><p class="subtitle">Explore business performance and trends.</p></div>
-      <div class="panel"><h2>Analytics workspace</h2><p class="muted">Real analytics require connected business data. Dashboard figures are illustrative.</p></div>
-    </section>
-    <section class="page" id="experiments">
-      <div class="page-heading"><p class="eyebrow">LEARN</p><h1>Experiments</h1><p class="subtitle">Test business ideas and record what you learn.</p></div>
-      <div class="panel"><h2>Experiment workspace</h2><p class="muted">Experiment management is not implemented yet.</p></div>
-    </section>
-    <section class="page" id="goals">
-      <div class="page-heading">
-        <p class="eyebrow">BUSINESS PLANNING</p>
-        <h1>Business Goals</h1>
-        <p class="subtitle">Set measurable targets and track progress.</p>
-      </div>
-      <div class="notice">
-        <strong>LOCAL STORAGE</strong>
-        <span>Your goals are saved in this browser on this device. They are not synced to a server or another device.</span>
-      </div>
-      <article class="panel">
-        <div class="panel-heading">
-          <div><h2>Your goals</h2><p class="muted">Update your current result to calculate progress.</p></div>
-          <span class="count-pill" id="goal-count">0</span>
-        </div>
-        <div id="all-goals-list" class="record-list"></div>
-        <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-      </article>
-      <article class="panel">
-        <h2>Create a business goal</h2>
-        <p class="muted">Choose a target that you can measure.</p>
-        <form id="goal-form" class="form-grid">
-          <label class="form-label full-span">Goal name
-            <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
-          </label>
-          <label class="form-label">Current value
-            <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
-          </label>
-          <label class="form-label">Target value
-            <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
-          </label>
-          <label class="form-label full-span">Measurement unit
-            <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
-          </label>
-          <button type="submit" class="primary-button full-span">Save goal</button>
-        </form>
-      </article>
-    </section>
-    <section class="page" id="business-memory">
-      <div class="page-heading"><p class="eyebrow">KNOWLEDGE</p><h1>Business Memory</h1><p class="subtitle">Organize important business knowledge.</p></div>
-      <div class="panel"><h2>Business memory workspace</h2><p class="muted">Business memory is not implemented yet.</p></div>
-    </section>
-    <section class="page" id="settings">
-      <div class="page-heading"><p class="eyebrow">WORKSPACE</p><h1>Settings</h1><p class="subtitle">Configure your workspace.</p></div>
-      <div class="panel"><h2>Storage and prototype status</h2><p class="muted">Goal data uses browser-local storage. No backend, account system, or cloud synchronization is connected.</p><p class="muted" data-storage-status role="status"></p></div>
-    </section>
+    </main>
   </div>
-</main>
-  </div>
+
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="script.js" defer></script>
 </body>
