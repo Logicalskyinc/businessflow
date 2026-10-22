@@ -277,7 +277,7 @@
                 <textarea id="experiment-hypothesis" name="hypothesis" rows="3" maxlength="1000" placeholder="If we do X, we expect Y because..." required></textarea>
               </label>
               <label class="form-label">Baseline value
-                <input id="experiment-baseline" name="baseline" type="number" min="0" step="any" placeholder="0" required>
+                <input id="experiment-baseline" name="baseline" type="number" min="0" step="any" placeholder="Leave blank until measured">
               </label>
               <label class="form-label">Test result (optional)
                 <input id="experiment-result" name="result" type="number" min="0" step="any" placeholder="Leave blank until measured">
@@ -294,6 +294,7 @@
                 <textarea id="experiment-notes" name="notes" rows="3" maxlength="2000" placeholder="Record observations and what you learned."></textarea>
               </label>
               <button type="submit" class="primary-button full-span">Save experiment</button>
+              <button id="experiment-cancel-edit" type="button" class="small-button full-span" hidden>Cancel edit</button>
             </form>
           </article>
         </section>
