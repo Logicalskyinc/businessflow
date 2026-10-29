@@ -1351,8 +1351,10 @@ window.addEventListener("businessflow:auth-state", event => {
 
 window.addEventListener("businessflow:workspace-ready", event => {
   const required = Boolean(event.detail?.onboardingRequired);
+  const hasWorkspace = Boolean(event.detail?.hasWorkspace);
   const gate = document.querySelector("#onboarding-gate");
-  if (gate) gate.hidden = !required;
+  if (gate) gate.hidden = !required || hasWorkspace;
+  updateWorkspaceIdentity({ signedIn: true, apiConnected: true, businessId: event.detail?.businessId, businessName: event.detail?.businessName });
   navigateTo("overview");
 });
 
@@ -1373,8 +1375,32 @@ window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
 });
+function updateWorkspaceIdentity(state = {}) {
+  const name = String(state.businessName || "").trim();
+  const signedIn = Boolean(state.signedIn);
+  const connected = Boolean(state.apiConnected);
+  const profileName = document.querySelector("#workspace-profile-name");
+  const avatar = document.querySelector("#workspace-avatar");
+  const caption = document.querySelector("#workspace-profile-caption");
+  const syncLabel = document.querySelector("#workspace-sync-label");
+  const greeting = document.querySelector("#overview-greeting");
+  const manageButton = document.querySelector("#manage-workspace-button");
+  if (profileName) profileName.textContent = name || (signedIn ? "Choose a workspace" : "Your business");
+  if (avatar) avatar.textContent = name ? name.split(/\\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() : "BF";
+  if (caption) caption.textContent = name ? "Active business workspace" : "Business workspace";
+  if (syncLabel) syncLabel.textContent = !signedIn ? "Sign in to sync your workspace" : !connected ? "Connection unavailable" : name ? "Connected · " + name : "Connected · Select a workspace";
+  if (greeting) {
+    const hour = new Date().getHours();
+    const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    greeting.textContent = name ? salutation + ", " + name + "." : salutation + ".";
+  }
+  if (manageButton) manageButton.textContent = name ? "Manage workspace" : "Set up workspace";
+  document.body.classList.toggle("workspace-ready", Boolean(signedIn && connected && state.businessId));
+}
+
 window.addEventListener("businessflow:cloud-state", event => {
   const state = event.detail ?? {};
+  updateWorkspaceIdentity(state);
   if (!state.signedIn || !state.apiConnected) {
     cloudGoalWorkspaceId = null;
     loadGoals();
