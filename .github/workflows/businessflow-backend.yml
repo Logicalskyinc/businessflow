@@ -15,6 +15,11 @@ on:
       - feature/business-intelligence-persistence
     paths:
       - "backend/**"
+      - "script.js"
+      - "auth.js"
+      - "frontend-config.js"
+      - "index.html"
+      - "render.yaml"
       - ".github/workflows/businessflow-backend.yml"
 
 permissions:
