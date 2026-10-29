@@ -24,6 +24,19 @@ let businesses = [];
 let activeBusinessId = null;
 let apiConnected = false;
 
+function workspaceStorageKey() {
+  return "businessflow_active_workspace_" + String(session?.user?.id || "anonymous");
+}
+function getSavedWorkspaceId() {
+  try { return localStorage.getItem(workspaceStorageKey()); } catch { return null; }
+}
+function saveWorkspaceId(id) {
+  try {
+    if (id) localStorage.setItem(workspaceStorageKey(), String(id));
+    else localStorage.removeItem(workspaceStorageKey());
+  } catch (error) { console.warn("Could not persist the selected workspace:", error); }
+}
+
 const show = message => { if (status) status.textContent = message; };
 const showApi = message => { if (apiStatus) apiStatus.textContent = message; };
 const showWorkspace = message => { if (workspaceStatus) workspaceStatus.textContent = message; };
@@ -34,6 +47,7 @@ function emitCloudState() {
       signedIn: Boolean(session?.user),
       apiConnected,
       businessId: activeBusinessId,
+      businessName: businesses.find(item => String(item.id) === String(activeBusinessId))?.name ?? null,
       userEmail: session?.user?.email ?? null
     }
   }));
@@ -108,7 +122,7 @@ async function checkBackend() {
 
 function renderBusinesses() {
   if (!workspaceSelect) return;
-  const previous = activeBusinessId;
+  const previous = activeBusinessId || getSavedWorkspaceId();
   workspaceSelect.replaceChildren();
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -120,9 +134,10 @@ function renderBusinesses() {
     option.textContent = business.name;
     workspaceSelect.append(option);
   }
-  activeBusinessId = businesses.some(item => item.id === previous)
-    ? previous
+  activeBusinessId = businesses.some(item => String(item.id) === String(previous))
+    ? businesses.find(item => String(item.id) === String(previous)).id
     : businesses[0]?.id ?? null;
+  saveWorkspaceId(activeBusinessId);
   workspaceSelect.value = activeBusinessId ?? "";
   if (importLocalGoals) importLocalGoals.disabled = !(session?.user && apiConnected && activeBusinessId);
   emitCloudState();
@@ -143,13 +158,13 @@ async function loadBusinesses(preferredId = null) {
     window.dispatchEvent(new CustomEvent("businessflow:workspace-changed", {
       detail: { businessId: activeBusinessId }
     }));
-    showWorkspace(businesses.length
-      ? "Choose a workspace to load its cloud goals."
+    showWorkspace(activeBusinessId
+      ? (businesses.find(item => String(item.id) === String(activeBusinessId))?.name || "Your workspace") + " is selected. Your cloud workspace is ready."
       : "No cloud workspace yet. Create one to begin storing business data.");
     const metadata = session?.user?.user_metadata ?? {};
     const onboardingRequired = businesses.length === 0 && metadata.businessflow_onboarding_skipped !== true && metadata.businessflow_onboarding_completed !== true;
     window.dispatchEvent(new CustomEvent("businessflow:workspace-ready", {
-      detail: { hasWorkspace: businesses.length > 0, onboardingRequired }
+      detail: { hasWorkspace: businesses.length > 0, businessId: activeBusinessId, businessName: businesses.find(item => String(item.id) === String(activeBusinessId))?.name ?? null, onboardingRequired }
     }));
   } catch (error) {
     showWorkspace(error.message);
@@ -220,7 +235,8 @@ document.querySelector("#onboarding-skip")?.addEventListener("click", async () =
   } finally { if (button) button.disabled = false; }
 });
 workspaceSelect?.addEventListener("change", () => {
-  activeBusinessId = businesses.some(item => item.id === workspaceSelect.value) ? workspaceSelect.value : null;
+  activeBusinessId = businesses.some(item => String(item.id) === String(workspaceSelect.value)) ? workspaceSelect.value : null;
+  saveWorkspaceId(activeBusinessId);
   emitCloudState();
   window.dispatchEvent(new CustomEvent("businessflow:workspace-changed", {
     detail: { businessId: activeBusinessId }
