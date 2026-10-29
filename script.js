@@ -1374,7 +1374,53 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
+  void loadBusinessInsights(businessId);
 });
+
+let latestBusinessInsights = null;
+function renderBusinessInsights() {
+  const overview = document.querySelector("#overview-insights");
+  const analytics = document.querySelector("#analytics-insights");
+  const status = document.querySelector("#overview-intelligence-status");
+  const result = latestBusinessInsights;
+  if (!result) {
+    if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
+    if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
+    if (status) status.textContent = "Waiting for a selected workspace.";
+    return;
+  }
+  const coverage = result.coverage || {};
+  if (status) status.textContent = result.engine === "businessflow_rules_v1"
+    ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
+    : "Business analysis";
+  const markup = (result.insights || []).map(item => {
+    const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
+    return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
+  }).join("");
+  const content = markup || '<p class="empty-state">No recommendations are available yet.</p>';
+  if (overview) overview.innerHTML = content;
+  if (analytics) analytics.innerHTML = content;
+}
+async function loadBusinessInsights(businessId) {
+  const cloud = window.BusinessFlowCloud;
+  if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
+    latestBusinessInsights = null;
+    renderBusinessInsights();
+    return;
+  }
+  const status = document.querySelector("#overview-intelligence-status");
+  if (status) status.textContent = "Analysing your business records…";
+  try {
+    const result = await cloud.loadInsights(businessId);
+    if (cloud.getBusinessId() !== businessId) return;
+    latestBusinessInsights = result;
+    renderBusinessInsights();
+  } catch (error) {
+    latestBusinessInsights = null;
+    if (status) status.textContent = error.message || "Business intelligence could not load.";
+    renderBusinessInsights();
+  }
+}
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
   const signedIn = Boolean(state.signedIn);
@@ -1435,6 +1481,7 @@ function initializeBusinessFlow() {
   renderGoals();
   renderExperiments();
   renderMemories();
+  renderBusinessInsights();
   updateStorageStatus();
 
   const initialPage = location.hash.slice(1);
