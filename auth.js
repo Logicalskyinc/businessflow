@@ -231,7 +231,11 @@ signUp?.addEventListener("click", async () => {
   if (!address || secret.length < 8) { show("Enter a valid email and a password with at least 8 characters."); return; }
   signIn.disabled = true; signUp.disabled = true; show("Creating account…");
   try {
-    const { data, error } = await supabase.auth.signUp({ email: address, password: secret });
+    const { data, error } = await supabase.auth.signUp({
+      email: address,
+      password: secret,
+      options: { emailRedirectTo: window.location.origin }
+    });
     if (error) throw error;
     if (data.session) {
       setSession(data.session);
