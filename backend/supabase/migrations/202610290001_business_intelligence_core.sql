@@ -1,0 +1,1 @@
+-- BusinessFlow Intelligence migration placeholder. Do not apply until reviewed and the target Supabase project is confirmed.
