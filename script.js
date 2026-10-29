@@ -610,6 +610,9 @@ function saveExperiments() {
 }
 
 function renderOverviewExperiments() {
+  const activeCount = experiments.filter(item => item.status === "running").length;
+  document.querySelectorAll('[data-metric-value="active-experiments"]').forEach(node => { node.textContent = String(activeCount); });
+  document.querySelectorAll('[data-metric-note="active-experiments"]').forEach(node => { node.textContent = "From saved experiments"; });
   const overview = document.querySelector("#overview-experiment-list");
   if (!overview) return;
   if (experiments.length === 0) {
