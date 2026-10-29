@@ -7,6 +7,7 @@ process.env.SUPABASE_ANON_KEY = "test-publishable-key";
 
 const { app } = await import("../src/server.js");
 const server = app.listen(0);
+await new Promise(resolve => server.once("listening", resolve));
 const address = server.address();
 const baseUrl = `http://127.0.0.1:${address.port}`;
 
