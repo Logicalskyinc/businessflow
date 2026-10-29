@@ -1,5 +1,5 @@
 -- BusinessFlow Intelligence core tables.
--- Hosted in the existing GrowthFlow Supabase project, but isolated by table prefix.
+-- Hosted in the existing GrowthFlow Supabase project, isolated by table prefix.
 -- Phase 1 is owner-only. Do not expose service-role credentials to browsers.
 
 create table public.businessflow_profiles (
@@ -7,6 +7,10 @@ create table public.businessflow_profiles (
   owner_user_id uuid not null references auth.users(id) on delete restrict,
   name text not null check (char_length(trim(name)) between 1 and 160),
   business_type text,
+  business_description text,
+  primary_goal text,
+  onboarding_answers jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(onboarding_answers) = 'object'),
   country_code text not null default 'CI' check (country_code ~ '^[A-Z]{2}$'),
   currency_code text not null default 'XOF' check (currency_code ~ '^[A-Z]{3}$'),
   created_at timestamptz not null default now(),
@@ -86,7 +90,7 @@ create policy businessflow_memberships_self_select on public.businessflow_member
 for select to authenticated using (user_id = (select auth.uid()));
 create policy businessflow_memberships_owner_insert on public.businessflow_memberships
 for insert to authenticated with check (
-  user_id = (select auth.uid()) and exists (
+  user_id = (select auth.uid()) and role = 'owner' and exists (
     select 1 from public.businessflow_profiles p
     where p.id = business_id and p.owner_user_id = (select auth.uid())
   )
