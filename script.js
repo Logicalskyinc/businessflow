@@ -1,8 +1,5 @@
 
-/* BusinessFlow frontend prototype.
-   Goals, experiments, and business memory are stored in this browser.
-   No backend, live business data, or AI service is connected.
-*/
+/* BusinessFlow workspace UI. Cloud goals use the authenticated API; experiments and business memory remain browser-local for now. */
 "use strict";
 
 const STORAGE_KEY = "businessflow_goals_v1";
@@ -12,22 +9,7 @@ const LOCAL_GOALS_BACKUP_KEY = "businessflow_goals_local_backup_v1";
 let cloudGoalWorkspaceId = null;
 let cloudGoalBusy = false;
 
-const DEFAULT_GOALS = [
-  {
-    id: "revenue-1000000",
-    title: "Increase revenue",
-    current: 680000,
-    target: 1000000,
-    unit: "₦"
-  },
-  {
-    id: "customers-100",
-    title: "Acquire customers",
-    current: 45,
-    target: 100,
-    unit: "customers"
-  }
-];
+const DEFAULT_GOALS = [];
 
 const MEMORY_CATEGORIES = [
   "Decision",
@@ -184,7 +166,7 @@ function loadGoals() {
     const saved = localStorage.getItem(STORAGE_KEY);
 
     if (saved === null) {
-      goals = DEFAULT_GOALS.map(goal => ({ ...goal }));
+      goals = [];
       saveGoals();
       return;
     }
@@ -627,11 +609,31 @@ function saveExperiments() {
   return saveCollection(EXPERIMENTS_KEY, experiments);
 }
 
+function renderOverviewExperiments() {
+  const overview = document.querySelector("#overview-experiment-list");
+  if (!overview) return;
+  if (experiments.length === 0) {
+    overview.innerHTML = '<p class="empty-state">No experiments saved yet. Create one to start learning from real tests.</p>';
+    return;
+  }
+  overview.innerHTML = [...experiments]
+    .sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)))
+    .slice(0, 3)
+    .map(item => {
+      const status = String(item.status || "planned");
+      const label = status.charAt(0).toUpperCase() + status.slice(1);
+      return '<div class="simple-item"><div><strong>' + escapeHTML(item.title) +
+        '</strong><p>' + escapeHTML(label) + '</p></div><span class="status-pill ' +
+        escapeHTML(status) + '">' + escapeHTML(label) + '</span></div>';
+    }).join("");
+}
+
 function renderExperiments() {
   const container = document.querySelector("#experiment-list");
   const count = document.querySelector("#experiment-count");
 
   if (count) count.textContent = String(experiments.length);
+  renderOverviewExperiments();
   if (!container) return;
 
   if (experiments.length === 0) {

@@ -239,3 +239,46 @@ textarea { min-height: 90px; resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* BusinessFlow premium workspace layer */
+:root {
+  --blue: #3563e9; --blue-dark: #2449b8; --blue-light: #edf2ff;
+  --green: #18a874; --green-light: #e7f8f0; --background: #f4f6fb;
+  --surface: #ffffff; --border: #e3e8f2; --text: #18243a; --muted: #728096;
+  --radius: 17px; --shadow: 0 10px 30px rgba(25, 42, 78, .055);
+}
+body { letter-spacing: -.01em; }
+.sidebar { background: linear-gradient(180deg, #101b34 0%, #14213c 100%); border-right: 0; color: #edf3ff; }
+.brand { color: #fff; }
+.brand small, .nav-label { color: #9cacc8; }
+.nav-link { color: #bdc8dc; border: 1px solid transparent; }
+.nav-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+.nav-link.active { color: #fff; background: rgba(80,119,235,.22); border-color: rgba(132,159,255,.2); }
+.sidebar-bottom .ai-status { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); }
+.ai-status strong, .profile strong { color: #f6f8ff; }
+.ai-status small, .profile small { color: #aab8d0; }
+.profile { border-top-color: rgba(255,255,255,.12); }
+.avatar { background: #d9f7e9; }
+.topbar { background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
+.prototype-badge { border-radius: 999px; padding: 6px 11px; background: #eef8f3; color: #16845b; border-color: #d6f0e3; }
+.page-container { max-width: 1600px; padding-top: 32px; }
+.panel, .metric-card { border-radius: var(--radius); box-shadow: var(--shadow); border-color: #e6eaf2; }
+.metric-card { padding: 21px; }
+.metric-value { font-size: clamp(24px, 2.5vw, 31px); letter-spacing: -.8px; }
+.metric-note { min-height: 17px; }
+.notice { border-radius: 13px; padding: 14px 16px; }
+.insight-banner { border-radius: 18px; background: linear-gradient(110deg, #eef3ff 0%, #effaf5 100%); }
+.primary-button { border-radius: 11px; background: linear-gradient(135deg, #3563e9, #2b56d6); }
+.primary-button:hover { background: linear-gradient(135deg, #2d57d6, #2449b8); }
+.secondary-button, .small-button { border-radius: 11px; }
+.welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chart-empty { display: grid; place-items: center; min-height: 170px; padding: 20px; border: 1px dashed #d6deec; border-radius: 13px; background: #fafbfe; }
+.chart-empty .empty-state { max-width: 360px; margin: 0; text-align: center; line-height: 1.8; }
+.app-footer { padding-top: 12px; color: #8793a7; }
+@media (max-width: 760px) {
+  .sidebar { background: linear-gradient(180deg, #101b34 0%, #14213c 100%); }
+  .welcome-actions { width: 100%; }
+  .welcome-actions > button { flex: 1 1 150px; }
+  .metric-card { padding: 14px; }
+}

@@ -20,6 +20,7 @@
 
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
+        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account & setup</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
@@ -31,7 +32,7 @@
           <span class="status-dot"></span>
           <div>
             <strong>BusinessFlow AI</strong>
-            <small>Prototype mode</small>
+            <small>Connect your account to sync</small>
           </div>
         </div>
 
@@ -51,14 +52,14 @@
       <header class="topbar">
         <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
         <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
-        <span class="prototype-badge">DEMO</span>
+        <span class="prototype-badge">WORKSPACE</span>
       </header>
 
       <div class="page-container">
         <section class="page active" id="overview">
           <div class="notice">
-            <strong>PROTOTYPE</strong>
-            <span>Sample business metrics are illustrative. Sign in and select a business workspace to use cloud goals. Other records may remain in this browser.</span>
+            <strong>DATA STATUS</strong>
+            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
           </div>
 
           <div class="welcome-row">
@@ -67,7 +68,10 @@
               <h1>Good morning.</h1>
               <p class="subtitle">Understand your business. Make better decisions.</p>
             </div>
-            <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
+            <div class="welcome-actions">
+              <button type="button" class="secondary-button" data-go-to="account">Set up workspace</button>
+              <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
+            </div>
           </div>
 
           <div class="insight-banner">
@@ -81,7 +85,7 @@
           <div class="section-heading">
             <div>
               <h2>Business overview</h2>
-              <p class="muted">Sample figures for this prototype.</p>
+              <p class="muted">Live indicators appear when you connect business data.</p>
             </div>
             <label class="period-control">Period
               <select id="period-select">
@@ -95,42 +99,34 @@
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">₦2,450,000</strong>
-              <p class="metric-note">Sample data · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">184</strong>
-              <p class="metric-note">Sample data · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">4.8%</strong>
-              <p class="metric-note">Sample data · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value">3</strong>
-              <p class="metric-note">Sample data · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
           </div>
 
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue performance</h2>
-              <p class="muted">Illustrative weekly activity</p>
-              <div class="chart" role="img" aria-label="Illustrative weekly revenue chart">
-                <div class="chart-bars">
-                  <div class="bar-column"><div class="bar" style="--bar-height:42%"></div><span>Mon</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:58%"></div><span>Tue</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:48%"></div><span>Wed</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:76%"></div><span>Thu</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:62%"></div><span>Fri</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:88%"></div><span>Sat</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:68%"></div><span>Sun</span></div>
-                </div>
+              <p class="muted">Connect a revenue source to see your actual trend.</p>
+              <div class="chart chart-empty" role="status">
+                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
               </div>
-              <p class="chart-disclaimer">Sample data only. No live data connected.</p>
+              <p class="chart-disclaimer">No live revenue source connected.</p>
             </article>
 
             <article class="panel">
@@ -145,15 +141,13 @@
 
           <article class="panel">
             <h2>Recent experiments</h2>
-            <p class="muted">Sample experiments for this prototype.</p>
-            <div class="simple-list">
-              <div class="simple-item"><div><strong>Test a new pricing offer</strong><p>Pricing</p></div><span class="status-pill running">Running</span></div>
-              <div class="simple-item"><div><strong>Improve checkout conversion</strong><p>Conversion</p></div><span class="status-pill review">Review</span></div>
-              <div class="simple-item"><div><strong>Test a referral offer</strong><p>Marketing</p></div><span class="status-pill planned">Planned</span></div>
+            <p class="muted">Your saved experiments, not sample records.</p>
+            <div id="overview-experiment-list" class="simple-list">
+              <p class="empty-state">Loading saved experiments…</p>
             </div>
           </article>
 
-          <footer class="app-footer">BusinessFlow · Frontend prototype</footer>
+          <footer class="app-footer">BusinessFlow · Business workspace</footer>
         </section>
 
         <section class="page" id="analytics">
@@ -164,14 +158,14 @@
           </div>
 
           <div class="notice">
-            <strong>DEMO DATA</strong>
-            <span>Revenue, customer, and conversion figures are illustrative examples, not live business data. Goal progress is calculated from your goals saved in this browser.</span>
+            <strong>DATA STATUS</strong>
+            <span>Revenue, customer, and conversion metrics are not populated with sample values. Goal progress reflects the goals currently loaded in this workspace.</span>
           </div>
 
           <div class="section-heading">
             <div>
               <h2>Performance overview</h2>
-              <p class="muted">Illustrative business indicators</p>
+              <p class="muted">Connect a real source to populate business indicators</p>
             </div>
             <label class="period-control">Period
               <select id="analytics-period">
@@ -185,42 +179,34 @@
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">₦2,450,000</strong>
-              <p class="metric-note">Illustrative · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">184</strong>
-              <p class="metric-note">Illustrative · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">4.8%</strong>
-              <p class="metric-note">Illustrative · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value">3</strong>
-              <p class="metric-note">Illustrative · Not live</p>
+              <strong class="metric-value">—</strong>
+              <p class="metric-note">No data source connected</p>
             </article>
           </div>
 
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue trend</h2>
-              <p class="muted">Illustrative daily performance</p>
-              <div class="chart" role="img" aria-label="Illustrative revenue trend">
-                <div class="chart-bars">
-                  <div class="bar-column"><div class="bar" style="--bar-height:42%"></div><span>Mon</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:58%"></div><span>Tue</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:48%"></div><span>Wed</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:76%"></div><span>Thu</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:62%"></div><span>Fri</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:88%"></div><span>Sat</span></div>
-                  <div class="bar-column"><div class="bar" style="--bar-height:68%"></div><span>Sun</span></div>
-                </div>
+              <p class="muted">Connect a revenue source to see your actual trend.</p>
+              <div class="chart chart-empty" role="status">
+                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
               </div>
-              <p class="chart-disclaimer">Illustrative trend only. No revenue records are connected.</p>
+              <p class="chart-disclaimer">No live revenue source connected.</p>
             </article>
 
             <article class="panel">
@@ -240,7 +226,7 @@
             </div>
           </article>
 
-          <footer class="app-footer">BusinessFlow · Analytics prototype</footer>
+          <footer class="app-footer">BusinessFlow · Performance intelligence</footer>
         </section>
 
         <section class="page" id="experiments">
@@ -307,7 +293,7 @@
 
           <div class="notice">
             <strong>LOCAL STORAGE</strong>
-            <span>Your goals are saved in this browser on this device. They are not synced to a server or another device.</span>
+            <span>Goals are stored locally unless you sign in, connect the API, and select a cloud workspace. Browser records are not overwritten automatically.</span>
           </div>
 
           <article class="panel">
@@ -393,13 +379,16 @@
           </article>
         </section>
 
-        <section class="page" id="settings">
+<section class="page" id="account">
           <div class="page-heading">
-            <p class="eyebrow">WORKSPACE</p>
-            <h1>Settings</h1>
-            <p class="subtitle">Manage your workspace and protect your business information.</p>
+            <p class="eyebrow">GET STARTED</p>
+            <h1>Your account & workspace</h1>
+            <p class="subtitle">Create your account, set up your business, and choose where your goals are stored.</p>
           </div>
-
+          <div class="notice">
+            <strong>PRIVATE WORKSPACE</strong>
+            <span>Your account is separate from your business records. Existing browser data stays on this device until you choose to import it.</span>
+          </div>
           <article class="panel" aria-labelledby="account-heading">
             <h2 id="account-heading">Account and cloud connection</h2>
             <p class="muted">Sign in with your BusinessFlow account. Cloud goals are available when the API is reachable and you select a business workspace.</p>
@@ -444,6 +433,16 @@
               <p id="business-workspace-status" class="muted full-span" role="status" aria-live="polite">Cloud workspace not connected.</p>
             </div>
           </article>
+        </section>
+
+        <section class="page" id="settings">
+          <div class="page-heading">
+            <p class="eyebrow">WORKSPACE</p>
+            <h1>Settings</h1>
+            <p class="subtitle">Manage your workspace and protect your business information.</p>
+          </div>
+
+          
 
           <article class="panel">
             <h2>Protect your workspace data</h2>
@@ -468,9 +467,9 @@
           </article>
 
           <article class="panel">
-            <h2>Storage and prototype status</h2>
+            <h2>Storage and connection status</h2>
             <p class="muted">
-              BusinessFlow supports account-based cloud workspaces and cloud goals. Goals, experiments, and business memory may have different storage paths; check each feature's status before assuming it is synced.
+              BusinessFlow supports account-based cloud workspaces and cloud goals. Experiments and Business Memory remain local to this browser until cloud sync is implemented for those records.
               Downloading a backup does not upload your information to a server.
             </p>
             <p class="muted" data-storage-status role="status"></p>
@@ -485,5 +484,4 @@
   <script src="script.js?v=4" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
-</html></body>
 </html>
