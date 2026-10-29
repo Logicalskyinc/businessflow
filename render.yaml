@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: businessflow-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/Logicalskyinc/businessflow
+    branch: main
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BUSINESSFLOW_ALLOWED_ORIGINS
+        value: https://logicalskyinc.github.io
+      - key: SUPABASE_URL
+        value: https://xsembvcmcodcseqnpyrr.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
