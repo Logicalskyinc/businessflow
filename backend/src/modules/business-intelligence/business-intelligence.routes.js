@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { getOnboardingQuestions, validateOnboardingAnswers } from "./business-intelligence.service.js";
+import { buildBusinessInsights } from "./business-intelligence.analytics.js";
 
 export const businessIntelligenceRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -13,7 +14,7 @@ businessIntelligenceRouter.get("/health", (_req, res) => res.json({
   module: "business-intelligence", status: "available",
   capabilities: { onboardingQuestions: true, answerValidation: true, profilePersistence: true,
     goalsPersistence: true, experimentsPersistence: true, persistentBusinessMemory: true,
-    liveBusinessAnalytics: false, aiReasoning: false, externalActions: false }
+    liveBusinessAnalytics: true, ruleBasedRecommendations: true, aiReasoning: false, externalActions: false }
 }));
 businessIntelligenceRouter.get("/onboarding/questions", (_req, res) => res.json({ status: "ok", questions: getOnboardingQuestions() }));
 businessIntelligenceRouter.post("/onboarding/validate", (req, res) => {
@@ -45,6 +46,28 @@ businessIntelligenceRouter.get("/businesses", requireAuthenticatedUser, async (r
     if (error) return next(error);
     return res.json({ status: "ok", businesses: data });
   } catch (e) { return next(e); }
+});
+
+businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    const businessId = req.query.business_id;
+    if (!uuid(businessId)) return bad(res, ["business_id must be a valid UUID."]);
+    const [profileResult, importsResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
+      req.supabase.from("businessflow_profiles").select("id,name,currency_code,primary_goal").eq("id", businessId).maybeSingle(),
+      req.supabase.from("businessflow_imports").select("id,name,source_filename,column_mapping,rows,row_count").eq("business_id", businessId).order("created_at", { ascending: false }).limit(25),
+      req.supabase.from("businessflow_goals").select("id,title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(100),
+      req.supabase.from("businessflow_experiments").select("id,title,status,success_metric,result_summary").eq("business_id", businessId).limit(100),
+      req.supabase.from("businessflow_memory").select("id,category,content,source,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(100)
+    ]);
+    for (const result of [profileResult, importsResult, goalsResult, experimentsResult, memoryResult]) {
+      if (result.error) return next(result.error);
+    }
+    if (!profileResult.data) return res.status(404).json({ error: "business_not_found", message: "This business workspace is unavailable to your account." });
+    return res.json(buildBusinessInsights({
+      profile: profileResult.data, imports: importsResult.data || [], goals: goalsResult.data || [],
+      experiments: experimentsResult.data || [], memory: memoryResult.data || []
+    }));
+  } catch (error) { return next(error); }
 });
 
 businessIntelligenceRouter.get("/imports/:id", requireAuthenticatedUser, async (req, res, next) => {
