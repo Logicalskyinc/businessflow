@@ -14,7 +14,7 @@ businessIntelligenceRouter.get("/health", (_request, response) => {
     capabilities: {
       onboardingQuestions: true,
       answerValidation: true,
-      persistentBusinessMemory: true,
+      persistentBusinessMemory: false,
       profilePersistence: true,
       liveBusinessAnalytics: false,
       aiReasoning: false,
