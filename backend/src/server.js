@@ -1,0 +1,57 @@
+import express from "express";
+import helmet from "helmet";
+import { businessIntelligenceRouter } from "./modules/business-intelligence/business-intelligence.routes.js";
+
+const app = express();
+const port = Number.parseInt(process.env.PORT ?? "3000", 10);
+
+app.disable("x-powered-by");
+app.use(helmet());
+app.use(express.json({ limit: "16kb", strict: true }));
+
+app.get("/health", (_request, response) => {
+  response.status(200).json({
+    status: "ok",
+    service: "businessflow-backend",
+    mode: "foundation"
+  });
+});
+
+app.use("/api/business-intelligence", businessIntelligenceRouter);
+
+app.use((request, response) => {
+  response.status(404).json({
+    error: "not_found",
+    message: "The requested endpoint does not exist."
+  });
+});
+
+app.use((error, _request, response, _next) => {
+  if (error?.type === "entity.too.large") {
+    return response.status(413).json({
+      error: "payload_too_large",
+      message: "Request body exceeds the 16 KB limit."
+    });
+  }
+
+  if (error instanceof SyntaxError && "body" in error) {
+    return response.status(400).json({
+      error: "invalid_json",
+      message: "Request body must contain valid JSON."
+    });
+  }
+
+  console.error("BusinessFlow API error:", error);
+  return response.status(500).json({
+    error: "internal_error",
+    message: "The server could not complete the request."
+  });
+});
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`BusinessFlow backend listening on port ${port}`);
+  });
+}
+
+export { app };
