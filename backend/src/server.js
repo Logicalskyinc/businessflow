@@ -7,6 +7,34 @@ const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 
 app.disable("x-powered-by");
 app.use(helmet());
+
+const allowedOrigins = new Set(
+  (process.env.BUSINESSFLOW_ALLOWED_ORIGINS ?? "https://logicalskyinc.github.io")
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(Boolean)
+);
+
+app.use((request, response, next) => {
+  const origin = request.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Vary", "Origin");
+    response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
+    response.setHeader("Access-Control-Max-Age", "600");
+  }
+
+  if (request.method === "OPTIONS") {
+    if (origin && !allowedOrigins.has(origin)) {
+      return response.status(403).json({ error: "origin_not_allowed" });
+    }
+    return response.status(204).end();
+  }
+
+  return next();
+});
+
 app.use(express.json({ limit: "16kb", strict: true }));
 
 app.get("/health", (_request, response) => {
