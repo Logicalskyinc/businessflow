@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -398,13 +397,39 @@
           <div class="page-heading">
             <p class="eyebrow">WORKSPACE</p>
             <h1>Settings</h1>
-            <p class="subtitle">Configure your workspace.</p>
+            <p class="subtitle">Manage your workspace and protect your business information.</p>
           </div>
-          <div class="panel">
+
+          <article class="panel">
+            <h2>Protect your workspace data</h2>
+            <p class="muted">
+              Your goals, experiments, and business memory are currently stored in this browser on this device.
+              Download a backup so you have a copy before clearing browser data or changing devices.
+            </p>
+
+            <div class="form-grid">
+              <div class="full-span">
+                <button type="button" class="primary-button" data-export-backup>
+                  Download workspace backup
+                </button>
+              </div>
+            </div>
+
+            <p class="muted">
+              The backup contains saved workspace records that this browser can access.
+              Keep the downloaded file private because it may contain business information.
+            </p>
+            <p class="muted" data-backup-status role="status" aria-live="polite"></p>
+          </article>
+
+          <article class="panel">
             <h2>Storage and prototype status</h2>
-            <p class="muted">Goal data uses browser-local storage. No backend, account system, or cloud synchronization is connected.</p>
+            <p class="muted">
+              BusinessFlow currently uses browser-local storage. No backend, account system, or cloud synchronization is connected.
+              Downloading a backup does not upload your information to a server.
+            </p>
             <p class="muted" data-storage-status role="status"></p>
-          </div>
+          </article>
         </section>
       </div>
     </main>
@@ -413,4 +438,5 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="script.js?v=4" defer></script>
 </body>
+</html></body>
 </html>
