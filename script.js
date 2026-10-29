@@ -1623,19 +1623,83 @@ async function viewSavedImport(id){
   }catch(error){panel.textContent=error.message||"Could not load this dataset.";}
 }
 function setupDataImport(){
-  const input=document.querySelector("#import-file"),fileStatus=document.querySelector("#import-file-status");
-  input?.addEventListener("change",async()=>{const file=input.files?.[0];pendingImport=null;document.querySelector("#import-review").hidden=true;if(!file){fileStatus.textContent="No file selected.";return;}fileStatus.textContent="Reading "+file.name+"…";
-    try{pendingImport=await readImportFile(file);pendingImport.filename=file.name;const name=document.querySelector("#import-dataset-name");if(name&&!name.value.trim())name.value=file.name.replace(/\.(csv|xlsx|xls)$/i,"").slice(0,160);fileStatus.textContent="Ready to review: "+file.name+". The file has not been uploaded.";renderImportReview();}
-    catch(error){fileStatus.textContent=error.message||"Could not read this file.";}
+  const input=document.querySelector("#import-file");
+  const fileStatus=document.querySelector("#import-file-status");
+  const review=document.querySelector("#import-review");
+  if(!input||!fileStatus||!review)return;
+
+  // Keep a visible, direct picker control for iPhone/Safari. The native input
+  // remains available as a fallback and both paths use the same handler.
+  let chooseButton=document.querySelector("#import-choose-file");
+  if(!chooseButton){
+    chooseButton=document.createElement("button");
+    chooseButton.type="button";
+    chooseButton.id="import-choose-file";
+    chooseButton.className="secondary-button";
+    chooseButton.textContent="Choose file";
+    chooseButton.style.marginTop="12px";
+    input.closest(".import-dropzone")?.insertAdjacentElement("afterend",chooseButton);
+  }
+  chooseButton.addEventListener("click",()=>{fileStatus.textContent="Choose a CSV or Excel file from Files on your device.";input.click();});
+
+  let processingFile=null;
+  const handleSelectedFile=async()=>{
+    const file=input.files&&input.files.length?input.files[0]:null;
+    if(!file){
+      fileStatus.textContent="No file selected yet. Tap Choose file and select a file in the Files picker.";
+      return;
+    }
+    if(processingFile===file)return;
+    processingFile=file;
+    pendingImport=null;
+    review.hidden=true;
+    fileStatus.textContent="File selected: "+file.name+". Reading file…";
+    try{
+      pendingImport=await readImportFile(file);
+      pendingImport.filename=file.name;
+      const name=document.querySelector("#import-dataset-name");
+      if(name&&!name.value.trim())name.value=file.name.replace(/\.(csv|xlsx|xls)$/i,"").slice(0,160);
+      fileStatus.textContent="File ready: "+file.name+". Review the preview below, then tap Add to BusinessFlow.";
+      renderImportReview();
+      review.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(error){
+      fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
+    }finally{
+      processingFile=null;
+    }
+  };
+  input.addEventListener("change",handleSelectedFile);
+  input.addEventListener("input",handleSelectedFile);
+  // On some iOS picker flows the page regains focus after the dialog closes.
+  window.addEventListener("focus",()=>{
+    if(input.files&&input.files.length&&fileStatus.textContent.includes("Choose a CSV or Excel file from Files")){
+      void handleSelectedFile();
+    }
   });
-  document.querySelector("#import-save")?.addEventListener("click",async()=>{const button=document.querySelector("#import-save"),status=document.querySelector("#import-review-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!pendingImport){status.textContent="Choose and review a file first.";return;}if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
-    button.disabled=true;status.textContent="Validating and saving the reviewed dataset…";
-    try{const mapping=currentImportMapping(),name=document.querySelector("#import-dataset-name").value.trim();if(!name)throw Error("Enter a name for this dataset.");
+
+  document.querySelector("#import-save")?.addEventListener("click",async()=>{
+    const button=document.querySelector("#import-save");
+    const status=document.querySelector("#import-review-status");
+    const cloud=window.BusinessFlowCloud?.getState?.();
+    if(!pendingImport){status.textContent="Choose and review a file first.";return;}
+    if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
+    button.disabled=true;
+    status.textContent="Validating and saving the reviewed dataset…";
+    try{
+      const mapping=currentImportMapping();
+      const name=document.querySelector("#import-dataset-name").value.trim();
+      if(!name)throw Error("Enter a name for this dataset.");
       const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
-      status.textContent="Added "+result.import.row_count+" rows to this business workspace.";showToast("Dataset added to BusinessFlow.");await loadSavedImports();if(result.import?.id)await viewSavedImport(result.import.id);
-    }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}finally{button.disabled=false;}
+      status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
+      showToast("Dataset added to BusinessFlow.");
+      await loadSavedImports();
+      if(result.import?.id)await viewSavedImport(result.import.id);
+    }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
+    finally{button.disabled=false;}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
-  window.addEventListener("businessflow:cloud-state",loadSavedImports);renderImportReview();loadSavedImports();
+  window.addEventListener("businessflow:cloud-state",loadSavedImports);
+  renderImportReview();
+  loadSavedImports();
 }
