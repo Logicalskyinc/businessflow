@@ -1670,11 +1670,18 @@ function setupDataImport(){
   };
   input.addEventListener("change",handleSelectedFile);
   input.addEventListener("input",handleSelectedFile);
-  // On some iOS picker flows the page regains focus after the dialog closes.
-  window.addEventListener("focus",()=>{
-    if(input.files&&input.files.length&&fileStatus.textContent.includes("Choose a CSV or Excel file from Files")){
-      void handleSelectedFile();
-    }
+  // Capture file changes at document level as well: iOS Safari can behave
+  // differently when the native picker is opened from a label.
+  document.addEventListener("change",event=>{
+    if(event.target===input)void handleSelectedFile();
+  },true);
+  // Re-check after the iOS Files picker returns focus/visibility to the page.
+  const recheckSelectedFile=()=>{
+    if(input.files&&input.files.length)void handleSelectedFile();
+  };
+  window.addEventListener("focus",recheckSelectedFile);
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible")recheckSelectedFile();
   });
 
   document.querySelector("#import-save")?.addEventListener("click",async()=>{
