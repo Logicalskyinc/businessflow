@@ -1190,6 +1190,11 @@ function navigateTo(pageId) {
   const page = document.getElementById(pageId);
 
   if (!page || !page.classList.contains("page")) return;
+  const cloudState = window.BusinessFlowCloud?.getState?.();
+  if (pageId !== "account" && !cloudState?.signedIn) {
+    pageId = "account";
+    return navigateTo(pageId);
+  }
 
   document.querySelectorAll(".page").forEach(item => {
     item.classList.toggle("active", item === page);
@@ -1338,6 +1343,31 @@ async function importLocalGoalsToCloud() {
     showToast("Import stopped: " + error.message + ". Your local backup was retained; retry safely.");
   }
 }
+
+window.addEventListener("businessflow:auth-state", event => {
+  const signedIn = Boolean(event.detail?.signedIn);
+  if (!signedIn) navigateTo("account");
+});
+
+window.addEventListener("businessflow:workspace-ready", event => {
+  const required = Boolean(event.detail?.onboardingRequired);
+  const gate = document.querySelector("#onboarding-gate");
+  if (gate) gate.hidden = !required;
+  navigateTo("overview");
+});
+
+document.querySelector("#onboarding-setup")?.addEventListener("click", () => {
+  const gate = document.querySelector("#onboarding-gate");
+  if (gate) gate.hidden = true;
+  navigateTo("account");
+  document.querySelector("#business-workspace-name")?.focus({ preventScroll: true });
+});
+
+window.addEventListener("businessflow:onboarding-skipped", () => {
+  const gate = document.querySelector("#onboarding-gate");
+  if (gate) gate.hidden = true;
+  navigateTo("overview");
+});
 
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;

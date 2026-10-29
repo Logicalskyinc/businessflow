@@ -7,8 +7,9 @@
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="access-flow.css">
 </head>
-<body>
+<body class="auth-pending">
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a href="#overview" class="brand">
@@ -472,9 +473,22 @@
     </main>
   </div>
 
+  <section class="onboarding-gate" id="onboarding-gate" aria-labelledby="onboarding-title" hidden>
+    <div class="onboarding-card">
+      <p class="eyebrow">YOUR BUSINESSFLOW WORKSPACE</p>
+      <h1 id="onboarding-title">Let’s make this workspace yours.</h1>
+      <p class="subtitle">Set up your business so BusinessFlow can organize your goals and context around the work you do. You can also explore first and set things up later.</p>
+      <div class="onboarding-options">
+        <article class="onboarding-option onboarding-option-primary"><span class="onboarding-option-icon" aria-hidden="true">↗</span><h2>Set up my business</h2><p>Add your business name, what you do, and the goal that matters most right now.</p><button type="button" class="primary-button" id="onboarding-setup">Set up my business</button></article>
+        <article class="onboarding-option"><span class="onboarding-option-icon" aria-hidden="true">⌂</span><h2>Skip for now</h2><p>Explore BusinessFlow first. We’ll remember your choice and won’t keep interrupting you.</p><button type="button" class="secondary-button" id="onboarding-skip">Explore without setup</button></article>
+      </div>
+      <p class="onboarding-footnote">You can create or select a business workspace later from Account &amp; setup.</p>
+      <p id="onboarding-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
-  <script src="script.js?v=5" defer></script>
+  <script src="script.js?v=6" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>

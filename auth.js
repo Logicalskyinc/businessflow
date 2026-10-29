@@ -50,6 +50,10 @@ function setSession(next) {
   if (workspaceSelect) workspaceSelect.disabled = !(signedIn && apiConnected);
   if (workspaceCreate) workspaceCreate.disabled = !(signedIn && apiConnected);
   if (importLocalGoals) importLocalGoals.disabled = !(signedIn && apiConnected && activeBusinessId);
+  document.body.classList.toggle("auth-required", !signedIn);
+  document.body.classList.toggle("auth-pending", false);
+  document.body.classList.toggle("authenticated", signedIn);
+  window.dispatchEvent(new CustomEvent("businessflow:auth-state", { detail: { signedIn } }));
   emitCloudState();
 }
 
@@ -142,6 +146,11 @@ async function loadBusinesses(preferredId = null) {
     showWorkspace(businesses.length
       ? "Choose a workspace to load its cloud goals."
       : "No cloud workspace yet. Create one to begin storing business data.");
+    const metadata = session?.user?.user_metadata ?? {};
+    const onboardingRequired = businesses.length === 0 && metadata.businessflow_onboarding_skipped !== true && metadata.businessflow_onboarding_completed !== true;
+    window.dispatchEvent(new CustomEvent("businessflow:workspace-ready", {
+      detail: { hasWorkspace: businesses.length > 0, onboardingRequired }
+    }));
   } catch (error) {
     showWorkspace(error.message);
     throw error;
@@ -177,6 +186,12 @@ async function createBusiness(event) {
       detail: { businessId: result.business.id }
     }));
     showWorkspace("Cloud workspace created. Goals can now be saved to this business.");
+    try {
+      const { error: metadataError } = await supabase.auth.updateUser({ data: { businessflow_onboarding_completed: true, businessflow_onboarding_skipped: false } });
+      if (metadataError) console.warn("Workspace created, but onboarding metadata could not be updated:", metadataError.message);
+      if (session?.user) session.user.user_metadata = { ...(session.user.user_metadata ?? {}), businessflow_onboarding_completed: true, businessflow_onboarding_skipped: false };
+    } catch (metadataError) { console.warn("Could not update onboarding metadata:", metadataError); }
+    window.dispatchEvent(new CustomEvent("businessflow:workspace-ready", { detail: { hasWorkspace: true, onboardingRequired: false } }));
   } catch (error) {
     showWorkspace(error.message);
   } finally {
@@ -187,6 +202,23 @@ async function createBusiness(event) {
 let businessCreateBusy = false;
 
 workspaceForm?.addEventListener("submit", createBusiness);
+
+document.querySelector("#onboarding-skip")?.addEventListener("click", async () => {
+  const button = document.querySelector("#onboarding-skip");
+  const message = document.querySelector("#onboarding-status");
+  if (!session?.user || !supabase) return;
+  if (button) button.disabled = true;
+  if (message) message.textContent = "Saving your preference…";
+  try {
+    const { error } = await supabase.auth.updateUser({ data: { businessflow_onboarding_skipped: true } });
+    if (error) throw error;
+    session.user.user_metadata = { ...(session.user.user_metadata ?? {}), businessflow_onboarding_skipped: true };
+    if (message) message.textContent = "";
+    window.dispatchEvent(new CustomEvent("businessflow:onboarding-skipped"));
+  } catch (error) {
+    if (message) message.textContent = "We couldn’t save that preference. Please try again. " + (error.message || "");
+  } finally { if (button) button.disabled = false; }
+});
 workspaceSelect?.addEventListener("change", () => {
   activeBusinessId = businesses.some(item => item.id === workspaceSelect.value) ? workspaceSelect.value : null;
   emitCloudState();
