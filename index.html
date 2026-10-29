@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -40,6 +40,7 @@
 
         <a href="#settings" class="nav-link" data-page="settings"><span>⚙</span> Settings</a>
 
+        <button type="button" class="sidebar-signout" id="sidebar-signout" hidden>↪ <span>Sign out</span></button>
         <div class="profile" id="workspace-profile">
           <div class="avatar" id="workspace-avatar">AB</div>
           <div class="profile-copy">
@@ -54,7 +55,7 @@
       <header class="topbar">
         <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
         <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
-        <span class="prototype-badge">BUSINESS WORKSPACE</span>
+        <span class="prototype-badge">BUSINESS INTELLIGENCE</span>
       </header>
 
       <div class="page-container">
@@ -79,10 +80,14 @@
           <div class="insight-banner">
             <div class="insight-icon">✳</div>
             <div>
-              <strong>Your business, understood.</strong>
-              <p>Turn business data into experiments, decisions, and measurable progress.</p>
+              <strong>Business intelligence is ready to work.</strong>
+              <p>BusinessFlow examines your imported records, goals, experiments and business memory to surface evidence-based next steps.</p>
             </div>
           </div>
+          <article class="panel intelligence-panel">
+            <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
+            <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
+          </article>
 
           <div class="section-heading">
             <div>
@@ -223,9 +228,7 @@
           <article class="panel">
             <h2>Business insights</h2>
             <p class="muted">Insights should be based on reliable data, not assumptions.</p>
-            <div class="empty-state">
-              No verified business insights yet. Connect reliable business data to identify trends and opportunities.
-            </div>
+            <div id="analytics-insights" class="insight-list"><p class="empty-state">Select a workspace to generate verified business insights.</p></div>
           </article>
 
           <footer class="app-footer">BusinessFlow · Performance intelligence</footer>
@@ -549,7 +552,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=11" defer></script>
+  <script src="script.js?v=12" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
