@@ -1344,8 +1344,6 @@ window.addEventListener("businessflow:cloud-state", event => {
     cloudGoalWorkspaceId = null;
     loadGoals();
     renderGoals();
-  } else if (state.businessId && state.businessId !== cloudGoalWorkspaceId) {
-    void loadCloudGoalsForWorkspace(state.businessId);
   }
 });
 window.addEventListener("businessflow:import-local-goals-requested", () => {
