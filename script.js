@@ -1394,6 +1394,7 @@ function initializeBusinessFlow() {
 
   setupNavigation();
   setupConnections();
+  setupDataImport();
 
   setupGoalForm();
   setupGoalActions();
@@ -1505,4 +1506,115 @@ function setupConnections() {
     document.querySelector("#connection-detail").hidden = true;
   });
   renderConnections();
+}
+
+/* CSV / Excel dataset import */
+const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
+let pendingImport = null;
+let importedDatasets = [];
+
+function parseCsvText(source) {
+  const rows=[]; let row=[], cell="", quoted=false;
+  for(let i=0;i<source.length;i++){const ch=source[i];
+    if(quoted){if(ch==='"'&&source[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}
+    else if(ch==='"'&&cell.length===0)quoted=true;
+    else if(ch===","){row.push(cell);cell="";}
+    else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&source[i+1]==="\n")i++;row.push(cell);cell="";if(row.some(v=>v.trim()!==""))rows.push(row);row=[];if(rows.length>252)throw Error("This file has more than 250 data rows. Split it into smaller imports.");}
+    else cell+=ch;
+  }
+  if(quoted)throw Error("The CSV contains an unfinished quoted field.");
+  if(cell.length||row.length){row.push(cell);if(row.some(v=>v.trim()!==""))rows.push(row);}
+  return rows;
+}
+function normalizeImportRows(matrix){
+  if(!Array.isArray(matrix)||matrix.length<2)throw Error("The file needs a header row and at least one data row.");
+  const raw=matrix[0].map((v,i)=>String(v??"").trim()||"Column "+(i+1));
+  if(raw.length>40)throw Error("This file has more than 40 columns.");
+  const seen=new Map(),columns=raw.map(name=>{const key=name.toLowerCase(),count=(seen.get(key)||0)+1;seen.set(key,count);return count===1?name:name+" ("+count+")";});
+  const data=matrix.slice(1).filter(row=>row.some(v=>String(v??"").trim()!==""));
+  if(!data.length)throw Error("No data rows were found below the header.");
+  if(data.length>250)throw Error("This import has "+data.length+" rows. The current limit is 250.");
+  const rows=data.map((row,index)=>{const out={};columns.forEach((column,i)=>{const value=row[i]===null||row[i]===undefined?"":String(row[i]);if(value.length>1000)throw Error("A cell in data row "+(index+1)+" exceeds 1,000 characters.");out[column]=value;});return out;});
+  return {columns,rows};
+}
+async function readImportFile(file){
+  if(!file)throw Error("Choose a file first.");
+  if(file.size>2*1024*1024)throw Error("The file is larger than 2 MB. Split it into smaller files.");
+  const name=file.name.toLowerCase();let matrix;
+  if(name.endsWith(".csv")||file.type==="text/csv")matrix=parseCsvText(await file.text());
+  else if(name.endsWith(".xlsx")||name.endsWith(".xls")){
+    if(!window.XLSX)throw Error("The Excel reader could not load. Check your connection or save the workbook as CSV.");
+    const workbook=window.XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:false,raw:true});
+    const sheet=workbook.Sheets[workbook.SheetNames[0]];
+    if(!sheet)throw Error("The workbook has no readable worksheet.");
+    matrix=window.XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:""});
+  }else throw Error("Choose a CSV, XLSX, or XLS file.");
+  return normalizeImportRows(matrix);
+}
+function renderImportReview(){
+  if(!pendingImport)return;
+  const review=document.querySelector("#import-review"),mappings=document.querySelector("#import-column-mapping"),head=document.querySelector("#import-preview-head"),body=document.querySelector("#import-preview-body");
+  if(!review||!mappings||!head||!body)return;
+  review.hidden=false;document.querySelector("#import-row-count").textContent=pendingImport.rows.length+" rows · "+pendingImport.columns.length+" columns";
+  mappings.replaceChildren();
+  pendingImport.columns.forEach(column=>{
+    const label=document.createElement("label");label.className="import-mapping-item";
+    const title=document.createElement("span");title.textContent=column;
+    const select=document.createElement("select");select.dataset.importColumn=column;
+    IMPORT_MAPPING_OPTIONS.forEach(([value,text])=>{const option=document.createElement("option");option.value=value;option.textContent=text;select.append(option);});
+    const n=column.toLowerCase();
+    const guess=n.includes("email")?"email":n.includes("phone")||n.includes("mobile")?"phone":n.includes("customer")&&n.includes("name")?"customer_name":n.includes("revenue")||n.includes("amount")||n.includes("total")?"revenue":n.includes("date")?"order_date":n.includes("product")||n.includes("item")?"product":n.includes("quantity")||n.includes("qty")?"quantity":n.includes("status")?"status":"";
+    select.value=guess;label.append(title,select);mappings.append(label);
+  });
+  head.replaceChildren();body.replaceChildren();
+  const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
+  pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
+  document.querySelector("#import-review-status").textContent="Review the sample and column mappings before saving.";
+  document.querySelector("#import-save").disabled=false;
+}
+function currentImportMapping(){
+  const mapping={};document.querySelectorAll("[data-import-column]").forEach(s=>mapping[s.dataset.importColumn]=s.value||null);
+  const values=Object.values(mapping).filter(Boolean);if(new Set(values).size!==values.length)throw Error("Each business field can be assigned to only one source column.");
+  return mapping;
+}
+async function loadSavedImports(){
+  const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
+  status.textContent="Loading saved datasets…";
+  try{
+    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
+    importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
+    if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
+    importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
+    status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
+  }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
+}
+async function viewSavedImport(id){
+  const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
+  panel.hidden=false;panel.textContent="Loading dataset…";
+  try{
+    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
+    panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
+    const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
+    dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
+    dataset.rows.slice(0,25).forEach(row=>{const line=document.createElement("tr");dataset.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";line.append(td);});tbody.append(line);});
+    table.append(thead,tbody);wrap.append(table);panel.append(title,meta,wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
+  }catch(error){panel.textContent=error.message||"Could not load this dataset.";}
+}
+function setupDataImport(){
+  const input=document.querySelector("#import-file"),fileStatus=document.querySelector("#import-file-status");
+  input?.addEventListener("change",async()=>{const file=input.files?.[0];pendingImport=null;document.querySelector("#import-review").hidden=true;if(!file){fileStatus.textContent="No file selected.";return;}fileStatus.textContent="Reading "+file.name+"…";
+    try{pendingImport=await readImportFile(file);pendingImport.filename=file.name;const name=document.querySelector("#import-dataset-name");if(name&&!name.value.trim())name.value=file.name.replace(/\.(csv|xlsx|xls)$/i,"").slice(0,160);fileStatus.textContent="Ready to review: "+file.name+". The file has not been uploaded.";renderImportReview();}
+    catch(error){fileStatus.textContent=error.message||"Could not read this file.";}
+  });
+  document.querySelector("#import-save")?.addEventListener("click",async()=>{const button=document.querySelector("#import-save"),status=document.querySelector("#import-review-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!pendingImport){status.textContent="Choose and review a file first.";return;}if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
+    button.disabled=true;status.textContent="Validating and saving the reviewed dataset…";
+    try{const mapping=currentImportMapping(),name=document.querySelector("#import-dataset-name").value.trim();if(!name)throw Error("Enter a name for this dataset.");
+      const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
+      status.textContent="Saved "+result.import.row_count+" rows to this business workspace.";showToast("Dataset imported successfully.");await loadSavedImports();
+    }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}finally{button.disabled=false;}
+  });
+  document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
+  document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
+  window.addEventListener("businessflow:cloud-state",loadSavedImports);renderImportReview();loadSavedImports();
 }
