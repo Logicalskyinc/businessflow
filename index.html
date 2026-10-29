@@ -400,6 +400,51 @@
             <p class="subtitle">Manage your workspace and protect your business information.</p>
           </div>
 
+          <article class="panel" aria-labelledby="account-heading">
+            <h2 id="account-heading">Account and cloud connection</h2>
+            <p class="muted">Sign in with your BusinessFlow account. Cloud data becomes available only after the backend is deployed and configured.</p>
+            <p id="account-status" class="muted" role="status" aria-live="polite">Checking account configuration…</p>
+            <form id="account-form" class="form-grid">
+              <label class="form-label">Email address
+                <input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+              </label>
+              <label class="form-label">Password
+                <input id="account-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+              </label>
+              <div class="full-span button-row">
+                <button type="submit" class="primary-button" id="account-submit">Sign in</button>
+                <button type="button" class="small-button" id="account-signup">Create account</button>
+                <button type="button" class="small-button" id="account-signout" hidden>Sign out</button>
+              </div>
+            </form>
+            <p id="api-status" class="muted" role="status" aria-live="polite">BusinessFlow API: not configured</p>
+            <div id="business-workspace" class="form-grid">
+              <h3 class="full-span">Business workspace</h3>
+              <p class="muted full-span">Create or select a business workspace to store goals in the cloud. Existing browser data will not be overwritten automatically.</p>
+              <label class="form-label full-span">Current workspace
+                <select id="business-workspace-select" name="business_workspace" disabled>
+                  <option value="">Sign in and connect the backend first</option>
+                </select>
+              </label>
+              <form id="business-workspace-form" class="form-grid full-span">
+                <label class="form-label">Business name
+                  <input id="business-workspace-name" name="business_name" maxlength="160" required>
+                </label>
+                <label class="form-label">What does the business do?
+                  <input id="business-workspace-basics" name="business_basics" maxlength="2000" required>
+                </label>
+                <label class="form-label full-span">Main business goal
+                  <input id="business-workspace-goal" name="primary_goal" maxlength="2000" required>
+                </label>
+                <div class="full-span button-row">
+                  <button id="business-workspace-create" type="submit" class="small-button" disabled>Create workspace</button>
+                  <button id="businessflow-import-local-goals" type="button" class="small-button" disabled>Import browser goals…</button>
+                </div>
+              </form>
+              <p id="business-workspace-status" class="muted full-span" role="status" aria-live="polite">Cloud workspace not connected.</p>
+            </div>
+          </article>
+
           <article class="panel">
             <h2>Protect your workspace data</h2>
             <p class="muted">
@@ -436,7 +481,9 @@
   </div>
 
   <div class="toast" role="status" aria-live="polite"></div>
+  <script src="frontend-config.js"></script>
   <script src="script.js?v=4" defer></script>
+  <script type="module" src="auth.js"></script>
 </body>
 </html></body>
 </html>

@@ -8,6 +8,9 @@
 const STORAGE_KEY = "businessflow_goals_v1";
 const EXPERIMENTS_KEY = "businessflow_experiments_v1";
 const MEMORY_KEY = "businessflow_memory_v1";
+const LOCAL_GOALS_BACKUP_KEY = "businessflow_goals_local_backup_v1";
+let cloudGoalWorkspaceId = null;
+let cloudGoalBusy = false;
 
 const DEFAULT_GOALS = [
   {
@@ -97,9 +100,12 @@ function createId() {
 
 function updateStorageStatus() {
   document.querySelectorAll("[data-storage-status]").forEach(element => {
-    element.textContent = storageAvailable
-      ? "Saved locally in this browser · Not synced across devices"
-      : "Browser storage unavailable · Changes may not persist";
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
+      ? "Business goals saved to the selected cloud workspace"
+      : storageAvailable
+        ? "Saved locally in this browser · Not synced across devices"
+        : "Browser storage unavailable · Changes may not persist";
   });
 }
 
@@ -331,7 +337,7 @@ function renderGoals() {
   updateStorageStatus();
 }
 
-function createGoal(title, current, target, unit) {
+async function createGoal(title, current, target, unit) {
   const cleanTitle = String(title).trim();
   const currentValue = Number(current);
   const targetValue = Number(target);
@@ -357,25 +363,48 @@ function createGoal(title, current, target, unit) {
     return false;
   }
 
-  goals.push({
-    id: createId(),
-    title: cleanTitle,
-    current: currentValue,
-    target: targetValue,
-    unit: cleanUnit || "units"
-  });
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (cloud?.signedIn && cloud.apiConnected) {
+    if (!cloud.businessId) {
+      showToast("Create or select a business workspace before saving a cloud goal.");
+      return false;
+    }
+    if (cloudGoalBusy) return false;
+    cloudGoalBusy = true;
+    try {
+      const saved = await window.BusinessFlowCloud.createGoal(cloud.businessId, {
+        title: cleanTitle, current: currentValue, target: targetValue, unit: cleanUnit || "units"
+      });
+      goals.push({
+        id: saved.id, title: saved.title, current: Number(saved.current_value ?? 0),
+        target: Number(saved.target_value ?? targetValue), unit: saved.metric_name || cleanUnit || "units"
+      });
+      if (!saveGoals()) showToast("Cloud goal saved, but the local browser copy could not be updated.");
+      renderGoals();
+      showToast("Goal saved to your BusinessFlow cloud workspace.");
+      return true;
+    } catch (error) {
+      showToast("Cloud save failed: " + error.message);
+      return false;
+    } finally {
+      cloudGoalBusy = false;
+    }
+  }
 
+  goals.push({
+    id: createId(), title: cleanTitle, current: currentValue,
+    target: targetValue, unit: cleanUnit || "units"
+  });
   if (!saveGoals()) {
     goals.pop();
     return false;
   }
-
   renderGoals();
-  showToast("Goal saved in this browser.");
+  showToast("Goal saved in this browser. Cloud sync is not connected.");
   return true;
 }
 
-function handleGoalAction(action, id) {
+async function handleGoalAction(action, id) {
   const goal = goals.find(item => item.id === id);
 
   if (!goal) {
@@ -389,17 +418,24 @@ function handleGoalAction(action, id) {
       '"? This removes the goal from this browser only.'
     )) return;
 
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
+      try {
+        await window.BusinessFlowCloud.deleteGoal(cloud.businessId, id);
+      } catch (error) {
+        showToast("Cloud delete failed: " + error.message);
+        return;
+      }
+    }
     const index = goals.findIndex(item => item.id === id);
     const removed = goals.splice(index, 1)[0];
-
     if (!saveGoals()) {
       goals.splice(index, 0, removed);
       renderGoals();
       return;
     }
-
     renderGoals();
-    showToast("Goal deleted from this browser.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Goal deleted from this browser.");
     return;
   }
 
@@ -421,13 +457,22 @@ function handleGoalAction(action, id) {
     const previous = goal.current;
     goal.current = value;
 
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
+      try {
+        await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
+      } catch (error) {
+        goal.current = previous;
+        showToast("Cloud update failed: " + error.message);
+        return;
+      }
+    }
     if (!saveGoals()) {
       goal.current = previous;
       return;
     }
-
     renderGoals();
-    showToast("Progress updated locally.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated locally.");
     return;
   }
 
@@ -468,13 +513,22 @@ function handleGoalAction(action, id) {
     goal.target = target;
     goal.unit = unit.trim() || "units";
 
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
+      try {
+        await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
+      } catch (error) {
+        Object.assign(goal, previous);
+        showToast("Cloud update failed: " + error.message);
+        return;
+      }
+    }
     if (!saveGoals()) {
       Object.assign(goal, previous);
       return;
     }
-
     renderGoals();
-    showToast("Goal updated locally.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated locally.");
   }
 }
 
@@ -482,7 +536,7 @@ function setupGoalForm() {
   const form = document.querySelector("#goal-form");
   if (!form) return;
 
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
 
     if (!form.reportValidity()) return;
@@ -492,7 +546,7 @@ function setupGoalForm() {
     const target = document.querySelector("#goal-target")?.value ?? "";
     const unit = document.querySelector("#goal-unit")?.value ?? "units";
 
-    if (createGoal(title, current, target, unit)) {
+    if (await createGoal(title, current, target, unit)) {
       form.reset();
 
       const currentField = document.querySelector("#goal-current");
@@ -1199,6 +1253,102 @@ function setupNavigation() {
     }
   });
 }
+
+async function loadCloudGoalsForWorkspace(businessId) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    cloudGoalWorkspaceId = null;
+    loadGoals();
+    renderGoals();
+    return;
+  }
+
+  try {
+    if (!localStorage.getItem(LOCAL_GOALS_BACKUP_KEY)) {
+      const localSnapshot = localStorage.getItem(STORAGE_KEY);
+      if (localSnapshot !== null) localStorage.setItem(LOCAL_GOALS_BACKUP_KEY, localSnapshot);
+    }
+    const records = await window.BusinessFlowCloud.loadGoals(businessId);
+    goals = records.filter(record =>
+      record && typeof record.id === "string" &&
+      typeof record.title === "string" &&
+      Number.isFinite(Number(record.current_value)) &&
+      Number(record.current_value) >= 0 &&
+      record.target_value !== null &&
+      Number.isFinite(Number(record.target_value)) &&
+      Number(record.target_value) > 0
+    ).map(record => ({
+      id: record.id,
+      title: record.title,
+      current: Number(record.current_value),
+      target: Number(record.target_value),
+      unit: record.metric_name || "units"
+    }));
+    cloudGoalWorkspaceId = businessId;
+    renderGoals();
+    showToast("Loaded " + goals.length + " cloud goal" + (goals.length === 1 ? "" : "s") + ".");
+  } catch (error) {
+    console.error("BusinessFlow cloud goals could not load:", error);
+    showToast("Could not load cloud goals: " + error.message);
+  }
+}
+
+async function importLocalGoalsToCloud() {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
+    showToast("Sign in, connect the backend, and select a business workspace first.");
+    return;
+  }
+  let localRecords = [];
+  try {
+    const snapshot = localStorage.getItem(LOCAL_GOALS_BACKUP_KEY) ?? localStorage.getItem(STORAGE_KEY);
+    const parsed = snapshot ? JSON.parse(snapshot) : [];
+    if (Array.isArray(parsed)) localRecords = parsed.filter(isValidGoal);
+  } catch (error) {
+    showToast("Could not read local goals for import.");
+    return;
+  }
+  if (!localRecords.length) {
+    showToast("No valid browser goals were found to import.");
+    return;
+  }
+  if (!confirm("Import " + localRecords.length + " browser goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your local backup will be kept.")) return;
+
+  try {
+    const remote = await window.BusinessFlowCloud.loadGoals(cloud.businessId);
+    const existingTitles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
+    let imported = 0, skipped = 0;
+    for (const local of localRecords) {
+      if (existingTitles.has(local.title.trim().toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      await window.BusinessFlowCloud.createGoal(cloud.businessId, local);
+      existingTitles.add(local.title.trim().toLowerCase());
+      imported++;
+    }
+    await loadCloudGoalsForWorkspace(cloud.businessId);
+    showToast("Import complete: " + imported + " imported, " + skipped + " skipped. Local backup retained.");
+  } catch (error) {
+    showToast("Import stopped: " + error.message + ". Your local backup was retained; retry safely.");
+  }
+}
+
+window.addEventListener("businessflow:workspace-changed", event => {
+  const businessId = event.detail?.businessId ?? null;
+  void loadCloudGoalsForWorkspace(businessId);
+});
+window.addEventListener("businessflow:cloud-state", event => {
+  const state = event.detail ?? {};
+  if (!state.signedIn || !state.apiConnected) {
+    cloudGoalWorkspaceId = null;
+    loadGoals();
+    renderGoals();
+  }
+});
+window.addEventListener("businessflow:import-local-goals-requested", () => {
+  void importLocalGoalsToCloud();
+});
 
 /* ---------- Start the app ---------- */
 
