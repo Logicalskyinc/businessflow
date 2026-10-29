@@ -1,7 +1,7 @@
 const numericValue = value => {
   if (value === null || value === undefined || value === "") return null;
   const normalized = String(value).trim().replace(/[^0-9,.-]/g, "").replace(/,/g, "");
-  if (!normalized || !/^-?\\d+(?:\\.\\d+)?$/.test(normalized)) return null;
+  if (!normalized || !/^-?\d+(?:\.\d+)?$/.test(normalized)) return null;
   const number = Number(normalized);
   return Number.isFinite(number) ? number : null;
 };
