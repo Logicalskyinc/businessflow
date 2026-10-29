@@ -1393,6 +1393,7 @@ function initializeBusinessFlow() {
   loadMemories();
 
   setupNavigation();
+  setupConnections();
 
   setupGoalForm();
   setupGoalActions();
@@ -1423,4 +1424,85 @@ if (document.readyState === "loading") {
   });
 } else {
   initializeBusinessFlow();
+}
+
+/* ---------- Connections directory ---------- */
+const CONNECTION_CATALOG = [
+  { id:"hubspot", name:"HubSpot", category:"CRM & customers", kind:"CRM", description:"Bring customer records, lead stages, and sales activity into business analysis.", access:"OAuth authorization; start with read-only contacts, companies, and deals scopes.", requirements:["A HubSpot account with permission to authorize apps.","A secure OAuth connector and workspace-level token storage.","Explicit selection of the records and scopes BusinessFlow may read."] },
+  { id:"salesforce", name:"Salesforce", category:"CRM & customers", kind:"CRM", description:"Analyze sales pipeline, customer relationships, and opportunity movement.", access:"OAuth authorization; read-only scopes first.", requirements:["A Salesforce organization and an authorized administrator or user.","Registered OAuth app and approved scopes.","Server-side token storage and workspace isolation."] },
+  { id:"zoho-crm", name:"Zoho CRM", category:"CRM & customers", kind:"CRM", description:"Use leads, contacts, and deal stages to understand sales performance.", access:"OAuth authorization with least-privilege CRM scopes.", requirements:["A Zoho CRM account.","OAuth application configuration for the selected region.","Permission review and workspace-level token storage."] },
+  { id:"pipedrive", name:"Pipedrive", category:"CRM & customers", kind:"CRM", description:"Understand lead conversion, deal velocity, and pipeline bottlenecks.", access:"OAuth or approved API access; read-only by default.", requirements:["A Pipedrive account.","Approved OAuth scopes or securely stored API credentials.","A clear mapping from pipeline data to BusinessFlow metrics."] },
+  { id:"excel", name:"Microsoft Excel", category:"Spreadsheets & files", kind:"Spreadsheet", description:"Analyze business figures from Excel workbooks and structured tables.", access:"File import first; cloud workbook sync can follow through Microsoft Graph.", requirements:["For file import: a workbook in a supported format.","For cloud sync: Microsoft sign-in and Graph permissions.","Column mapping, validation, and a preview before importing."] },
+  { id:"google-sheets", name:"Google Sheets", category:"Spreadsheets & files", kind:"Spreadsheet", description:"Use existing sales, stock, finance, or customer sheets as a business data source.", access:"Google OAuth with access limited to files the user selects.", requirements:["A Google account and explicit file-selection permission.","A secure OAuth flow and server-side token handling.","A preview and confirmation before data is imported."] },
+  { id:"csv-import", name:"CSV & Excel file import", category:"Spreadsheets & files", kind:"File import", description:"Start with a spreadsheet export without connecting an external account.", access:"User-selected file upload; no external account access.", requirements:["A CSV or supported Excel file.","Column mapping, size limits, validation, and duplicate handling.","A review screen before saving imported records."] },
+  { id:"whatsapp-business", name:"WhatsApp Business Platform", category:"Messaging & email", kind:"Messaging", description:"Analyze approved business messaging events and customer-service activity.", access:"Meta business authorization; only approved business assets and scopes.", requirements:["A WhatsApp Business Platform setup and eligible business assets.","Meta app review and permissions where required.","Webhook verification, customer privacy safeguards, and clear consent rules."] },
+  { id:"gmail", name:"Gmail", category:"Messaging & email", kind:"Email", description:"Connect selected business email signals for approved workflow and response analysis.", access:"Google OAuth; minimal scopes, preferably metadata or user-selected data.", requirements:["A Google Workspace or Gmail account.","OAuth consent and only the scopes needed for the chosen feature.","Clear limits on message access, retention, and analysis."] },
+  { id:"outlook", name:"Microsoft Outlook", category:"Messaging & email", kind:"Email", description:"Connect approved mailbox or calendar data for business workflow insights.", access:"Microsoft Graph authorization with least-privilege scopes.", requirements:["A Microsoft account or Microsoft 365 organization.","Microsoft identity app configuration and consent.","Explicit permissions and a way to revoke access."] },
+  { id:"slack", name:"Slack", category:"Messaging & email", kind:"Team messaging", description:"Bring approved team workflow signals into operational reviews.", access:"Slack OAuth with narrowly scoped workspace permissions.", requirements:["A Slack workspace and authorized app installation.","A review of channel and message permissions.","Workspace-level token protection and access auditing."] },
+  { id:"teams", name:"Microsoft Teams", category:"Messaging & email", kind:"Team messaging", description:"Connect approved collaboration and operational signals from Teams.", access:"Microsoft Graph permissions and admin consent where required.", requirements:["A Microsoft 365 tenant.","Registered app and permission approval.","A clear scope for messages, meetings, or activity data."] },
+  { id:"quickbooks", name:"QuickBooks", category:"Finance & payments", kind:"Accounting", description:"Analyze approved financial summaries, expenses, and accounting trends.", access:"OAuth; start with read-only accounting scopes.", requirements:["A supported QuickBooks account and region.","Intuit developer app and OAuth configuration.","Currency, fiscal period, and accounting-category mapping."] },
+  { id:"xero", name:"Xero", category:"Finance & payments", kind:"Accounting", description:"Use accounting records to understand cash flow and business performance.", access:"OAuth with the minimum accounting scopes required.", requirements:["A Xero organization.","Registered app and approved connection scopes.","Careful treatment of financial data and workspace permissions."] },
+  { id:"stripe", name:"Stripe", category:"Finance & payments", kind:"Payments", description:"Analyze payment outcomes, refunds, and revenue events from authorized data.", access:"Restricted read-only API key or OAuth where supported; backend only.", requirements:["A Stripe account.","A restricted key or approved authorization flow stored server-side.","A clear definition of gross revenue, fees, refunds, and currency."] },
+  { id:"shopify", name:"Shopify", category:"E-commerce & sales", kind:"E-commerce", description:"Understand orders, product performance, and customer purchase trends.", access:"Shopify app authorization with minimum required scopes.", requirements:["A Shopify store and authorized app installation.","Approved scopes and secure webhook verification if used.","Data mapping for orders, refunds, products, and currencies."] },
+  { id:"woocommerce", name:"WooCommerce", category:"E-commerce & sales", kind:"E-commerce", description:"Analyze store orders, product sales, and customer trends.", access:"Restricted WooCommerce REST API credentials stored server-side.", requirements:["A WooCommerce store with HTTPS.","A dedicated key with the minimum required permissions.","Secure credential storage and webhook validation."] },
+  { id:"meta-ads", name:"Meta Ads", category:"Marketing & ads", kind:"Advertising", description:"Measure campaign results and customer acquisition performance.", access:"Meta OAuth and approved advertising permissions; reporting first.", requirements:["A Meta business portfolio and ad account.","App review and business verification if required.","Read-only reporting first; any campaign changes require separate approval."] },
+  { id:"google-ads", name:"Google Ads", category:"Marketing & ads", kind:"Advertising", description:"Compare campaign spending, conversions, and acquisition performance.", access:"Google OAuth and the required Google Ads API access.", requirements:["A Google Ads account and developer token where required.","OAuth configuration and approved access.","Reporting metrics mapped to the business's attribution model."] },
+  { id:"google-analytics", name:"Google Analytics", category:"Marketing & ads", kind:"Analytics", description:"Understand website traffic and conversion trends using approved properties.", access:"Google OAuth with access to selected Analytics properties.", requirements:["A GA4 property and permission to authorize access.","Google Analytics Data API setup.","Defined conversion events and date ranges."] },
+  { id:"notion", name:"Notion", category:"Projects & teams", kind:"Knowledge base", description:"Use selected operational documents and plans as business context.", access:"Notion integration authorization limited to pages shared with it.", requirements:["A Notion workspace.","An integration authorized by the workspace owner.","Explicitly shared pages and a clear data-retention policy."] },
+  { id:"trello", name:"Trello", category:"Projects & teams", kind:"Project management", description:"Track project progress, task movement, and operational bottlenecks.", access:"Trello authorization with minimum board permissions.", requirements:["A Trello account and selected boards.","Secure authorization and workspace token storage.","A mapping for boards, lists, cards, and completion states."] },
+  { id:"asana", name:"Asana", category:"Projects & teams", kind:"Project management", description:"Understand project delivery, task progress, and team workflows.", access:"OAuth with selected workspace and project scopes.", requirements:["An Asana workspace and authorization.","OAuth configuration and least-privilege scopes.","Clear rules for which projects BusinessFlow may read."] },
+  { id:"postgresql", name:"PostgreSQL database", category:"Custom data", kind:"Database", description:"Connect a supported database for governed business reporting and analysis.", access:"Backend-only connection using a dedicated read-only database role.", requirements:["A reachable PostgreSQL instance with TLS where supported.","A dedicated read-only role restricted to approved schemas and tables.","Network controls, secret storage, query limits, and a tested isolation model."] },
+  { id:"rest-api", name:"REST APIs & webhooks", category:"Custom data", kind:"Developer tools", description:"Connect custom business systems that do not have a built-in integration.", access:"Server-side API credentials or signed webhook verification.", requirements:["API documentation and an authorized credential or signing secret.","A server-side connector with timeouts, retries, and rate limits.","Validated payloads, audit logs, and secret rotation."] },
+  { id:"pos-inventory", name:"POS & inventory systems", category:"Operations & inventory", kind:"Operations", description:"Understand stock movement, point-of-sale activity, and order operations.", access:"Provider-specific OAuth or restricted API access.", requirements:["The exact POS or inventory provider must be identified.","Provider API access and supported data scopes.","A mapping for products, stock levels, sales, and locations."] },
+  { id:"logistics", name:"Shipping & logistics", category:"Operations & inventory", kind:"Operations", description:"Track delivery status, fulfilment delays, and order operations.", access:"Provider-specific authorization or signed webhooks.", requirements:["The shipping or logistics provider used by the business.","API or webhook access approved by that provider.","Validation of shipment events and customer information handling."] }
+];
+
+function renderConnections() {
+  const grid = document.querySelector("#connections-grid");
+  if (!grid) return;
+  const query = (document.querySelector("#connections-search")?.value || "").trim().toLowerCase();
+  const category = document.querySelector("#connections-category")?.value || "all";
+  const filtered = CONNECTION_CATALOG.filter(item => {
+    const matchesCategory = category === "all" || item.category === category;
+    const searchable = [item.name, item.category, item.kind, item.description].join(" ").toLowerCase();
+    return matchesCategory && (!query || searchable.includes(query));
+  });
+  grid.innerHTML = filtered.map(item => `
+    <article class="connection-card">
+      <div class="connection-card-top"><span class="connection-logo" aria-hidden="true">${escapeHTML(item.name.split(/\\s+/).map(part => part[0]).join("").slice(0,2))}</span><span class="connection-status"><i></i> Not connected</span></div>
+      <p class="connection-category">${escapeHTML(item.category)}</p>
+      <h2>${escapeHTML(item.name)}</h2>
+      <p class="connection-description">${escapeHTML(item.description)}</p>
+      <div class="connection-card-footer"><span>${escapeHTML(item.kind)}</span><button type="button" class="text-button" data-connection-details="${escapeHTML(item.id)}">View details <span aria-hidden="true">→</span></button></div>
+    </article>`).join("");
+  const count = document.querySelector("#connections-count");
+  if (count) count.textContent = filtered.length + " integration option" + (filtered.length === 1 ? "" : "s");
+  const empty = document.querySelector("#connections-empty");
+  if (empty) empty.hidden = filtered.length > 0;
+}
+
+function showConnectionDetails(id) {
+  const item = CONNECTION_CATALOG.find(connection => connection.id === id);
+  const panel = document.querySelector("#connection-detail");
+  if (!item || !panel) return;
+  document.querySelector("#connection-detail-title").textContent = item.name;
+  document.querySelector("#connection-detail-description").textContent = item.description;
+  document.querySelector("#connection-detail-category").textContent = item.category + " · " + item.kind;
+  const requirements = document.querySelector("#connection-detail-requirements");
+  requirements.innerHTML = item.requirements.map(value => "<li>" + escapeHTML(value) + "</li>").join("");
+  panel.hidden = false;
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setupConnections() {
+  document.querySelector("#connections-search")?.addEventListener("input", renderConnections);
+  document.querySelector("#connections-category")?.addEventListener("change", renderConnections);
+  document.querySelector("#connections-grid")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-connection-details]");
+    if (button) showConnectionDetails(button.dataset.connectionDetails);
+  });
+  document.querySelector("#connection-detail-close")?.addEventListener("click", () => {
+    document.querySelector("#connection-detail").hidden = true;
+  });
+  renderConnections();
 }

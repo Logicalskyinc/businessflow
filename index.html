@@ -25,6 +25,7 @@
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
         <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
+        <a href="#connections" class="nav-link" data-page="connections"><span>⤴</span> Connections</a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -428,6 +429,52 @@
           </div>
         </section>
 
+        <section class="page" id="connections">
+          <div class="page-heading">
+            <p class="eyebrow">BUSINESS SYSTEMS</p>
+            <h1>Connections</h1>
+            <p class="subtitle">Bring the tools your business already uses into one place. Explore integration options and see what each connection could unlock.</p>
+          </div>
+
+          <div class="connections-notice">
+            <span class="connections-notice-icon" aria-hidden="true">i</span>
+            <div><strong>Integration directory · foundation stage</strong><p>These are supported integration targets for the BusinessFlow roadmap, not active connections. No external account is accessed from this directory. Connect actions will appear as each integration is securely implemented.</p></div>
+          </div>
+
+          <div class="connections-toolbar">
+            <label class="connections-search"><span aria-hidden="true">⌕</span><input id="connections-search" type="search" placeholder="Search tools, categories, or use cases…" autocomplete="off" aria-label="Search integrations"></label>
+            <label class="connections-filter">Category
+              <select id="connections-category" aria-label="Filter integrations by category">
+                <option value="all">All categories</option>
+                <option value="CRM & customers">CRM & customers</option>
+                <option value="Spreadsheets & files">Spreadsheets & files</option>
+                <option value="Messaging & email">Messaging & email</option>
+                <option value="Finance & payments">Finance & payments</option>
+                <option value="E-commerce & sales">E-commerce & sales</option>
+                <option value="Marketing & ads">Marketing & ads</option>
+                <option value="Projects & teams">Projects & teams</option>
+                <option value="Operations & inventory">Operations & inventory</option>
+                <option value="Custom data">Custom data</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="connections-summary"><strong id="connections-count">27 integration options</strong><span>Planned connectors · no access granted</span></div>
+          <div id="connections-grid" class="connections-grid" aria-live="polite"></div>
+          <p id="connections-empty" class="empty-state" hidden>No integrations match that search. Try another name or category.</p>
+          <article class="connections-detail panel" id="connection-detail" hidden aria-live="polite">
+            <button type="button" class="connections-detail-close" id="connection-detail-close" aria-label="Close integration details">×</button>
+            <p class="eyebrow">INTEGRATION DETAILS</p>
+            <h2 id="connection-detail-title">Integration</h2>
+            <p id="connection-detail-description" class="muted"></p>
+            <div class="connection-detail-meta"><span id="connection-detail-category"></span><span class="connection-status"><i></i> Not connected</span></div>
+            <h3>Before connecting</h3>
+            <ul id="connection-detail-requirements"></ul>
+            <p class="connection-disclaimer">A connection is not active yet. BusinessFlow will only request access after the relevant secure connector is implemented and you explicitly authorize it.</p>
+          </article>
+          <footer class="app-footer">BusinessFlow · Connections directory</footer>
+        </section>
+
         <section class="page" id="settings">
           <div class="page-heading">
             <p class="eyebrow">WORKSPACE</p>
@@ -487,7 +534,7 @@
   </section>
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
-  <script src="script.js?v=6" defer></script>
+  <script src="script.js?v=7" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>

@@ -349,3 +349,41 @@ body.auth-required .account-page { max-width: 100%; }
   .onboarding-options { grid-template-columns: minmax(0, 1fr); }
   .onboarding-option { padding: 18px; }
 }
+
+
+/* Connections directory */
+.connections-notice { display:flex; gap:13px; align-items:flex-start; padding:17px 19px; margin:20px 0 24px; border:1px solid #dbe5fb; border-radius:15px; background:linear-gradient(110deg,#f0f5ff,#f7fbff); }
+.connections-notice-icon { flex:0 0 30px; display:grid; place-items:center; width:30px; height:30px; border-radius:10px; background:#e0eaff; color:#2457e6; font-weight:800; }
+.connections-notice strong { display:block; color:#20375c; font-size:13px; }
+.connections-notice p { margin:5px 0 0; color:#65758f; font-size:12px; line-height:1.7; }
+.connections-toolbar { display:flex; align-items:center; gap:12px; margin:22px 0 15px; }
+.connections-search { display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding:0 14px; min-height:48px; border:1px solid var(--border); border-radius:12px; background:#fff; color:#7a879d; }
+.connections-search > span { font-size:23px; }
+.connections-search input { width:100%; min-width:0; border:0; outline:0; color:var(--text); background:transparent; font:inherit; font-size:13px; }
+.connections-filter { display:flex; align-items:center; gap:10px; color:#64728a; font-size:12px; white-space:nowrap; }
+.connections-filter select { max-width:220px; min-height:46px; padding:0 12px; border:1px solid var(--border); border-radius:12px; background:#fff; color:#263650; font:inherit; }
+.connections-summary { display:flex; justify-content:space-between; gap:12px; align-items:center; margin:18px 0 12px; color:#7a879c; font-size:11px; }
+.connections-summary strong { color:#283a57; font-size:13px; }
+.connections-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.connection-card { min-width:0; display:flex; flex-direction:column; padding:18px; border:1px solid var(--border); border-radius:16px; background:#fff; transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease; }
+.connection-card:hover { border-color:#cbd8f6; box-shadow:0 10px 28px rgba(26,52,96,.07); transform:translateY(-2px); }
+.connection-card-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.connection-logo { display:grid; place-items:center; width:42px; height:42px; border-radius:13px; background:#edf2ff; color:#2457e6; font-size:13px; font-weight:800; letter-spacing:-.4px; }
+.connection-status { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #e3e9f1; border-radius:99px; color:#748198; background:#fafbfd; font-size:10px; white-space:nowrap; }
+.connection-status i { display:inline-block; width:6px; height:6px; border-radius:50%; background:#9aa6b7; }
+.connection-category { margin:17px 0 6px; color:#6680b7; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+.connection-card h2 { margin:0; color:#20304b; font-size:16px; letter-spacing:-.25px; }
+.connection-description { flex:1; min-height:58px; margin:9px 0 18px; color:#6c7a91; font-size:12px; line-height:1.7; }
+.connection-card-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:13px; border-top:1px solid #edf0f6; color:#8a96a9; font-size:10px; }
+.connection-card-footer .text-button { white-space:nowrap; font-size:11px; }
+.connections-detail { position:relative; margin-top:20px; padding:25px; }
+.connections-detail[hidden] { display:none !important; }
+.connections-detail h2 { margin:4px 0 8px; color:#20304b; }
+.connections-detail h3 { margin:20px 0 8px; font-size:13px; color:#30415f; }
+.connections-detail ul { display:grid; gap:8px; padding-left:20px; color:#65748a; font-size:12px; line-height:1.7; }
+.connections-detail-close { position:absolute; top:14px; right:16px; width:32px; height:32px; border:1px solid var(--border); border-radius:10px; background:#fff; color:#60708a; font-size:22px; cursor:pointer; }
+.connection-detail-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; color:#75839a; font-size:11px; }
+.connection-disclaimer { margin:16px 0 0; padding:12px; border-radius:10px; background:#f7f9fd; color:#6b7890; font-size:11px; line-height:1.7; }
+#connections-empty[hidden] { display:none; }
+@media (max-width:1050px) { .connections-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:680px) { .connections-toolbar { align-items:stretch; flex-direction:column; } .connections-filter { justify-content:space-between; } .connections-filter select { flex:1; max-width:none; } .connections-grid { grid-template-columns:minmax(0,1fr); } .connections-summary { align-items:flex-start; flex-direction:column; gap:5px; } .connection-description { min-height:0; } }
