@@ -234,7 +234,7 @@ signUp?.addEventListener("click", async () => {
     const { data, error } = await supabase.auth.signUp({
       email: address,
       password: secret,
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: window.location.href.split("#")[0] }
     });
     if (error) throw error;
     if (data.session) {
