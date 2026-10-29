@@ -7,6 +7,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const goalStatuses = ["active", "paused", "completed", "archived"];
 const experimentStatuses = ["draft", "planned", "running", "completed", "cancelled"];
 const memoryCategories = ["business_context", "decision", "observation", "preference", "lesson", "experiment_result"];
+const singularResource = { goals: "goal", experiments: "experiment", memory: "memory" };
 
 businessIntelligenceRouter.get("/health", (_req, res) => res.json({
   module: "business-intelligence", status: "available",
@@ -70,7 +71,7 @@ function addCrud(path, table, validator) {
       const payload = { ...checked.value, business_id: req.body.business_id, created_by: req.user.id };
       const { data, error } = await req.supabase.from(table).insert(payload).select("*").single();
       if (error) return next(error);
-      return res.status(201).json({ status: "created", [path.slice(0, -1)]: data });
+      return res.status(201).json({ status: "created", [singularResource[path]]: data });
     } catch (e) { return next(e); }
   });
   businessIntelligenceRouter.patch("/" + path + "/:id", requireAuthenticatedUser, async (req, res, next) => {
@@ -126,6 +127,8 @@ function validateExperiment(input, partial = false) {
 function validateMemory(input, partial = false) {
   if (!object(input)) return invalid(["Request body must be a JSON object."]);
   const errors = [], value = {};
+  const allowed = new Set(["business_id", "category", "content", "source"]);
+  for (const key of Object.keys(input)) if (!allowed.has(key)) errors.push("Unknown field: " + key + ".");
   if (input.category !== undefined) {
     if (!memoryCategories.includes(input.category)) errors.push("category is unsupported.");
     else value.category = input.category;
