@@ -99,3 +99,9 @@ Before adding further customer data, implement and test the complete authorizati
 ## Existing Supabase advisor findings
 
 The shared project's security advisor also reports two findings on existing GrowthFlow configuration: `growthflow_payment_events` has RLS enabled but no policies, and leaked-password protection is disabled. These were not changed as part of BusinessFlow work and should be reviewed separately.
+
+## Browser origin configuration
+
+The API permits browser requests from `https://logicalskyinc.github.io` by default. If the frontend is hosted elsewhere, set `BUSINESSFLOW_ALLOWED_ORIGINS` in the backend environment to a comma-separated list of exact origins (scheme and hostname, no path). The CORS middleware does not enable credentialed cookies; the API uses bearer tokens. Keep the frontend's Supabase publishable/anon key public and never expose a service-role key.
+
+The frontend account panel currently supports Supabase email/password sign-in, account creation, sign-out, and a backend health check. It does not yet synchronize the existing browser-local goals, experiments, or memory with the API. Do not describe the app as cloud-synced until that migration and end-to-end testing are complete.
