@@ -17,7 +17,9 @@ test("Business Intelligence health reports only implemented capabilities", async
 
   assert.equal(response.status, 200);
   assert.equal(body.capabilities.profilePersistence, true);
-  assert.equal(body.capabilities.persistentBusinessMemory, false);
+  assert.equal(body.capabilities.goalsPersistence, true);
+  assert.equal(body.capabilities.experimentsPersistence, true);
+  assert.equal(body.capabilities.persistentBusinessMemory, true);
   assert.equal(body.capabilities.liveBusinessAnalytics, false);
   assert.equal(body.capabilities.aiReasoning, false);
 });
@@ -47,6 +49,20 @@ test("persistent onboarding requires a verified bearer token", async () => {
   assert.equal(response.status, 401);
   assert.equal(body.error, "authentication_required");
 });
+
+
+for (const endpoint of [
+  "/api/business-intelligence/goals?business_id=00000000-0000-4000-8000-000000000000",
+  "/api/business-intelligence/experiments?business_id=00000000-0000-4000-8000-000000000000",
+  "/api/business-intelligence/memory?business_id=00000000-0000-4000-8000-000000000000"
+]) {
+  test(`collection ${endpoint.split("?")[0]} requires authentication`, async () => {
+    const response = await fetch(`${baseUrl}${endpoint}`);
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error, "authentication_required");
+  });
+}
 
 test.after(async () => {
   await new Promise((resolve, reject) => {
