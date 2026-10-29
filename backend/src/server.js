@@ -9,7 +9,7 @@ app.disable("x-powered-by");
 app.use(helmet());
 
 const allowedOrigins = new Set(
-  (process.env.BUSINESSFLOW_ALLOWED_ORIGINS ?? "https://logicalskyinc.github.io")
+  (process.env.BUSINESSFLOW_ALLOWED_ORIGINS ?? "https://logicalskyinc.github.io,https://growthflow-7tyx.onrender.com,https://businessflow-gba5.onrender.com")
     .split(",")
     .map(origin => origin.trim())
     .filter(Boolean)
