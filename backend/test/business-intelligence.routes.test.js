@@ -20,7 +20,8 @@ test("Business Intelligence health reports only implemented capabilities", async
   assert.equal(body.capabilities.goalsPersistence, true);
   assert.equal(body.capabilities.experimentsPersistence, true);
   assert.equal(body.capabilities.persistentBusinessMemory, true);
-  assert.equal(body.capabilities.liveBusinessAnalytics, false);
+  assert.equal(body.capabilities.liveBusinessAnalytics, true);
+  assert.equal(body.capabilities.ruleBasedRecommendations, true);
   assert.equal(body.capabilities.aiReasoning, false);
 });
 
@@ -81,4 +82,11 @@ test("dataset import endpoints require authentication", async () => {
   });
   assert.equal(saveResponse.status, 401);
   assert.equal((await saveResponse.json()).error, "authentication_required");
+});
+
+
+test("business insights require authentication", async () => {
+  const response = await fetch(`${baseUrl}/api/business-intelligence/insights?business_id=00000000-0000-4000-8000-000000000000`);
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "authentication_required");
 });
