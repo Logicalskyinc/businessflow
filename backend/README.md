@@ -10,6 +10,11 @@ This directory contains BusinessFlow's API and its internal Business Intelligenc
 - `POST /api/business-intelligence/onboarding/validate` — validates answers without saving.
 - `POST /api/business-intelligence/onboarding` — verifies a Supabase access token and persists a business profile under the authenticated user.
 - `GET /api/business-intelligence/businesses` — lists only business profiles visible to the authenticated user under database RLS.
+- `GET/POST /api/business-intelligence/goals` and `PATCH/DELETE /api/business-intelligence/goals/:id` — authenticated goal management.
+- `GET/POST /api/business-intelligence/experiments` and `PATCH/DELETE /api/business-intelligence/experiments/:id` — authenticated experiment management.
+- `GET/POST /api/business-intelligence/memory` and `PATCH/DELETE /api/business-intelligence/memory/:id` — authenticated structured business-memory records.
+
+For goal, experiment, and memory list/create requests, supply `business_id` as a UUID. Listing accepts an optional `limit` from 1 to 100. Database RLS still determines whether the verified user can access that business. These endpoints persist structured records only; they do not infer insights or invoke an AI provider.
 
 ### Persist onboarding
 
