@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "backend/**"
+      - "script.js"
+      - "auth.js"
+      - "frontend-config.js"
+      - "index.html"
       - ".github/workflows/businessflow-backend.yml"
   push:
     branches:
@@ -29,6 +33,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check frontend JavaScript syntax
+        run: |
+          node --check ../script.js
+          node --input-type=module --check < ../auth.js
+          node --check ../frontend-config.js
       - name: Install dependencies
         run: npm install
       - name: Run backend tests
