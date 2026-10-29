@@ -1,0 +1,37 @@
+name: BusinessFlow backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/businessflow-backend.yml"
+  push:
+    branches:
+      - main
+      - feature/business-intelligence-persistence
+    paths:
+      - "backend/**"
+      - ".github/workflows/businessflow-backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Run backend tests
+        run: npm test
