@@ -136,6 +136,9 @@ async function loadBusinesses(preferredId = null) {
     businesses = Array.isArray(result.businesses) ? result.businesses : [];
     if (preferredId) activeBusinessId = preferredId;
     renderBusinesses();
+    window.dispatchEvent(new CustomEvent("businessflow:workspace-changed", {
+      detail: { businessId: activeBusinessId }
+    }));
     showWorkspace(businesses.length
       ? "Choose a workspace to load its cloud goals."
       : "No cloud workspace yet. Create one to begin storing business data.");
