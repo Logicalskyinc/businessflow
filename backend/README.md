@@ -92,7 +92,7 @@ These are initial owner-only policies. Membership roles are groundwork only; tea
 
 ## Not implemented yet
 
-The backend currently persists onboarding profiles and lists visible profiles. It does not yet persist goals/experiments/memory through API routes, compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions. The validation endpoint remains non-persistent.
+The backend now persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. The `onboarding/validate` endpoint remains non-persistent. The API does not yet compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions. The frontend is not yet connected to these authenticated endpoints.
 
 Before adding further customer data, implement and test the complete authorization flow, automated RLS integration tests, and server-side secret configuration. Never trust a business or tenant ID supplied by the browser, and never expose a Supabase service-role key to the frontend.
 
