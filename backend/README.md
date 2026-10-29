@@ -74,12 +74,12 @@ BusinessFlow uses its own `businessflow_`-prefixed tables in the existing Growth
 - `businessflow_experiments` — hypotheses, status, and results.
 - `businessflow_memory` — structured business context, decisions, observations, preferences, and lessons.
 
-Both migrations are applied to the live GrowthFlow project:
+The following migrations are present in the connected GrowthFlow project's migration history:
 
 - `202610290001_business_intelligence_core`
 - `202610290002_businessflow_owner_membership_trigger`
 
-The core migration creates the five tables with RLS and owner-based policies. The second migration ensures profile creation also creates the owner membership within the same database transaction. The schema and migration history were checked after applying. A transaction-based smoke test with two authenticated identities verified that the second user could not read another user's profile, goals, or membership, or insert a goal into that business. Test data was rolled back.
+The core migration creates the five tables with RLS and owner-based policies. The second migration ensures profile creation also creates the owner membership within the same database transaction. The migration history and resulting schema were inspected in the connected GrowthFlow project; this does not mean the application has passed production end-to-end testing. A transaction-based smoke test with two authenticated identities verified that the second user could not read another user's profile, goals, or membership, or insert a goal into that business. Test data was rolled back.
 
 These are initial owner-only policies. Membership roles are groundwork only; team access is not enabled yet. We still need automated repeatable RLS integration tests and a fuller authorization review before treating this as production-ready.
 
@@ -92,7 +92,7 @@ These are initial owner-only policies. Membership roles are groundwork only; tea
 
 ## Not implemented yet
 
-The backend now persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. The `onboarding/validate` endpoint remains non-persistent. The API does not yet compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions. The frontend is not yet connected to these authenticated endpoints.
+The backend code persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. The frontend code now contains account authentication, workspace selection, goal loading, cloud goal CRUD, and an explicit local-goal import flow. However, `apiBaseUrl` is intentionally empty in `frontend-config.js`, so these flows cannot reach the backend until a deployment is separately approved, configured, and verified. The `onboarding/validate` endpoint remains non-persistent. The API does not yet compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions.
 
 Before adding further customer data, implement and test the complete authorization flow, automated RLS integration tests, and server-side secret configuration. Never trust a business or tenant ID supplied by the browser, and never expose a Supabase service-role key to the frontend.
 
