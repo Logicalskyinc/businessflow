@@ -47,6 +47,48 @@ businessIntelligenceRouter.get("/businesses", requireAuthenticatedUser, async (r
   } catch (e) { return next(e); }
 });
 
+businessIntelligenceRouter.get("/imports", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!uuid(req.query.business_id)) return bad(res, ["business_id must be a valid UUID."]);
+    const { data, error } = await req.supabase.from("businessflow_imports")
+      .select("id,business_id,name,source_filename,columns,row_count,created_at")
+      .eq("business_id", req.query.business_id).order("created_at", { ascending: false }).limit(50);
+    if (error) return next(error);
+    return res.json({ status: "ok", imports: data });
+  } catch (e) { return next(e); }
+});
+businessIntelligenceRouter.post("/imports", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!object(req.body) || !uuid(req.body.business_id)) return bad(res, ["A valid business_id is required."]);
+    const { name, source_filename, columns, rows } = req.body;
+    if (typeof name !== "string" || !name.trim() || name.trim().length > 160) return bad(res, ["Dataset name must contain 1 to 160 characters."]);
+    if (typeof source_filename !== "string" || !source_filename.trim() || source_filename.length > 255) return bad(res, ["Source filename must contain 1 to 255 characters."]);
+    if (!Array.isArray(columns) || columns.length < 1 || columns.length > 40 || columns.some(c => typeof c !== "string" || !c.trim() || c.length > 120)) return bad(res, ["Provide 1 to 40 valid column names."]);
+    if (new Set(columns.map(c => c.trim().toLowerCase())).size !== columns.length) return bad(res, ["Column names must be unique."]);
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 250) return bad(res, ["Import must contain 1 to 250 data rows."]);
+    const normalizedRows = [];
+    for (const row of rows) {
+      if (!object(row) || Object.keys(row).length !== columns.length) return bad(res, ["Every row must match the selected columns."]);
+      const normalized = {};
+      for (const column of columns) {
+        const value = row[column];
+        if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean" && value !== null) return bad(res, ["Cells must contain text, numbers, booleans, or empty values."]);
+        const cell = value === null ? "" : String(value);
+        if (cell.length > 1000) return bad(res, ["Each cell must be 1000 characters or fewer."]);
+        normalized[column] = cell;
+      }
+      normalizedRows.push(normalized);
+    }
+    if (JSON.stringify(normalizedRows).length > 700000) return res.status(413).json({ error: "import_too_large", message: "Dataset is too large. Split it into smaller imports." });
+    const { data, error } = await req.supabase.from("businessflow_imports").insert({
+      business_id: req.body.business_id, created_by: req.user.id, name: name.trim(),
+      source_filename: source_filename.trim(), columns: columns.map(c => c.trim()), rows: normalizedRows, row_count: normalizedRows.length
+    }).select("id,business_id,name,source_filename,columns,row_count,created_at").single();
+    if (error) return next(error);
+    return res.status(201).json({ status: "created", import: data });
+  } catch (e) { return next(e); }
+});
+
 addCrud("goals", "businessflow_goals", validateGoal);
 addCrud("experiments", "businessflow_experiments", validateExperiment);
 addCrud("memory", "businessflow_memory", validateMemory);

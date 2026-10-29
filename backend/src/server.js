@@ -35,7 +35,7 @@ app.use((request, response, next) => {
   return next();
 });
 
-app.use(express.json({ limit: "16kb", strict: true }));
+app.use(express.json({ limit: "1mb", strict: true }));
 
 app.get("/health", (_request, response) => {
   response.status(200).json({
