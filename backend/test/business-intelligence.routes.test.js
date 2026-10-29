@@ -69,3 +69,16 @@ test.after(async () => {
     server.close(error => error ? reject(error) : resolve());
   });
 });
+
+
+test("dataset import endpoints require authentication", async () => {
+  const listResponse = await fetch(`${baseUrl}/api/business-intelligence/imports?business_id=00000000-0000-4000-8000-000000000000`);
+  assert.equal(listResponse.status, 401);
+  assert.equal((await listResponse.json()).error, "authentication_required");
+  const saveResponse = await fetch(`${baseUrl}/api/business-intelligence/imports`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ business_id: "00000000-0000-4000-8000-000000000000", name: "test", source_filename: "test.csv", columns: ["name"], column_mapping: {}, rows: [{ name: "A" }] })
+  });
+  assert.equal(saveResponse.status, 401);
+  assert.equal((await saveResponse.json()).error, "authentication_required");
+});

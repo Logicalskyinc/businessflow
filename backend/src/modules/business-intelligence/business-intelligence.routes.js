@@ -47,11 +47,23 @@ businessIntelligenceRouter.get("/businesses", requireAuthenticatedUser, async (r
   } catch (e) { return next(e); }
 });
 
+businessIntelligenceRouter.get("/imports/:id", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!uuid(req.params.id) || !uuid(req.query.business_id)) return bad(res, ["A valid import id and business_id are required."]);
+    const { data, error } = await req.supabase.from("businessflow_imports")
+      .select("id,business_id,name,source_filename,columns,column_mapping,rows,row_count,created_at")
+      .eq("id", req.params.id).eq("business_id", req.query.business_id).maybeSingle();
+    if (error) return next(error);
+    if (!data) return res.status(404).json({ error: "import_not_found" });
+    return res.json({ status: "ok", import: data });
+  } catch (e) { return next(e); }
+});
+
 businessIntelligenceRouter.get("/imports", requireAuthenticatedUser, async (req, res, next) => {
   try {
     if (!uuid(req.query.business_id)) return bad(res, ["business_id must be a valid UUID."]);
     const { data, error } = await req.supabase.from("businessflow_imports")
-      .select("id,business_id,name,source_filename,columns,row_count,created_at")
+      .select("id,business_id,name,source_filename,columns,column_mapping,row_count,created_at")
       .eq("business_id", req.query.business_id).order("created_at", { ascending: false }).limit(50);
     if (error) return next(error);
     return res.json({ status: "ok", imports: data });
@@ -65,6 +77,10 @@ businessIntelligenceRouter.post("/imports", requireAuthenticatedUser, async (req
     if (typeof source_filename !== "string" || !source_filename.trim() || source_filename.length > 255) return bad(res, ["Source filename must contain 1 to 255 characters."]);
     if (!Array.isArray(columns) || columns.length < 1 || columns.length > 40 || columns.some(c => typeof c !== "string" || !c.trim() || c.length > 120)) return bad(res, ["Provide 1 to 40 valid column names."]);
     if (new Set(columns.map(c => c.trim().toLowerCase())).size !== columns.length) return bad(res, ["Column names must be unique."]);
+    if (!object(req.body.column_mapping)) return bad(res, ["column_mapping must be a JSON object."]);
+    const mappingValues = Object.values(req.body.column_mapping).filter(Boolean);
+    const allowedMappings = new Set(["customer_name","email","phone","revenue","order_date","product","quantity","status","customer_id","location","notes"]);
+    if (Object.keys(req.body.column_mapping).some(key => !columns.includes(key)) || mappingValues.some(value => typeof value !== "string" || !allowedMappings.has(value)) || new Set(mappingValues).size !== mappingValues.length) return bad(res, ["Column mapping contains unknown columns or duplicate/unsupported business fields."]);
     if (!Array.isArray(rows) || rows.length < 1 || rows.length > 250) return bad(res, ["Import must contain 1 to 250 data rows."]);
     const normalizedRows = [];
     for (const row of rows) {
@@ -82,8 +98,8 @@ businessIntelligenceRouter.post("/imports", requireAuthenticatedUser, async (req
     if (JSON.stringify(normalizedRows).length > 700000) return res.status(413).json({ error: "import_too_large", message: "Dataset is too large. Split it into smaller imports." });
     const { data, error } = await req.supabase.from("businessflow_imports").insert({
       business_id: req.body.business_id, created_by: req.user.id, name: name.trim(),
-      source_filename: source_filename.trim(), columns: columns.map(c => c.trim()), rows: normalizedRows, row_count: normalizedRows.length
-    }).select("id,business_id,name,source_filename,columns,row_count,created_at").single();
+      source_filename: source_filename.trim(), columns: columns.map(c => c.trim()), column_mapping: req.body.column_mapping, rows: normalizedRows, row_count: normalizedRows.length
+    }).select("id,business_id,name,source_filename,columns,column_mapping,row_count,created_at").single();
     if (error) return next(error);
     return res.status(201).json({ status: "created", import: data });
   } catch (e) { return next(e); }

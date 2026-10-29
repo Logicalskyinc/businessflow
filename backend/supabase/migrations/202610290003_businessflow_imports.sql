@@ -6,6 +6,7 @@ create table public.businessflow_imports (
   name text not null check (char_length(trim(name)) between 1 and 160),
   source_filename text not null check (char_length(source_filename) between 1 and 255),
   columns jsonb not null check (jsonb_typeof(columns) = 'array' and jsonb_array_length(columns) between 1 and 40),
+  column_mapping jsonb not null default '{}'::jsonb check (jsonb_typeof(column_mapping) = 'object'),
   rows jsonb not null check (jsonb_typeof(rows) = 'array' and jsonb_array_length(rows) between 1 and 250),
   row_count integer not null check (row_count between 1 and 250),
   created_at timestamptz not null default now(),
