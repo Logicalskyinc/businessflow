@@ -1,14 +1,50 @@
 # BusinessFlow backend
 
-This directory is the first backend foundation for BusinessFlow. Business Intelligence is an internal backend module, not a separately deployed service.
+This directory contains BusinessFlow's API and its internal Business Intelligence module.
 
-## Current API scope
+## Current API
 
-- `GET /health` reports API process health.
-- `GET /api/business-intelligence/health` reports which module capabilities are available.
-- `GET /api/business-intelligence/onboarding/questions` returns deterministic onboarding questions.
-- `POST /api/business-intelligence/onboarding/validate` validates answers without saving them.
-- Node's built-in test runner covers the onboarding domain validation.
+- `GET /health` — process health.
+- `GET /api/business-intelligence/health` — reports implemented module capabilities.
+- `GET /api/business-intelligence/onboarding/questions` — returns deterministic onboarding questions.
+- `POST /api/business-intelligence/onboarding/validate` — validates answers without saving.
+- `POST /api/business-intelligence/onboarding` — verifies a Supabase access token and persists a business profile under the authenticated user.
+- `GET /api/business-intelligence/businesses` — lists only business profiles visible to the authenticated user under database RLS.
+
+### Persist onboarding
+
+Send an authenticated request:
+
+```http
+POST /api/business-intelligence/onboarding
+Authorization: Bearer <supabase-access-token>
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "My Business",
+  "answers": {
+    "business_basics": "We sell shoes to local customers.",
+    "primary_goal": "Increase repeat customers",
+    "current_baseline": "About 20 repeat customers per month",
+    "constraints": "Small marketing budget",
+    "success_measure": "Increase repeat customers by 15%"
+  }
+}
+```
+
+The backend derives `owner_user_id` from the verified token, never from request JSON. A database trigger creates the initial owner membership atomically. The request-scoped Supabase client uses the public/anon key plus the user's JWT, so Row Level Security is still enforced. Never use the service-role key for this route.
+
+## Environment
+
+Copy `.env.example` to your local environment and set:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY` (the project's publishable/anon key, never a service-role key)
+- optionally `PORT` and `NODE_ENV`
+
+The deployed backend will need the same values in its hosting provider's secret/environment settings. No production hosting variables have been changed by this commit.
 
 ## Run locally
 
@@ -23,33 +59,38 @@ npm start
 
 The server listens on port 3000 by default. Set `PORT` to change it.
 
-## Database foundation
+## Database
 
-The migration `supabase/migrations/202610290001_business_intelligence_core.sql` defines BusinessFlow-owned tables with a `businessflow_` prefix inside the shared GrowthFlow Supabase project:
+BusinessFlow uses its own `businessflow_`-prefixed tables in the existing GrowthFlow Supabase project:
 
 - `businessflow_profiles` — owner and onboarding/business context.
-- `businessflow_memberships` — groundwork for future teams; initial access is owner-only.
+- `businessflow_memberships` — initial owner membership and groundwork for future teams.
 - `businessflow_goals` — goals and measurable progress.
 - `businessflow_experiments` — hypotheses, status, and results.
 - `businessflow_memory` — structured business context, decisions, observations, preferences, and lessons.
 
-The migration enables RLS on all five tables, grants no table access to anonymous/public roles, and limits authenticated access with owner-based policies. Updated timestamps are maintained by database triggers. These tables are separate from the existing `growthflow_*` tables.
+Both migrations are applied to the live GrowthFlow project:
 
-**Migration status (2026-10-29): applied to the shared GrowthFlow Supabase project.** The five BusinessFlow tables were verified in the live schema. A transaction-based smoke test using two existing authenticated identities verified that the second identity could not read the first identity's profile, goals, or membership and could not insert a goal into that business; all test data and temporary test objects were rolled back. The existing three `growthflow_*` tables and the prior migration history remained present and unchanged. This smoke test is useful evidence, but it is not a substitute for a repeatable automated RLS integration suite.
+- `202610290001_business_intelligence_core`
+- `202610290002_businessflow_owner_membership_trigger`
+
+The core migration creates the five tables with RLS and owner-based policies. The second migration ensures profile creation also creates the owner membership within the same database transaction. The schema and migration history were checked after applying. A transaction-based smoke test with two authenticated identities verified that the second user could not read another user's profile, goals, or membership, or insert a goal into that business. Test data was rolled back.
+
+These are initial owner-only policies. Membership roles are groundwork only; team access is not enabled yet. We still need automated repeatable RLS integration tests and a fuller authorization review before treating this as production-ready.
 
 ## Architecture boundary
 
 - **BusinessFlow frontend:** customer-facing onboarding, dashboards, goals, experiments, and reports.
-- **Business Intelligence module:** business context, onboarding, metrics interpretation, recommendations, experiments, and business memory as those capabilities are implemented.
-- **Grey:** a future internal orchestrator for approved cross-capability tasks. BusinessFlow must retain useful core functionality when Grey is unavailable.
+- **Business Intelligence module:** owns business context, onboarding, metrics interpretation, recommendations, experiments, and business memory as each capability is implemented.
+- **Grey:** a future internal orchestrator for approved cross-capability tasks. BusinessFlow should retain core functionality if Grey is unavailable.
 - **GreyFlow:** a future content-generation provider behind explicit cost, permission, and action-approval controls.
 
-## Important limitations
+## Not implemented yet
 
-This is a database foundation, not a production-ready AI backend. The current API does not yet connect to Supabase, persist onboarding answers, authenticate requests, enforce tenant access in the application layer, call an AI provider, read live business metrics, or execute external actions. The validation endpoint remains intentionally non-persistent and must not be treated as a completed signup flow.
+The backend currently persists onboarding profiles and lists visible profiles. It does not yet persist goals/experiments/memory through API routes, compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions. The validation endpoint remains non-persistent.
 
-Before enabling customer persistence, implement verified authentication, derive business access from the verified identity (never a browser-supplied owner or tenant ID), connect the backend using server-side credentials, and add repeatable integration tests for authorization. Never expose a Supabase service-role key to the browser. The service-role key bypasses RLS and must be kept in server-side secrets only.
+Before adding further customer data, implement and test the complete authorization flow, automated RLS integration tests, and server-side secret configuration. Never trust a business or tenant ID supplied by the browser, and never expose a Supabase service-role key to the frontend.
 
 ## Existing Supabase advisor findings
 
-The post-migration security advisor still reports two findings on the shared project: `growthflow_payment_events` has RLS enabled but no policies, and leaked-password protection is disabled. These findings predate BusinessFlow's migration and were not changed as part of this work. Review them separately before expanding payment or authentication functionality.
+The shared project's security advisor also reports two findings on existing GrowthFlow configuration: `growthflow_payment_events` has RLS enabled but no policies, and leaked-password protection is disabled. These were not changed as part of BusinessFlow work and should be reviewed separately.
