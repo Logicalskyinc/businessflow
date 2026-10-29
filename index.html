@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -431,15 +431,15 @@
         </section>
 
         <section class="page" id="data-import">
-          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Import your data</h1><p class="subtitle">Bring in a spreadsheet you already use. Review the columns and sample rows before saving them to your selected business workspace.</p></div>
-          <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>Private, workspace-scoped import</strong><p>Files are parsed in your browser. Only the reviewed data you choose to import is sent to BusinessFlow. The server validates the request and saves it under your selected workspace.</p></div></div>
+          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your AB Cleaning Service CSV into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
+          <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>How to add your CSV</strong><p><b>1.</b> Tap Choose a CSV or Excel file. <b>2.</b> Check the preview and map customer, service, amount, date and status columns where available. <b>3.</b> Tap <b>Add to BusinessFlow</b>. The saved dataset will open below with a summary calculated from your imported records. You must be signed in and have a business workspace selected.</p></div></div>
           <article class="panel import-upload-panel"><div class="panel-heading"><div><h2>Choose a file</h2><p class="muted">CSV or Excel workbook · maximum 2 MB, 40 columns and 250 data rows per import.</p></div><span class="count-pill">CSV / XLSX</span></div>
             <label class="form-label">Dataset name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
             <label class="import-dropzone" for="import-file"><span class="import-upload-icon" aria-hidden="true">⇧</span><strong>Choose a CSV or Excel file</strong><span>Tap to select a file from your device</span><small>CSV, XLSX or XLS · file contents are not uploaded automatically</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
             <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p></article>
           <section id="import-review" hidden><article class="panel"><div class="panel-heading"><div><h2>Review and map columns</h2><p class="muted">Choose the business meaning for each source column. Keep as source field preserves its original name.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
             <div id="import-column-mapping" class="import-mapping-grid"></div><h3 class="import-preview-heading">Sample preview <span>first 10 rows</span></h3><div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
-            <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Save to workspace</button></div></article></section>
+            <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Add to BusinessFlow</button></div></article></section>
           <article class="panel"><div class="panel-heading"><div><h2>Saved datasets</h2><p class="muted">Datasets already imported into the selected workspace.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
             <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div><div id="saved-import-detail" class="saved-import-detail" hidden></div><p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p></article>
           <footer class="app-footer">BusinessFlow · Data import</footer></section>
@@ -549,7 +549,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=8" defer></script>
+  <script src="script.js?v=9" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>

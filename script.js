@@ -1563,7 +1563,7 @@ function renderImportReview(){
     const select=document.createElement("select");select.dataset.importColumn=column;
     IMPORT_MAPPING_OPTIONS.forEach(([value,text])=>{const option=document.createElement("option");option.value=value;option.textContent=text;select.append(option);});
     const n=column.toLowerCase();
-    const guess=n.includes("email")?"email":n.includes("phone")||n.includes("mobile")?"phone":n.includes("customer")&&n.includes("name")?"customer_name":n.includes("revenue")||n.includes("amount")||n.includes("total")?"revenue":n.includes("date")?"order_date":n.includes("product")||n.includes("item")?"product":n.includes("quantity")||n.includes("qty")?"quantity":n.includes("status")?"status":"";
+    const guess=n.includes("email")?"email":n.includes("phone")||n.includes("mobile")?"phone":(n.includes("customer")||n.includes("client"))&&n.includes("name")?"customer_name":n.includes("revenue")||n.includes("amount")||n.includes("total")||n.includes("price")||n.includes("cost")||n.includes("payment")||n.includes("paid")?"revenue":n.includes("date")||n.includes("day")?"order_date":n.includes("product")||n.includes("item")||n.includes("service")||n.includes("job")?"product":n.includes("quantity")||n.includes("qty")?"quantity":n.includes("status")||n.includes("progress")?"status":n.includes("address")||n.includes("area")?"location":n.includes("note")||n.includes("description")?"notes":"";
     select.value=guess;label.append(title,select);mappings.append(label);
   });
   head.replaceChildren();body.replaceChildren();
@@ -1589,13 +1589,34 @@ async function loadSavedImports(){
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
   }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
 }
+function buildDatasetReadout(dataset){
+  const mapping=dataset.column_mapping&&typeof dataset.column_mapping==="object"?dataset.column_mapping:{};
+  const sourceFor=field=>Object.keys(mapping).find(column=>mapping[column]===field);
+  const rows=Array.isArray(dataset.rows)?dataset.rows:[];
+  const cards=[{label:"Records imported",value:String(rows.length)}],notes=[];
+  const customerColumn=sourceFor("customer_name")||sourceFor("customer_id")||sourceFor("email")||sourceFor("phone");
+  if(customerColumn){const unique=new Set(rows.map(row=>String(row[customerColumn]??"").trim().toLowerCase()).filter(Boolean));cards.push({label:"Distinct customers",value:String(unique.size)});}
+  const revenueColumn=sourceFor("revenue");
+  if(revenueColumn){
+    const values=rows.map(row=>{const raw=String(row[revenueColumn]??"").trim();if(!raw)return null;const normalized=raw.replace(/,/g,"").replace(/[^0-9.\\-]/g,"");if(!normalized||normalized==="-"||normalized==="."||normalized==="-.")return null;const n=Number(normalized);return Number.isFinite(n)?n:null;}).filter(v=>v!==null);
+    if(values.length){const total=values.reduce((sum,v)=>sum+v,0);cards.push({label:"Total mapped amount",value:total.toLocaleString(undefined,{maximumFractionDigits:2})});cards.push({label:"Average amount",value:(total/values.length).toLocaleString(undefined,{maximumFractionDigits:2})});notes.push("Amount summary uses "+values.length+" numeric values from “"+revenueColumn+"”. Confirm the currency and meaning of this column before using it as revenue.");}
+    else notes.push("The mapped amount column “"+revenueColumn+"” contains no readable numeric values.");
+  }else notes.push("Map the column containing job prices, payments or sales amounts to “Revenue / amount” to calculate totals.");
+  const dateColumn=sourceFor("order_date");
+  if(dateColumn){const dates=rows.map(row=>new Date(row[dateColumn])).filter(d=>!Number.isNaN(d.getTime())).sort((a,b)=>a-b);if(dates.length)cards.push({label:"Date coverage",value:dates[0].toLocaleDateString()+" – "+dates[dates.length-1].toLocaleDateString()});}
+  const statusColumn=sourceFor("status");
+  if(statusColumn){const counts=new Map();rows.forEach(row=>{const value=String(row[statusColumn]??"").trim();if(value)counts.set(value,(counts.get(value)||0)+1);});if(counts.size)notes.push("Status breakdown: "+[...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,4).map(([label,count])=>label+": "+count).join(" · "));}
+  if(!customerColumn)notes.push("Map a customer/client name, ID, email or phone column to count distinct customers.");
+  if(!dateColumn)notes.push("Map your cleaning/job date column to show the period covered.");
+  return {cards,notes};
+}
 async function viewSavedImport(id){
   const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
   panel.hidden=false;panel.textContent="Loading dataset…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
-    const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
+    const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
     dataset.rows.slice(0,25).forEach(row=>{const line=document.createElement("tr");dataset.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";line.append(td);});tbody.append(line);});
     table.append(thead,tbody);wrap.append(table);panel.append(title,meta,wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
@@ -1611,7 +1632,7 @@ function setupDataImport(){
     button.disabled=true;status.textContent="Validating and saving the reviewed dataset…";
     try{const mapping=currentImportMapping(),name=document.querySelector("#import-dataset-name").value.trim();if(!name)throw Error("Enter a name for this dataset.");
       const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
-      status.textContent="Saved "+result.import.row_count+" rows to this business workspace.";showToast("Dataset imported successfully.");await loadSavedImports();
+      status.textContent="Added "+result.import.row_count+" rows to this business workspace.";showToast("Dataset added to BusinessFlow.");await loadSavedImports();if(result.import?.id)await viewSavedImport(result.import.id);
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}finally{button.disabled=false;}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
