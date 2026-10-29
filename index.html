@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -16,11 +16,11 @@
         <span>BusinessFlow<small>BUSINESS INTELLIGENCE</small></span>
       </a>
 
-      <p class="nav-label">WORKSPACE</p>
+      <p class="nav-label">YOUR WORKSPACE</p>
 
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
-        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account & setup</a>
+        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
@@ -30,21 +30,21 @@
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="ai-status">
+        <div class="ai-status" id="workspace-sync-status">
           <span class="status-dot"></span>
           <div>
-            <strong>BusinessFlow AI</strong>
-            <small>Connect your account to sync</small>
+            <strong>Workspace sync</strong>
+            <small id="workspace-sync-label">Checking your connection…</small>
           </div>
         </div>
 
         <a href="#settings" class="nav-link" data-page="settings"><span>⚙</span> Settings</a>
 
-        <div class="profile">
-          <div class="avatar">HT</div>
+        <div class="profile" id="workspace-profile">
+          <div class="avatar" id="workspace-avatar">AB</div>
           <div class="profile-copy">
-            <strong>My Business</strong>
-            <small>Business workspace</small>
+            <strong id="workspace-profile-name">Your business</strong>
+            <small id="workspace-profile-caption">Business workspace</small>
           </div>
         </div>
       </div>
@@ -54,7 +54,7 @@
       <header class="topbar">
         <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
         <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
-        <span class="prototype-badge">WORKSPACE</span>
+        <span class="prototype-badge">BUSINESS WORKSPACE</span>
       </header>
 
       <div class="page-container">
@@ -67,11 +67,11 @@
           <div class="welcome-row">
             <div>
               <p class="eyebrow">BUSINESS INTELLIGENCE</p>
-              <h1>Good morning.</h1>
-              <p class="subtitle">Understand your business. Make better decisions.</p>
+              <h1 id="overview-greeting">Good morning.</h1>
+              <p class="subtitle">Your business, clearly understood. Make confident decisions with reliable information.</p>
             </div>
             <div class="welcome-actions">
-              <button type="button" class="secondary-button" data-go-to="account">Set up workspace</button>
+              <button type="button" class="secondary-button" data-go-to="account" id="manage-workspace-button">Manage workspace</button>
               <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
             </div>
           </div>
@@ -387,7 +387,7 @@
               <div class="account-intro-copy">
                 <p class="eyebrow">YOUR BUSINESS, IN ONE PLACE</p>
                 <h1>Make room for better decisions.</h1>
-                <p class="subtitle">Connect your account, set up your business, and bring your goals into one organised workspace.</p>
+                <p class="subtitle">Manage your account, choose a business workspace, and control the information BusinessFlow uses.</p>
               </div>
               <div class="account-hero-art" aria-hidden="true">
                 <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
@@ -412,7 +412,7 @@
                 <p id="api-status" class="account-api-status" role="status" aria-live="polite">Checking BusinessFlow connection…</p>
               </article>
               <article class="panel account-card workspace-card" aria-labelledby="business-workspace-heading">
-                <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESS</p><h2 id="business-workspace-heading">Set up your workspace</h2><p class="muted">Tell BusinessFlow what you are building and what matters most right now.</p></div></div>
+                <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESS</p><h2 id="business-workspace-heading">Your business workspace</h2><p class="muted">Your selected workspace and its connected business information.</p></div></div>
                 <div id="business-workspace" class="workspace-form-area">
                   <label class="form-label">Current workspace<select id="business-workspace-select" name="business_workspace" disabled><option value="">Sign in to load your workspaces</option></select></label>
                   <div class="workspace-divider"><span>OR CREATE A NEW WORKSPACE</span></div>
@@ -431,7 +431,7 @@
         </section>
 
         <section class="page" id="data-import">
-          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your AB Cleaning Service CSV into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
+          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your business records into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
           <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>How to add your CSV</strong><p><b>1.</b> Tap Choose a CSV or Excel file. <b>2.</b> Check the preview and map customer, service, amount, date and status columns where available. <b>3.</b> Tap <b>Add to BusinessFlow</b>. The saved dataset will open below with a summary calculated from your imported records. You must be signed in and have a business workspace selected.</p></div></div>
           <article class="panel import-upload-panel"><div class="panel-heading"><div><h2>Choose a file</h2><p class="muted">CSV or Excel workbook · maximum 2 MB, 40 columns and 250 data rows per import.</p></div><span class="count-pill">CSV / XLSX</span></div>
             <label class="form-label">Dataset name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
@@ -549,7 +549,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=10" defer></script>
+  <script src="script.js?v=11" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
