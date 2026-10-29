@@ -33,9 +33,9 @@ The migration `supabase/migrations/202610290001_business_intelligence_core.sql` 
 - `businessflow_experiments` — hypotheses, status, and results.
 - `businessflow_memory` — structured business context, decisions, observations, preferences, and lessons.
 
-The migration enables RLS on all five tables, grants no table access to anonymous/public roles, and limits authenticated access with owner-based policies. Updated timestamps are maintained by database triggers. These tables are intentionally separate from the existing `growthflow_*` tables.
+The migration enables RLS on all five tables, grants no table access to anonymous/public roles, and limits authenticated access with owner-based policies. Updated timestamps are maintained by database triggers. These tables are separate from the existing `growthflow_*` tables.
 
-**Migration status:** committed to the feature branch only. It has not been applied to a Supabase project. Before applying it, run it against a disposable/test database, test RLS with at least two users and cross-business access attempts, review Supabase security/performance advisors, and verify that existing GrowthFlow tables and policies remain unchanged.
+**Migration status (2026-10-29): applied to the shared GrowthFlow Supabase project.** The five BusinessFlow tables were verified in the live schema. A transaction-based smoke test using two existing authenticated identities verified that the second identity could not read the first identity's profile, goals, or membership and could not insert a goal into that business; all test data and temporary test objects were rolled back. The existing three `growthflow_*` tables and the prior migration history remained present and unchanged. This smoke test is useful evidence, but it is not a substitute for a repeatable automated RLS integration suite.
 
 ## Architecture boundary
 
@@ -46,6 +46,10 @@ The migration enables RLS on all five tables, grants no table access to anonymou
 
 ## Important limitations
 
-This is a foundation, not a production-ready AI backend. The current API does not yet connect to Supabase, persist onboarding answers, authenticate requests, isolate tenants in the application layer, call an AI provider, read live business metrics, or execute external actions. The validation endpoint is intentionally non-persistent and must not be treated as a completed signup flow.
+This is a database foundation, not a production-ready AI backend. The current API does not yet connect to Supabase, persist onboarding answers, authenticate requests, enforce tenant access in the application layer, call an AI provider, read live business metrics, or execute external actions. The validation endpoint remains intentionally non-persistent and must not be treated as a completed signup flow.
 
-Before enabling customer persistence, implement verified authentication, derive business access from the verified identity (never a browser-supplied owner or tenant ID), connect the backend using server-side credentials, and add integration tests for authorization. Never expose a Supabase service-role key to the browser. The service-role key bypasses RLS and must be kept in server-side secrets only.
+Before enabling customer persistence, implement verified authentication, derive business access from the verified identity (never a browser-supplied owner or tenant ID), connect the backend using server-side credentials, and add repeatable integration tests for authorization. Never expose a Supabase service-role key to the browser. The service-role key bypasses RLS and must be kept in server-side secrets only.
+
+## Existing Supabase advisor findings
+
+The post-migration security advisor still reports two findings on the shared project: `growthflow_payment_events` has RLS enabled but no policies, and leaked-password protection is disabled. These findings predate BusinessFlow's migration and were not changed as part of this work. Review them separately before expanding payment or authentication functionality.
