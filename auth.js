@@ -376,6 +376,10 @@ async function initialize() {
           await checkBackend();
           if (apiConnected) {
             try { await loadBusinesses(); } catch (error) { console.error(error); }
+          } else {
+            window.dispatchEvent(new CustomEvent("businessflow:workspace-ready", {
+              detail: { hasWorkspace: false, onboardingRequired: false }
+            }));
           }
         });
       }
@@ -387,6 +391,10 @@ async function initialize() {
   await checkBackend();
   if (session?.user && apiConnected) {
     try { await loadBusinesses(); } catch (error) { console.error(error); }
+  } else if (session?.user) {
+    window.dispatchEvent(new CustomEvent("businessflow:workspace-ready", {
+      detail: { hasWorkspace: false, onboardingRequired: false }
+    }));
   }
 }
 initialize();
