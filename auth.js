@@ -59,6 +59,8 @@ function setSession(next) {
   if (signIn) signIn.hidden = signedIn;
   if (signUp) signUp.hidden = signedIn;
   if (signOut) signOut.hidden = !signedIn;
+  const sidebarSignOut = document.querySelector("#sidebar-signout");
+  if (sidebarSignOut) sidebarSignOut.hidden = !signedIn;
   if (email) email.disabled = signedIn;
   if (password) password.disabled = signedIn;
   if (workspaceSelect) workspaceSelect.disabled = !(signedIn && apiConnected);
@@ -300,32 +302,42 @@ signUp?.addEventListener("click", async () => {
   }
 });
 
-signOut?.addEventListener("click", async () => {
-  if (!supabase) return;
-  signOut.disabled = true;
+async function performSignOut() {
+  if (!supabase || !session?.user) return;
+  if (signOut) signOut.disabled = true;
+  const sidebarSignOut = document.querySelector("#sidebar-signout");
+  if (sidebarSignOut) sidebarSignOut.disabled = true;
   try {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) throw error;
-    setSession(null);
     businesses = [];
     activeBusinessId = null;
+    setSession(null);
     renderBusinesses();
-    password.value = "";
-    show("You are signed out.");
-    showWorkspace("Cloud workspace not connected.");
+    if (password) password.value = "";
+    show("You are signed out of this device. Your business data has not been deleted.");
+    showWorkspace("Sign in to reconnect your business workspace.");
     window.dispatchEvent(new CustomEvent("businessflow:workspace-changed", { detail: { businessId: null } }));
-  } catch (error) { show(error?.message || "Sign-out failed."); }
-  finally { signOut.disabled = false; }
-});
+  } catch (error) {
+    show(error?.message || "Sign-out failed. Your session may still be active.");
+  } finally {
+    if (signOut) signOut.disabled = Boolean(session?.user);
+    if (sidebarSignOut) sidebarSignOut.disabled = Boolean(session?.user);
+  }
+}
+signOut?.addEventListener("click", performSignOut);
+document.querySelector("#sidebar-signout")?.addEventListener("click", performSignOut);
 
 window.BusinessFlowCloud = Object.freeze({
   getState: () => ({
     signedIn: Boolean(session?.user),
     apiConnected,
     businessId: activeBusinessId,
+    businessName: businesses.find(item => String(item.id) === String(activeBusinessId))?.name ?? null,
     userId: session?.user?.id ?? null
   }),
   request: apiRequest,
+  loadInsights: async businessId => apiRequest("/api/business-intelligence/insights?business_id=" + encodeURIComponent(businessId)),
   listBusinesses: () => [...businesses],
   loadBusinesses,
   getBusinessId: () => activeBusinessId,
