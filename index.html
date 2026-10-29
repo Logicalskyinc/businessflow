@@ -418,6 +418,31 @@
               </div>
             </form>
             <p id="api-status" class="muted" role="status" aria-live="polite">BusinessFlow API: not configured</p>
+            <div id="business-workspace" class="form-grid">
+              <h3 class="full-span">Business workspace</h3>
+              <p class="muted full-span">Create or select a business workspace to store goals in the cloud. Existing browser data will not be overwritten automatically.</p>
+              <label class="form-label full-span">Current workspace
+                <select id="business-workspace-select" name="business_workspace" disabled>
+                  <option value="">Sign in and connect the backend first</option>
+                </select>
+              </label>
+              <form id="business-workspace-form" class="form-grid full-span">
+                <label class="form-label">Business name
+                  <input id="business-workspace-name" name="business_name" maxlength="160" required>
+                </label>
+                <label class="form-label">What does the business do?
+                  <input id="business-workspace-basics" name="business_basics" maxlength="2000" required>
+                </label>
+                <label class="form-label full-span">Main business goal
+                  <input id="business-workspace-goal" name="primary_goal" maxlength="2000" required>
+                </label>
+                <div class="full-span button-row">
+                  <button id="business-workspace-create" type="submit" class="small-button" disabled>Create workspace</button>
+                  <button id="businessflow-import-local-goals" type="button" class="small-button" disabled>Import browser goals…</button>
+                </div>
+              </form>
+              <p id="business-workspace-status" class="muted full-span" role="status" aria-live="polite">Cloud workspace not connected.</p>
+            </div>
           </article>
 
           <article class="panel">
