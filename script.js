@@ -1386,7 +1386,7 @@ function updateWorkspaceIdentity(state = {}) {
   const greeting = document.querySelector("#overview-greeting");
   const manageButton = document.querySelector("#manage-workspace-button");
   if (profileName) profileName.textContent = name || (signedIn ? "Choose a workspace" : "Your business");
-  if (avatar) avatar.textContent = name ? name.split(/\\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() : "BF";
+  if (avatar) avatar.textContent = name ? name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() : "BF";
   if (caption) caption.textContent = name ? "Active business workspace" : "Business workspace";
   if (syncLabel) syncLabel.textContent = !signedIn ? "Sign in to sync your workspace" : !connected ? "Connection unavailable" : name ? "Connected · " + name : "Connected · Select a workspace";
   if (greeting) {
