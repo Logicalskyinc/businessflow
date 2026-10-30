@@ -1492,13 +1492,7 @@ function initializeBusinessFlow() {
   }
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeBusinessFlow, {
-    once: true
-  });
-} else {
-  initializeBusinessFlow();
-}
+/* Startup is registered after feature declarations at the end of this file. */
 
 /* ---------- Connections directory ---------- */
 const CONNECTION_CATALOG = [
@@ -1782,4 +1776,12 @@ function setupDataImport(){
   window.addEventListener("businessflow:cloud-state",loadSavedImports);
   renderImportReview();
   loadSavedImports();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeBusinessFlow, {
+    once: true
+  });
+} else {
+  initializeBusinessFlow();
 }
