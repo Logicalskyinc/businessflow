@@ -16,7 +16,7 @@
  form.addEventListener("submit",submitMessage);input.addEventListener("input",updateAvailability);input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();form.requestSubmit();}});
  newButton?.addEventListener("click",()=>{conversationId=null;pendingRequest=null;uncertainRequest=false;if(historySelect)historySelect.value="";showWelcome();input.value="";setStatus("New conversation. Your next message will create a new saved thread.");input.focus();updateAvailability();});
  historySelect?.addEventListener("change",()=>{if(historySelect.value)void openConversation(historySelect.value);});
- window.addEventListener("businessflow:cloud-state",event=>{const next=event.detail??window.BusinessFlowCloud?.getState?.()??{},changed=next.businessId!==cloudState.businessId||next.signedIn!==cloudState.signedIn;cloudState=next;if(changed){conversationId=null;pendingRequest=null;showWelcome();void loadHistory();}updateAvailability();});
- window.addEventListener("businessflow:workspace-changed",()=>{cloudState=window.BusinessFlowCloud?.getState?.()??{};conversationId=null;pendingRequest=null;showWelcome();void loadHistory();updateAvailability();});
+ window.addEventListener("businessflow:cloud-state",event=>{const next=event.detail??window.BusinessFlowCloud?.getState?.()??{},changed=next.businessId!==cloudState.businessId||next.signedIn!==cloudState.signedIn;cloudState=next;if(changed){conversationId=null;pendingRequest=null;uncertainRequest=false;showWelcome();void loadHistory();}updateAvailability();});
+ window.addEventListener("businessflow:workspace-changed",()=>{cloudState=window.BusinessFlowCloud?.getState?.()??{};conversationId=null;pendingRequest=null;uncertainRequest=false;showWelcome();void loadHistory();updateAvailability();});
  showWelcome();updateAvailability();if(canChat())void loadHistory();
 })();
