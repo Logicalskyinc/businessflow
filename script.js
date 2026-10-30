@@ -1465,6 +1465,7 @@ function initializeBusinessFlow() {
   loadMemories();
 
   setupNavigation();
+  setupGreyAssistant();
   setupConnections();
   setupDataImport();
 
@@ -1824,3 +1825,180 @@ if (document.readyState === "loading") {
 } else {
   initializeBusinessFlow();
 }
+
+
+
+/* ---------- Grey assistant workspace ---------- */
+let greyActiveConversationId = null;
+let greyBusy = false;
+let greyLoadVersion = 0;
+
+function greyUi() {
+  return {
+    list: document.querySelector("#grey-conversation-list"),
+    messages: document.querySelector("#grey-message-list"),
+    title: document.querySelector("#grey-chat-title"),
+    status: document.querySelector("#grey-chat-status"),
+    input: document.querySelector("#grey-chat-input"),
+    send: document.querySelector("#grey-send-button"),
+    form: document.querySelector("#grey-chat-form"),
+    newChat: document.querySelector("#grey-new-chat")
+  };
+}
+
+function greyWorkspaceId() {
+  const state = window.BusinessFlowCloud?.getState?.();
+  return state?.signedIn && state?.apiConnected ? state.businessId : null;
+}
+
+function greyMessage(role, content) {
+  const { messages } = greyUi();
+  if (!messages) return;
+  messages.querySelector(".grey-welcome")?.remove();
+  const article = document.createElement("article");
+  article.className = "grey-message grey-message-" + (role === "assistant" ? "assistant" : "user");
+  const label = document.createElement("small");
+  label.textContent = role === "assistant" ? "GREY" : "YOU";
+  const body = document.createElement("p");
+  body.textContent = String(content ?? "");
+  article.append(label, body);
+  messages.append(article);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function greyRenderList(items) {
+  const { list } = greyUi();
+  if (!list) return;
+  list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Your saved conversations will appear here.";
+    list.append(empty);
+    return;
+  }
+  for (const item of items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "grey-history-item" + (item.id === greyActiveConversationId ? " active" : "");
+    const heading = document.createElement("strong");
+    heading.textContent = item.title || "New conversation";
+    const updated = document.createElement("small");
+    updated.textContent = item.updated_at ? new Date(item.updated_at).toLocaleString() : "Saved conversation";
+    button.append(heading, updated);
+    button.addEventListener("click", () => greyOpenConversation(item.id));
+    list.append(button);
+  }
+}
+
+async function greyLoadConversations() {
+  const businessId = greyWorkspaceId();
+  const { list, status } = greyUi();
+  const cloud = window.BusinessFlowCloud;
+  if (!businessId || !cloud?.request) {
+    if (list) list.textContent = "Sign in and select a connected business workspace to use Grey.";
+    return;
+  }
+  if (list) list.textContent = "Loading conversations…";
+  try {
+    const result = await cloud.request("/api/grey/conversations?business_id=" + encodeURIComponent(businessId));
+    greyRenderList(Array.isArray(result.conversations) ? result.conversations : []);
+    if (status) status.textContent = "Your saved conversations are synced with Grey.";
+  } catch (error) {
+    if (list) list.textContent = error.message || "Could not load conversations.";
+    if (status) status.textContent = "Could not load saved conversations.";
+  }
+}
+
+async function greyOpenConversation(conversationId) {
+  const businessId = greyWorkspaceId();
+  const cloud = window.BusinessFlowCloud;
+  if (!businessId || !cloud?.request) return;
+  const version = ++greyLoadVersion;
+  const { messages, title, status } = greyUi();
+  if (messages) messages.replaceChildren();
+  if (status) status.textContent = "Opening conversation…";
+  try {
+    const result = await cloud.request("/api/grey/conversations/" + encodeURIComponent(conversationId) + "?business_id=" + encodeURIComponent(businessId));
+    if (version !== greyLoadVersion) return;
+    const conversation = result.conversation;
+    if (!conversation || !Array.isArray(conversation.messages)) throw new Error("Grey returned an invalid conversation.");
+    greyActiveConversationId = conversation.id;
+    if (title) title.textContent = conversation.title || "Conversation";
+    if (!conversation.messages.length && messages) {
+      messages.innerHTML = '<div class="grey-welcome"><strong>Continue your conversation.</strong></div>';
+    } else {
+      for (const message of conversation.messages) greyMessage(message.role, message.content);
+    }
+    await greyLoadConversations();
+    if (status) status.textContent = "Conversation loaded.";
+  } catch (error) {
+    if (status) status.textContent = error.message || "Could not open this conversation.";
+  }
+}
+
+function greyStartConversation() {
+  greyLoadVersion++;
+  greyActiveConversationId = null;
+  const { messages, title, input, status } = greyUi();
+  if (messages) messages.innerHTML = '<div class="grey-welcome"><strong>What would you like to work through?</strong><p>Ask Grey about your business, an idea, a technical problem, research, or your next decision.</p></div>';
+  if (title) title.textContent = "A thinking partner for your work";
+  if (input) input.focus();
+  if (status) status.textContent = "New conversation. Your messages will be saved automatically.";
+  greyLoadConversations();
+}
+
+function setupGreyAssistant() {
+  const { form, input, send, newChat } = greyUi();
+  if (!form || form.dataset.ready === "true") return;
+  form.dataset.ready = "true";
+  newChat?.addEventListener("click", greyStartConversation);
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (greyBusy) return;
+    const businessId = greyWorkspaceId();
+    const cloud = window.BusinessFlowCloud;
+    const message = input?.value.trim();
+    const { status } = greyUi();
+    if (!businessId || !cloud?.request) {
+      if (status) status.textContent = "Sign in and select a connected business workspace first.";
+      return;
+    }
+    if (!message) return;
+    greyBusy = true;
+    if (send) send.disabled = true;
+    if (input) input.disabled = true;
+    greyMessage("user", message);
+    input.value = "";
+    if (status) status.textContent = "Grey is thinking…";
+    try {
+      const result = await cloud.request("/api/grey/chat", {
+        method: "POST",
+        body: JSON.stringify({ business_id: businessId, message, conversation_id: greyActiveConversationId })
+      });
+      if (typeof result.response !== "string" || typeof result.conversation_id !== "string") {
+        throw new Error("Grey returned an incomplete response.");
+      }
+      greyActiveConversationId = result.conversation_id;
+      greyMessage("assistant", result.response);
+      if (status) status.textContent = "Saved to your private conversation history.";
+      await greyLoadConversations();
+    } catch (error) {
+      if (status) status.textContent = error.message || "Grey could not complete this request.";
+      greyMessage("assistant", "I couldn't complete that request. Check your conversation history before retrying.");
+    } finally {
+      greyBusy = false;
+      if (send) send.disabled = false;
+      if (input) { input.disabled = false; input.focus(); }
+    }
+  });
+
+  window.addEventListener("businessflow:cloud-state", () => {
+    if (document.querySelector("#grey-assistant")?.classList.contains("active")) greyLoadConversations();
+  });
+  window.addEventListener("businessflow:workspace-changed", () => {
+    greyStartConversation();
+  });
+}
+
