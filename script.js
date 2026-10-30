@@ -1768,6 +1768,9 @@ function setupDataImport(){
       showToast("Dataset added to BusinessFlow.");
       await loadSavedImports();
       if(result.import?.id)await viewSavedImport(result.import.id);
+      status.textContent="Dataset saved. BusinessFlow Intelligence is analysing the updated workspace…";
+      await loadBusinessInsights(cloud.businessId);
+      status.textContent="Dataset added and BusinessFlow Intelligence analysis refreshed.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
     finally{button.disabled=false;}
   });
