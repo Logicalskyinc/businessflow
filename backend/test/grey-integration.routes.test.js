@@ -109,7 +109,7 @@ test("rejects access to a business not visible through the user's RLS-scoped cli
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174097" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174100" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello" })
     });
     assert.equal(response.status, 404);
@@ -250,11 +250,37 @@ test("maps an upstream timeout to a controlled gateway error", async () => {
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174098" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174101" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
     });
     assert.equal(response.status, 502);
     assert.equal((await response.json()).error, "grey_request_timeout");
+  } finally {
+    await harness.close();
+  }
+});
+
+test("preserves Grey's 409 response for an uncertain idempotent request", async () => {
+  const harness = await createHarness({
+    fetchImpl: async () => Response.json({
+      ok: false,
+      error: "This request is still processing or its outcome is uncertain. Grey cannot safely run it again automatically. Check the conversation before sending another message."
+    }, { status: 409 })
+  });
+  try {
+    const response = await harness.request("/api/grey/chat", {
+      method: "POST",
+      headers: authHeaders({
+        "Content-Type": "application/json",
+        "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174099"
+      }),
+      body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      error: "This request is still processing or its outcome is uncertain. Grey cannot safely run it again automatically. Check the conversation before sending another message.",
+      message: "Grey cannot safely repeat this request. Check the conversation history before continuing."
+    });
   } finally {
     await harness.close();
   }
@@ -267,7 +293,7 @@ test("rejects malformed or unsuccessful Grey responses", async () => {
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174096" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174102" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
     });
     assert.equal(response.status, 502);
