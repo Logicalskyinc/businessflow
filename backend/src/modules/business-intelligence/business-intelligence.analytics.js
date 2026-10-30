@@ -82,16 +82,6 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       }
     }
   }
-  if (additionalColumnFindings.length) {
-    const selected = additionalColumnFindings.slice(0, 5);
-    insights.push({
-      type: "column_patterns", priority: "normal", title: "Patterns in additional dataset columns",
-      summary: selected.map(item => item.column + " (" + item.dataset + "): " + item.summary).join(". ") +
-        (additionalColumnFindings.length > selected.length ? ". " + (additionalColumnFindings.length - selected.length) + " more columns were profiled." : "."),
-      evidence: "Calculated from non-empty values in imported columns that were not assigned to standard BusinessFlow fields.",
-      recommendedAction: "Confirm what these columns represent, then map useful fields to the appropriate BusinessFlow metric. These exploratory patterns are not automatically treated as revenue, customers, or sales."
-    });
-  }
   const activeGoals = goals.filter(goal => goal.status === "active");
   const activeExperiments = experiments.filter(experiment => ["planned", "running"].includes(experiment.status));
   const repeatCustomers = [...customerFrequency.values()].filter(count => count > 1).length;
@@ -103,6 +93,16 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       progressPercent: Number.isFinite(target) && target > 0 && Number.isFinite(current) ? Math.max(0, Math.min(100, Math.round(current / target * 100))) : null };
   });
   const insights = [];
+  if (additionalColumnFindings.length) {
+    const selected = additionalColumnFindings.slice(0, 5);
+    insights.push({
+      type: "column_patterns", priority: "normal", title: "Patterns in additional dataset columns",
+      summary: selected.map(item => item.column + " (" + item.dataset + "): " + item.summary).join(". ") +
+        (additionalColumnFindings.length > selected.length ? ". " + (additionalColumnFindings.length - selected.length) + " more columns were profiled." : "."),
+      evidence: "Calculated from non-empty values in imported columns that were not assigned to standard BusinessFlow fields.",
+      recommendedAction: "Confirm what these columns represent, then map useful fields to the appropriate BusinessFlow metric. These exploratory patterns are not automatically treated as revenue, customers, or sales."
+    });
+  }
   if (!rows.length) insights.push({
     type: "data_needed", priority: "high", title: "Connect your first business dataset",
     summary: "BusinessFlow has no imported business records to analyse yet. Your saved goals and workspace context remain available, but revenue and customer conclusions would be guesses.",
