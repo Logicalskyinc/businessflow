@@ -1604,7 +1604,7 @@ function normalizeImportRows(matrix){
   const rows=data.map((row,index)=>{const out={};columns.forEach((column,i)=>{const value=row[i]===null||row[i]===undefined?"":String(row[i]);if(value.length>1000)throw Error("A cell in data row "+(index+1)+" exceeds 1,000 characters.");out[column]=value;});return out;});
   return {columns,rows};
 }
-async async function readImportFile(file){
+async function readImportFile(file){
   if(!file)throw Error("Choose a file first.");
   if(file.size>2*1024*1024)throw Error("The file is larger than 2 MB. Split it into smaller files.");
   const name=file.name.toLowerCase();let matrix;
