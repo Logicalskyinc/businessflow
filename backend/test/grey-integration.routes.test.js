@@ -136,7 +136,7 @@ test("forwards chat only after workspace access and signs the authenticated user
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174099" }),
       body: JSON.stringify({
         business_id: BUSINESS_ID,
         message: "  Help me improve repeat purchases.  "
@@ -152,6 +152,7 @@ test("forwards chat only after workspace access and signs the authenticated user
     assert.equal(upstreamRequest.url, "https://grey.example.test/api/integrations/businessflow/chat");
     assert.equal(upstreamRequest.options.method, "POST");
     assert.equal(upstreamRequest.options.headers.Authorization, "Bearer signed-test-service-token");
+    assert.equal(upstreamRequest.options.headers["Idempotency-Key"], "123e4567-e89b-42d3-a456-426614174099");
     assert.deepEqual(JSON.parse(upstreamRequest.options.body), {
       message: "Help me improve repeat purchases.",
       conversation_id: null
@@ -161,6 +162,22 @@ test("forwards chat only after workspace access and signs the authenticated user
       businessId: BUSINESS_ID,
       secret: SECRET
     });
+  } finally {
+    await harness.close();
+  }
+});
+
+test("rejects chat requests without a valid idempotency key", async () => {
+  const harness = await createHarness();
+  try {
+    const response = await harness.request("/api/grey/chat", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello" })
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_idempotency_key" });
+    assert.equal(harness.calls.length, 0);
   } finally {
     await harness.close();
   }
