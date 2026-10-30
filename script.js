@@ -1618,30 +1618,65 @@ async function readImportFile(file){
   }else throw Error("Choose a CSV, XLSX, or XLS file.");
   return normalizeImportRows(matrix);
 }
+function inferImportBusinessField(column, rows) {
+  const name = String(column || "").toLowerCase();
+  const samples = (Array.isArray(rows) ? rows : []).slice(0, 30)
+    .map(row => String(row?.[column] ?? "").trim()).filter(Boolean);
+  const sample = samples[0] || "";
+  if (/e-?mail/.test(name) || samples.some(value => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value))) return "email";
+  if (/phone|mobile|tel|whatsapp/.test(name) || samples.filter(value => /^\\+?[0-9() .-]{7,}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "phone";
+  if (/customer.?name|client.?name|buyer.?name|full.?name/.test(name)) return "customer_name";
+  if (/customer.?id|client.?id|buyer.?id|account.?id/.test(name)) return "customer_id";
+  if (/date|day|created|transaction.?time|timestamp/.test(name) || samples.filter(value => /^\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}/.test(value) || /^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "order_date";
+  if (/revenue|amount|price|cost|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
+  if (/quantity|qty|units|items.?count/.test(name)) return "quantity";
+  if (/product|item|service|job|package|offering/.test(name)) return "product";
+  if (/status|progress|state/.test(name)) return "status";
+  if (/location|address|area|zone|city|region|branch/.test(name)) return "location";
+  if (/note|description|comment|detail|remark/.test(name)) return "notes";
+  return "";
+}
 function renderImportReview(){
   if(!pendingImport)return;
   const review=document.querySelector("#import-review"),mappings=document.querySelector("#import-column-mapping"),head=document.querySelector("#import-preview-head"),body=document.querySelector("#import-preview-body");
   if(!review||!mappings||!head||!body)return;
   review.hidden=false;document.querySelector("#import-row-count").textContent=pendingImport.rows.length+" rows · "+pendingImport.columns.length+" columns";
   mappings.replaceChildren();
+  const assignedFields = new Set();
   pendingImport.columns.forEach(column=>{
     const label=document.createElement("label");label.className="import-mapping-item";
     const title=document.createElement("span");title.textContent=column;
     const select=document.createElement("select");select.dataset.importColumn=column;
     IMPORT_MAPPING_OPTIONS.forEach(([value,text])=>{const option=document.createElement("option");option.value=value;option.textContent=text;select.append(option);});
-    const n=column.toLowerCase();
-    const guess=n.includes("email")?"email":n.includes("phone")||n.includes("mobile")?"phone":(n.includes("customer")||n.includes("client"))&&n.includes("name")?"customer_name":n.includes("revenue")||n.includes("amount")||n.includes("total")||n.includes("price")||n.includes("cost")||n.includes("payment")||n.includes("paid")?"revenue":n.includes("date")||n.includes("day")?"order_date":n.includes("product")||n.includes("item")||n.includes("service")||n.includes("job")?"product":n.includes("quantity")||n.includes("qty")?"quantity":n.includes("status")||n.includes("progress")?"status":n.includes("address")||n.includes("area")?"location":n.includes("note")||n.includes("description")?"notes":"";
-    select.value=guess;label.append(title,select);mappings.append(label);
+    let guess=inferImportBusinessField(column,pendingImport.rows);
+    if(guess && assignedFields.has(guess)) guess="";
+    if(guess) assignedFields.add(guess);
+    select.value=guess;
+    select.addEventListener("change",()=>{
+      const selected=select.value;
+      if(!selected)return;
+      const duplicate=[...mappings.querySelectorAll("[data-import-column]")].find(other=>other!==select&&other.value===selected);
+      if(duplicate){
+        duplicate.value="";
+        document.querySelector("#import-review-status").textContent="BusinessFlow kept both source columns. Only one is mapped to each standard field; the other remains available for Intelligence analysis.";
+      }
+    });
+    label.append(title,select);mappings.append(label);
   });
   head.replaceChildren();body.replaceChildren();
   const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
   pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
-  document.querySelector("#import-review-status").textContent="Review the sample and column mappings before saving.";
+  document.querySelector("#import-review-status").textContent="BusinessFlow Intelligence has suggested fields from your column names and sample values. Unmapped columns will still be saved and analysed.";
   document.querySelector("#import-save").disabled=false;
 }
 function currentImportMapping(){
-  const mapping={};document.querySelectorAll("[data-import-column]").forEach(s=>mapping[s.dataset.importColumn]=s.value||null);
-  const values=Object.values(mapping).filter(Boolean);if(new Set(values).size!==values.length)throw Error("Each business field can be assigned to only one source column.");
+  const mapping={},assigned=new Set();
+  document.querySelectorAll("[data-import-column]").forEach(select=>{
+    const field=select.value||null;
+    if(field && assigned.has(field)){select.value="";mapping[select.dataset.importColumn]=null;return;}
+    if(field)assigned.add(field);
+    mapping[select.dataset.importColumn]=field;
+  });
   return mapping;
 }
 async function loadSavedImports(){
@@ -1767,10 +1802,11 @@ function setupDataImport(){
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
       showToast("Dataset added to BusinessFlow.");
       await loadSavedImports();
-      if(result.import?.id)await viewSavedImport(result.import.id);
       status.textContent="Dataset saved. BusinessFlow Intelligence is analysing the updated workspace…";
       await loadBusinessInsights(cloud.businessId);
-      status.textContent="Dataset added and BusinessFlow Intelligence analysis refreshed.";
+      document.querySelector("#saved-import-detail")?.setAttribute("hidden","");
+      navigateTo("overview");
+      status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
     finally{button.disabled=false;}
   });
