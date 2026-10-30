@@ -6,11 +6,9 @@ export const greyIntegrationRouter = Router();
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MESSAGE_LENGTH = 4000;
-const MAX_HISTORY_ITEMS = 12;
-const MAX_HISTORY_ITEM_LENGTH = 2000;
 
 greyIntegrationRouter.post("/chat", requireAuthenticatedUser, async (req, res) => {
-  const { business_id: businessId, message, history = [] } = req.body ?? {};
+  const { business_id: businessId, message, conversation_id: conversationId = null } = req.body ?? {};
 
   if (typeof businessId !== "string" || !UUID.test(businessId)) {
     return res.status(400).json({ error: "invalid_business_id" });
@@ -18,18 +16,8 @@ greyIntegrationRouter.post("/chat", requireAuthenticatedUser, async (req, res) =
   if (typeof message !== "string" || !message.trim() || message.length > MAX_MESSAGE_LENGTH) {
     return res.status(400).json({ error: "invalid_message", message: "Message must contain 1 to 4000 characters." });
   }
-  if (!Array.isArray(history) || history.length > MAX_HISTORY_ITEMS) {
-    return res.status(400).json({ error: "invalid_history" });
-  }
-  const safeHistory = [];
-  for (const item of history) {
-    if (!item || typeof item !== "object" || Array.isArray(item) ||
-        !["user", "assistant"].includes(item.role) ||
-        typeof item.content !== "string" || !item.content.trim() ||
-        item.content.length > MAX_HISTORY_ITEM_LENGTH) {
-      return res.status(400).json({ error: "invalid_history" });
-    }
-    safeHistory.push({ role: item.role, content: item.content.trim() });
+  if (conversationId !== null && (typeof conversationId !== "string" || !UUID.test(conversationId))) {
+    return res.status(400).json({ error: "invalid_conversation_id" });
   }
 
   const greyApiUrl = process.env.GREY_API_URL?.trim();
@@ -80,7 +68,7 @@ greyIntegrationRouter.post("/chat", requireAuthenticatedUser, async (req, res) =
           "Content-Type": "application/json",
           Accept: "application/json"
         },
-        body: JSON.stringify({ message: message.trim(), history: safeHistory }),
+        body: JSON.stringify({ message: message.trim(), conversation_id: conversationId }),
         signal: controller.signal
       });
     } finally {
@@ -99,7 +87,8 @@ greyIntegrationRouter.post("/chat", requireAuthenticatedUser, async (req, res) =
     return res.json({
       status: "ok",
       response: payload.response,
-      source: typeof payload.source === "string" ? payload.source : "grey"
+      source: typeof payload.source === "string" ? payload.source : "grey",
+      conversation_id: typeof payload.conversation_id === "string" ? payload.conversation_id : null
     });
   } catch (error) {
     const timedOut = error?.name === "AbortError";
