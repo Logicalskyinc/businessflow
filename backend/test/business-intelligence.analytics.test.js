@@ -34,6 +34,27 @@ test("does not invent revenue or customer metrics when fields are unmapped", () 
   assert.ok(result.dataQuality.notes.includes("Revenue field is not mapped."));
 });
 
+test("profiles useful patterns in unmapped columns without treating them as business metrics", () => {
+  const result = buildBusinessInsights({
+    profile,
+    imports: [{ id: "i2", name: "Operations", row_count: 4,
+      columns: ["Amount paid", "Job type", "Zone"],
+      column_mapping: {},
+      rows: [
+        { "Amount paid": "12000", "Job type": "Deep clean", Zone: "East" },
+        { "Amount paid": "18000", "Job type": "Deep clean", Zone: "West" },
+        { "Amount paid": "9000", "Job type": "Standard", Zone: "East" },
+        { "Amount paid": "15000", "Job type": "Standard", Zone: "East" }
+      ] }]
+  });
+  const pattern = result.insights.find(item => item.type === "column_patterns");
+  assert.ok(pattern);
+  assert.match(pattern.summary, /Amount paid/);
+  assert.match(pattern.summary, /Job type/);
+  assert.equal(result.metrics.revenueTotal, null);
+  assert.equal(result.metrics.customers, null);
+});
+
 test("reports missing data without fabricating metrics", () => {
   const result = buildBusinessInsights({ profile });
   assert.equal(result.coverage.recordsAnalysed, 0);
