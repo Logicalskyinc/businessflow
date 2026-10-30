@@ -4,6 +4,89 @@ import { createGreyServiceToken } from "./grey-service-token.js";
 
 export const greyIntegrationRouter = Router();
 
+async function verifyWorkspaceAccess(req, res, businessId) {
+  if (typeof businessId !== "string" || !UUID.test(businessId)) {
+    res.status(400).json({ error: "invalid_business_id" });
+    return false;
+  }
+  const { data: business, error } = await req.supabase
+    .from("businessflow_profiles").select("id").eq("id", businessId).maybeSingle();
+  if (error) {
+    console.error("BusinessFlow Grey workspace verification failed.");
+    res.status(503).json({ error: "workspace_verification_unavailable" });
+    return false;
+  }
+  if (!business) {
+    res.status(404).json({ error: "business_not_found" });
+    return false;
+  }
+  return true;
+}
+
+async function callGrey(req, res, businessId, path, body = undefined) {
+  const greyApiUrl = process.env.GREY_API_URL?.trim();
+  const signingSecret = process.env.GREY_BUSINESSFLOW_JWT_SECRET;
+  if (!greyApiUrl || !signingSecret || signingSecret.length < 32) {
+    res.status(503).json({ error: "grey_integration_not_configured" });
+    return;
+  }
+  let endpoint;
+  try {
+    endpoint = new URL(path, greyApiUrl.endsWith("/") ? greyApiUrl : `${greyApiUrl}/`);
+    if (endpoint.protocol !== "https:" && process.env.NODE_ENV === "production") {
+      res.status(503).json({ error: "grey_integration_requires_https" });
+      return;
+    }
+  } catch {
+    res.status(503).json({ error: "grey_integration_not_configured" });
+    return;
+  }
+  const token = createGreyServiceToken({ userId: req.user.id, businessId, secret: signingSecret });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const upstream = await fetch(endpoint, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      signal: controller.signal
+    });
+    const payload = await upstream.json().catch(() => null);
+    if (!upstream.ok || !payload || payload.ok !== true) {
+      console.error("Grey conversation retrieval failed.", { status: upstream.status });
+      res.status(upstream.status === 401 ? 503 : 502).json({ error: "grey_request_failed" });
+      return;
+    }
+    res.json(payload);
+  } catch (error) {
+    console.error("BusinessFlow Grey history request failed.", { timedOut: error?.name === "AbortError" });
+    res.status(502).json({ error: "grey_unavailable" });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+greyIntegrationRouter.get("/conversations", requireAuthenticatedUser, async (req, res) => {
+  const businessId = req.query.business_id;
+  try {
+    if (!await verifyWorkspaceAccess(req, res, businessId)) return;
+    await callGrey(req, res, businessId, "/api/integrations/businessflow/conversations");
+  } catch {
+    res.status(503).json({ error: "workspace_verification_unavailable" });
+  }
+});
+
+greyIntegrationRouter.get("/conversations/:conversationId", requireAuthenticatedUser, async (req, res) => {
+  const businessId = req.query.business_id;
+  if (!UUID.test(req.params.conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
+  try {
+    if (!await verifyWorkspaceAccess(req, res, businessId)) return;
+    await callGrey(req, res, businessId, `/api/integrations/businessflow/conversations/${encodeURIComponent(req.params.conversationId)}`);
+  } catch {
+    res.status(503).json({ error: "workspace_verification_unavailable" });
+  }
+});
+
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MESSAGE_LENGTH = 4000;
 
