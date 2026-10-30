@@ -2000,5 +2000,10 @@ function setupGreyAssistant() {
   window.addEventListener("businessflow:workspace-changed", () => {
     greyStartConversation();
   });
+  document.querySelector('[data-page="grey-assistant"]')?.addEventListener("click", () => greyLoadConversations());
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#grey-assistant") greyLoadConversations();
+  });
+  if (location.hash === "#grey-assistant") greyLoadConversations();
 }
 
