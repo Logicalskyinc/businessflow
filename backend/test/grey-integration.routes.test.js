@@ -260,6 +260,33 @@ test("maps an upstream timeout to a controlled gateway error", async () => {
   }
 });
 
+test("preserves Grey's 409 response for an uncertain idempotent request", async () => {
+  const harness = await createHarness({
+    fetchImpl: async () => Response.json({
+      ok: false,
+      error: "chat_request_in_progress",
+      message: "Grey cannot safely run this request again automatically. Check the conversation before sending another message."
+    }, { status: 409 })
+  });
+  try {
+    const response = await harness.request("/api/grey/chat", {
+      method: "POST",
+      headers: authHeaders({
+        "Content-Type": "application/json",
+        "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174099"
+      }),
+      body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      error: "chat_request_in_progress",
+      message: "Grey cannot safely run this request again automatically. Check the conversation before sending another message."
+    });
+  } finally {
+    await harness.close();
+  }
+});
+
 test("rejects malformed or unsuccessful Grey responses", async () => {
   const harness = await createHarness({
     fetchImpl: async () => Response.json({ ok: true, response: 42 })
