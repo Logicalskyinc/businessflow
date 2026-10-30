@@ -185,6 +185,14 @@ export function createGreyIntegrationRouter({
       const payload = await greyResponse.json().catch(() => null);
       if (!greyResponse.ok || !payload || payload.ok !== true || typeof payload.response !== "string") {
         console.error("Grey integration returned a non-success response.", { status: greyResponse.status });
+        if (greyResponse.status === 409) {
+          return res.status(409).json({
+            error: typeof payload?.error === "string" ? payload.error : "grey_request_in_progress",
+            message: typeof payload?.message === "string"
+              ? payload.message
+              : "Grey cannot safely repeat this request. Check the conversation history before continuing."
+          });
+        }
         return res.status(greyResponse.status === 401 ? 503 : 502).json({
           error: "grey_request_failed",
           message: "Grey is temporarily unavailable. Please try again."
