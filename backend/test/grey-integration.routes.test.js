@@ -264,8 +264,7 @@ test("preserves Grey's 409 response for an uncertain idempotent request", async 
   const harness = await createHarness({
     fetchImpl: async () => Response.json({
       ok: false,
-      error: "chat_request_in_progress",
-      message: "Grey cannot safely run this request again automatically. Check the conversation before sending another message."
+      error: "This request is still processing or its outcome is uncertain. Grey cannot safely run it again automatically. Check the conversation before sending another message."
     }, { status: 409 })
   });
   try {
@@ -279,8 +278,8 @@ test("preserves Grey's 409 response for an uncertain idempotent request", async 
     });
     assert.equal(response.status, 409);
     assert.deepEqual(await response.json(), {
-      error: "chat_request_in_progress",
-      message: "Grey cannot safely run this request again automatically. Check the conversation before sending another message."
+      error: "This request is still processing or its outcome is uncertain. Grey cannot safely run it again automatically. Check the conversation before sending another message.",
+      message: "Grey cannot safely repeat this request. Check the conversation history before continuing."
     });
   } finally {
     await harness.close();
