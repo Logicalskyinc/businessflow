@@ -20,6 +20,7 @@
 
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
+        <a href="#grey-chat" class="nav-link" data-page="grey-chat"><span>✳</span> Talk to Grey</a>
         <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
@@ -155,6 +156,38 @@
           </article>
 
           <footer class="app-footer">BusinessFlow · Business workspace</footer>
+        </section>
+
+        <section class="page" id="grey-chat">
+          <div class="page-heading">
+            <p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p>
+            <h1>Talk to Grey</h1>
+            <p class="subtitle">Think through a business challenge, understand your data, and decide what to do next.</p>
+          </div>
+          <div class="grey-chat-layout">
+            <aside class="panel grey-chat-context">
+              <p class="eyebrow">ACTIVE WORKSPACE</p>
+              <strong id="grey-chat-workspace">Select a business workspace</strong>
+              <p class="muted">Grey receives your message in the context of this selected BusinessFlow workspace. Your private Grey owner workspace is separate.</p>
+              <button type="button" class="secondary-button" id="grey-chat-new">New conversation</button>
+              <p class="muted grey-chat-privacy">Only send information you are authorized to share with this workspace.</p>
+            </aside>
+            <section class="panel grey-chat-panel" aria-label="Conversation with Grey">
+              <div class="grey-chat-header">
+                <div><strong>Grey</strong><p class="muted" id="grey-chat-status" role="status" aria-live="polite">Sign in and select a workspace to begin.</p></div>
+                <span class="grey-chat-indicator" aria-hidden="true"></span>
+              </div>
+              <div id="grey-chat-messages" class="grey-chat-messages" aria-live="polite" aria-label="Conversation messages">
+                <div class="grey-chat-welcome"><span aria-hidden="true">✳</span><h2>What are we working through?</h2><p>Tell Grey about a business question, a decision, or a challenge you want to understand.</p></div>
+              </div>
+              <form id="grey-chat-form" class="grey-chat-form">
+                <label class="visually-hidden" for="grey-chat-input">Your message to Grey</label>
+                <textarea id="grey-chat-input" rows="2" maxlength="4000" placeholder="Tell Grey what is happening in your business…" required></textarea>
+                <div class="grey-chat-form-footer"><span>Enter to send · Shift + Enter for a new line</span><button type="submit" class="primary-button" id="grey-chat-send" disabled>Send message</button></div>
+              </form>
+              <p class="grey-chat-disclaimer">Grey can make mistakes. Check important business decisions against your records.</p>
+            </section>
+          </div>
         </section>
 
         <section class="page" id="analytics">
@@ -553,6 +586,7 @@
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
   <script src="script.js?v=13" defer></script>
+  <script src="grey-chat.js?v=1" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
