@@ -109,7 +109,7 @@ test("rejects access to a business not visible through the user's RLS-scoped cli
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174100" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello" })
     });
     assert.equal(response.status, 404);
@@ -250,7 +250,7 @@ test("maps an upstream timeout to a controlled gateway error", async () => {
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174101" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
     });
     assert.equal(response.status, 502);
@@ -293,7 +293,7 @@ test("rejects malformed or unsuccessful Grey responses", async () => {
   try {
     const response = await harness.request("/api/grey/chat", {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: authHeaders({ "Content-Type": "application/json", "Idempotency-Key": "123e4567-e89b-42d3-a456-426614174102" }),
       body: JSON.stringify({ business_id: BUSINESS_ID, message: "Hello Grey" })
     });
     assert.equal(response.status, 502);
