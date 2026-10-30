@@ -94,7 +94,10 @@ async function apiRequest(path, options = {}) {
       throw new Error("Your session expired. Sign out and sign in again.");
     }
     const detail = Array.isArray(result.errors) ? result.errors.join(" ") : result.message || result.error;
-    throw new Error(detail || "BusinessFlow API request failed (HTTP " + response.status + ").");
+    const error = new Error(detail || "BusinessFlow API request failed (HTTP " + response.status + ").");
+    error.status = response.status;
+    error.code = typeof result.error === "string" ? result.error : null;
+    throw error;
   }
   return result;
 }
