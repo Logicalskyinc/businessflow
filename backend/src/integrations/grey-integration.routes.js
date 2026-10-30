@@ -4,6 +4,7 @@ import { createGreyServiceToken } from "./grey-service-token.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MESSAGE_LENGTH = 4000;
+const IDEMPOTENCY_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function createGreyIntegrationRouter({
   authenticate = requireAuthenticatedUser,
@@ -142,6 +143,10 @@ export function createGreyIntegrationRouter({
     if (conversationId !== null && (typeof conversationId !== "string" || !UUID.test(conversationId))) {
       return res.status(400).json({ error: "invalid_conversation_id" });
     }
+    const idempotencyKey = req.get("Idempotency-Key");
+    if (typeof idempotencyKey !== "string" || !IDEMPOTENCY_KEY.test(idempotencyKey)) {
+      return res.status(400).json({ error: "invalid_idempotency_key" });
+    }
 
     try {
       if (!await verifyWorkspaceAccess(req, res, businessId)) return;
@@ -164,7 +169,8 @@ export function createGreyIntegrationRouter({
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
-            Accept: "application/json"
+            Accept: "application/json",
+            "Idempotency-Key": idempotencyKey
           },
           body: JSON.stringify({
             message: message.trim(),
