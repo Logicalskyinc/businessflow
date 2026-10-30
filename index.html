@@ -25,6 +25,7 @@
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
         <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
+        <a href="#grey-assistant" class="nav-link" data-page="grey-assistant"><span>✳</span> Ask Grey</a>
         <a href="#connections" class="nav-link" data-page="connections"><span>⤴</span> Connections</a>
         <a href="#data-import" class="nav-link" data-page="data-import"><span>⇧</span> Import data</a>
       </nav>
@@ -331,6 +332,18 @@
           </article>
         </section>
 
+        <section class="page" id="grey-assistant">
+          <div class="page-heading"><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h1>Talk to Grey</h1><p class="subtitle">A general reasoning assistant for your questions, ideas, research and business decisions.</p></div>
+          <div class="grey-layout">
+            <aside class="panel grey-history-panel"><div class="panel-heading"><div><h2>Your conversations</h2><p class="muted">Private to your account and workspace.</p></div></div><button type="button" class="primary-button" id="grey-new-chat">+ New conversation</button><div id="grey-conversation-list" class="grey-conversation-list"><p class="empty-state">Sign in and select a workspace.</p></div></aside>
+            <section class="panel grey-chat-panel" aria-label="Grey conversation">
+              <div class="grey-chat-heading"><div><p class="eyebrow">GREY ASSISTANT</p><h2 id="grey-chat-title">A thinking partner for your work</h2></div><span class="grey-online-label">Private workspace</span></div>
+              <div id="grey-message-list" class="grey-message-list" aria-live="polite"><div class="grey-welcome"><strong>What would you like to work through?</strong><p>Ask Grey about your business, an idea, a technical problem, research, or your next decision.</p></div></div>
+              <form id="grey-chat-form" class="grey-chat-form"><label class="sr-only" for="grey-chat-input">Message Grey</label><textarea id="grey-chat-input" rows="2" maxlength="4000" placeholder="Message Grey…" required></textarea><button type="submit" class="primary-button" id="grey-send-button">Send</button></form>
+              <p id="grey-chat-status" class="muted" role="status" aria-live="polite">Sign in to start a private conversation with Grey.</p>
+            </section>
+          </div>
+        </section>
         <section class="page" id="business-memory">
           <div class="page-heading">
             <p class="eyebrow">KNOWLEDGE</p>
