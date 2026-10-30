@@ -8,7 +8,7 @@ const numericValue = value => {
 const uniqueText = value => String(value ?? "").trim().toLowerCase();
 
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
-  const rows = [], datasetNames = [];
+  const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
   let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0;
   const customerIds = new Set(), customerFrequency = new Map(), productFrequency = new Map(), monthlyRevenue = new Map(), dateValues = [];
@@ -21,7 +21,40 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     productMapped ||= Boolean(fields.product);
     dateMapped ||= Boolean(fields.order_date);
     datasetNames.push({ id: dataset.id, name: dataset.name, filename: dataset.source_filename, rowCount: dataset.row_count });
-    for (const sourceRow of Array.isArray(dataset.rows) ? dataset.rows : []) {
+    const datasetRows = Array.isArray(dataset.rows) ? dataset.rows : [];
+    const mappedColumns = new Set(Object.values(fields).filter(Boolean));
+    const sourceColumns = Array.isArray(dataset.columns) && dataset.columns.length
+      ? dataset.columns.map(column => typeof column === "string" ? column : column?.name).filter(Boolean)
+      : [...new Set(datasetRows.flatMap(row => row && typeof row === "object" ? Object.keys(row) : []))];
+    for (const column of sourceColumns) {
+      if (mappedColumns.has(column)) continue;
+      const values = datasetRows.map(row => String(row?.[column] ?? "").trim()).filter(Boolean);
+      if (values.length < 2) continue;
+      const numbers = values.map(numericValue);
+      const validNumbers = numbers.filter(value => value !== null);
+      if (validNumbers.length >= 2 && validNumbers.length / values.length >= 0.7) {
+        const total = validNumbers.reduce((sum, value) => sum + value, 0);
+        additionalColumnFindings.push({
+          dataset: dataset.name, column, kind: "numeric",
+          summary: validNumbers.length + " of " + values.length + " non-empty values are numeric; average " +
+            (total / validNumbers.length).toLocaleString("en-US", { maximumFractionDigits: 2 }) +
+            ", range " + Math.min(...validNumbers).toLocaleString("en-US", { maximumFractionDigits: 2 }) +
+            " to " + Math.max(...validNumbers).toLocaleString("en-US", { maximumFractionDigits: 2 })
+        });
+        continue;
+      }
+      const frequencies = new Map();
+      for (const value of values) frequencies.set(value, (frequencies.get(value) || 0) + 1);
+      const common = [...frequencies.entries()].sort((left, right) => right[1] - left[1]).slice(0, 3);
+      if (frequencies.size > 1) {
+        additionalColumnFindings.push({
+          dataset: dataset.name, column, kind: "category",
+          summary: frequencies.size + " distinct values; most common: " +
+            common.map(([value, count]) => value + " (" + count + ")").join(", ")
+        });
+      }
+    }
+    for (const sourceRow of datasetRows) {
       const row = sourceRow && typeof sourceRow === "object" ? sourceRow : {};
       rows.push(row);
       if (fields.revenue) {
@@ -48,6 +81,16 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         }
       }
     }
+  }
+  if (additionalColumnFindings.length) {
+    const selected = additionalColumnFindings.slice(0, 5);
+    insights.push({
+      type: "column_patterns", priority: "normal", title: "Patterns in additional dataset columns",
+      summary: selected.map(item => item.column + " (" + item.dataset + "): " + item.summary).join(". ") +
+        (additionalColumnFindings.length > selected.length ? ". " + (additionalColumnFindings.length - selected.length) + " more columns were profiled." : "."),
+      evidence: "Calculated from non-empty values in imported columns that were not assigned to standard BusinessFlow fields.",
+      recommendedAction: "Confirm what these columns represent, then map useful fields to the appropriate BusinessFlow metric. These exploratory patterns are not automatically treated as revenue, customers, or sales."
+    });
   }
   const activeGoals = goals.filter(goal => goal.status === "active");
   const activeExperiments = experiments.filter(experiment => ["planned", "running"].includes(experiment.status));
