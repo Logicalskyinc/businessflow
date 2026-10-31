@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -21,6 +21,7 @@
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
         <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
+        <a href="#intelligence" class="nav-link" data-page="intelligence"><span>✳</span> Intelligence</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
@@ -87,6 +88,18 @@
           <article class="panel intelligence-panel">
             <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
             <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
+          </article>
+
+          <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
+            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to BusinessFlow Intelligence</h2><p class="muted">Your workspace context, goals, experiments and saved decisions stay together.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
+            <div class="bf-chat-layout">
+              <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Recent conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
+              <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
+                <div id="bf-chat-messages" class="bf-chat-messages" aria-live="polite"><div class="bf-chat-empty"><strong>Start with what matters to your business.</strong><p>Ask about a goal, a customer problem, a dataset, or a decision you need to make.</p></div></div>
+                <form id="bf-chat-form" class="bf-chat-composer"><label class="sr-only" for="bf-chat-input">Message BusinessFlow Intelligence</label><textarea id="bf-chat-input" rows="2" maxlength="8000" placeholder="What would you like to understand or improve?" required></textarea><div class="bf-chat-compose-footer"><span id="bf-chat-status">Your conversations are saved to this workspace.</span><button type="submit" class="primary-button" id="bf-chat-send">Send message</button></div></form>
+              </section>
+            </div>
+            <p class="bf-chat-disclaimer">This first release uses saved workspace data and deterministic business rules. AI-model reasoning and external actions are not enabled yet.</p>
           </article>
 
           <div class="section-heading">
@@ -156,6 +169,8 @@
 
           <footer class="app-footer">BusinessFlow · Business workspace</footer>
         </section>
+
+        <section class="page" id="intelligence"><div class="page-heading"><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h1>Intelligence</h1><p class="subtitle">A persistent conversation grounded in your business workspace.</p></div><div id="bf-intelligence-page-mount"></div></section>
 
         <section class="page" id="analytics">
           <div class="page-heading">
@@ -552,7 +567,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=13" defer></script>
+  <script src="script.js?v=14" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
