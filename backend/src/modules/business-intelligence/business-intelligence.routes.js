@@ -13,7 +13,7 @@ const singularResource = { goals: "goal", experiments: "experiment", memory: "me
 businessIntelligenceRouter.get("/health", (_req, res) => res.json({
   module: "business-intelligence", status: "available",
   capabilities: { onboardingQuestions: true, answerValidation: true, profilePersistence: true,
-    goalsPersistence: true, experimentsPersistence: true, persistentBusinessMemory: true,
+    goalsPersistence: true, experimentsPersistence: true, persistentBusinessMemory: true, persistentConversations: true,
     liveBusinessAnalytics: true, ruleBasedRecommendations: true, aiReasoning: false, externalActions: false }
 }));
 businessIntelligenceRouter.get("/onboarding/questions", (_req, res) => res.json({ status: "ok", questions: getOnboardingQuestions() }));
