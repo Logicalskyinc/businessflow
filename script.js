@@ -1481,7 +1481,7 @@ function renderAnalyticsMetrics(result) {
     setMetric("customers", "—", "Awaiting customer identifiers");
     setMetric("conversion", "—", "Not available from current imports");
     const chart = document.querySelector("#analytics-revenue-chart");
-    if (chart) chart.innerHTML = '<p class="empty-state">Select a workspace to load your revenue trend.</p>';
+    if (chart) { chart.classList.add("chart-empty"); chart.innerHTML = '<p class="empty-state">Select a workspace to load your revenue trend.</p>'; }
     return;
   }
   const metrics = result.metrics || {};
@@ -1496,6 +1496,7 @@ function renderAnalyticsMetrics(result) {
   if (!chart) return;
   const months = Array.isArray(metrics.monthlyRevenue) ? metrics.monthlyRevenue : [];
   if (!months.length) {
+    chart.classList.add("chart-empty");
     chart.innerHTML = '<p class="empty-state">No dated revenue records are available. Map both Revenue and Order date to build this trend.</p>';
     return;
   }
