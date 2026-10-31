@@ -59,6 +59,9 @@ The deployed backend will need the same values in its hosting provider's secret/
 
 Requires Node.js 20 or newer.
 
+The optional cross-account RLS integration test is skipped unless all four variables are set: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BUSINESSFLOW_RLS_TEST_USER_TOKEN`, and `BUSINESSFLOW_RLS_TEST_FOREIGN_BUSINESS_ID`. Use a dedicated test user token and a business ID owned by a different test account. The test is read-only.
+
+
 ```sh
 cd backend
 npm install
