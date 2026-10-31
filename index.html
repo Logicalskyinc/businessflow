@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -20,14 +20,13 @@
 
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
-        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
-        <a href="#overview" class="nav-link" data-page="overview"><span>✳</span> Intelligence</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
-        <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
+        <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
+        <a href="#data-import" class="nav-link" data-page="data-import"><span>⇧</span> Data &amp; Imports</a>
         <a href="#connections" class="nav-link" data-page="connections"><span>⤴</span> Connections</a>
-        <a href="#data-import" class="nav-link" data-page="data-import"><span>⇧</span> Import data</a>
+        <a href="#intelligence" class="nav-link" data-page="intelligence"><span>✳</span> BusinessFlow Intelligence</a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -39,6 +38,7 @@
           </div>
         </div>
 
+        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account &amp; workspace</a>
         <a href="#settings" class="nav-link" data-page="settings"><span>⚙</span> Settings</a>
 
         <button type="button" class="sidebar-signout" id="sidebar-signout" hidden>↪ <span>Sign out</span></button>
@@ -61,12 +61,7 @@
 
       <div class="page-container">
         <section class="page active" id="overview">
-          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
-          </div>
-
-          <div class="welcome-row">
+<div class="welcome-row">
             <div>
               <p class="eyebrow">BUSINESS INTELLIGENCE</p>
               <h1 id="overview-greeting">Good morning.</h1>
@@ -78,29 +73,12 @@
             </div>
           </div>
 
-          <div class="insight-banner">
-            <div class="insight-icon">✳</div>
-            <div>
-              <strong>Business intelligence is ready to work.</strong>
-              <p>BusinessFlow examines your imported records, goals, experiments and business memory to surface evidence-based next steps.</p>
-            </div>
-          </div>
           <article class="panel intelligence-panel">
             <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
             <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
           </article>
 
-          <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to BusinessFlow Intelligence</h2><p class="muted">Your workspace context, goals, experiments and saved decisions stay together.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
-            <div class="bf-chat-layout">
-              <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Recent conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
-              <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
-                <div id="bf-chat-messages" class="bf-chat-messages" aria-live="polite"><div class="bf-chat-empty"><strong>Start with what matters to your business.</strong><p>Ask about a goal, a customer problem, a dataset, or a decision you need to make.</p></div></div>
-                <form id="bf-chat-form" class="bf-chat-composer"><label class="sr-only" for="bf-chat-input">Message BusinessFlow Intelligence</label><textarea id="bf-chat-input" rows="2" maxlength="8000" placeholder="What would you like to understand or improve?" required></textarea><div class="bf-chat-compose-footer"><span id="bf-chat-status">Your conversations are saved to this workspace.</span><button type="submit" class="primary-button" id="bf-chat-send">Send message</button></div></form>
-              </section>
-            </div>
-            <p class="bf-chat-disclaimer">This first release uses saved workspace data and deterministic business rules. AI-model reasoning and external actions are not enabled yet.</p>
-          </article>
+
 
           <div class="section-heading">
             <div>
@@ -139,23 +117,14 @@
             </article>
           </div>
 
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue performance</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
-              </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
-            </article>
-
+          <div class="content-grid overview-content-grid">
             <article class="panel">
               <div class="panel-heading">
                 <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
                 <button type="button" class="text-button" data-go-to="goals">View all</button>
               </div>
               <div id="goal-list" class="goal-list"></div>
-              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+              
             </article>
           </div>
 
@@ -168,6 +137,25 @@
           </article>
 
           <footer class="app-footer">BusinessFlow · Business workspace</footer>
+        </section>
+
+        <section class="page intelligence-page" id="intelligence">
+          <div class="page-heading">
+            <p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p>
+            <h1>Your business partner</h1>
+            <p class="subtitle">Explore your business context, ask questions and work through decisions.</p>
+          </div>
+          <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
+            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to BusinessFlow Intelligence</h2><p class="muted">Your workspace context, goals, experiments and saved decisions stay together.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
+            <div class="bf-chat-layout">
+              <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Recent conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
+              <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
+                <div id="bf-chat-messages" class="bf-chat-messages" aria-live="polite"><div class="bf-chat-empty"><strong>Start with what matters to your business.</strong><p>Ask about a goal, a customer problem, a dataset, or a decision you need to make.</p></div></div>
+                <form id="bf-chat-form" class="bf-chat-composer"><label class="sr-only" for="bf-chat-input">Message BusinessFlow Intelligence</label><textarea id="bf-chat-input" rows="2" maxlength="8000" placeholder="What would you like to understand or improve?" required></textarea><div class="bf-chat-compose-footer"><span id="bf-chat-status">Your conversations are saved to this workspace.</span><button type="submit" class="primary-button" id="bf-chat-send">Send message</button></div></form>
+              </section>
+            </div>
+            <p class="bf-chat-disclaimer">This first release uses saved workspace data and deterministic business rules. AI-model reasoning and external actions are not enabled yet.</p>
+          </article>
         </section>
 
         <section class="page" id="analytics">
@@ -254,8 +242,7 @@
             <p class="subtitle">Test business ideas and record what you learn.</p>
           </div>
           <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Experiments are saved in this browser only. They are not synced across devices or connected to live business data.</span>
+            <strong>ACCOUNT SYNC</strong><span>Experiments are not yet synced to your BusinessFlow account. Avoid relying on them as permanent records until cloud saving is enabled.</span>
           </div>
 
           <article class="panel">
@@ -266,7 +253,7 @@
             <div id="experiment-list" class="record-list">
               <p class="empty-state">Loading experiments…</p>
             </div>
-            <p class="muted" data-storage-status role="status"></p>
+            
           </article>
 
           <article class="panel">
@@ -310,8 +297,7 @@
           </div>
 
           <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Goals are stored locally unless you sign in, connect the API, and select a cloud workspace. Browser records are not overwritten automatically.</span>
+            <strong>ACCOUNT SYNC</strong><span>Goals are saved to your BusinessFlow account when a connected business workspace is selected. Records created without one are not synced to your account yet.</span>
           </div>
 
           <article class="panel">
@@ -320,7 +306,7 @@
               <span class="count-pill" id="goal-count">0</span>
             </div>
             <div id="all-goals-list" class="record-list"></div>
-            <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+            
           </article>
 
           <article class="panel">
@@ -351,8 +337,7 @@
             <p class="subtitle">Organize important business knowledge.</p>
           </div>
           <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Notes are saved in this browser only. Do not store passwords, customer secrets, or sensitive company information here.</span>
+            <strong>ACCOUNT SYNC</strong><span>Business Memory is not yet synced to your BusinessFlow account. Do not store passwords, customer secrets or sensitive company information here.</span>
           </div>
 
           <article class="panel">
@@ -366,7 +351,7 @@
             <div id="memory-list" class="record-list">
               <p class="empty-state">Loading business memory…</p>
             </div>
-            <p class="muted" data-storage-status role="status"></p>
+            
           </article>
 
           <article class="panel">
@@ -539,7 +524,7 @@
               BusinessFlow supports account-based cloud workspaces and cloud goals. Experiments and Business Memory remain local to this browser until cloud sync is implemented for those records.
               Downloading a backup does not upload your information to a server.
             </p>
-            <p class="muted" data-storage-status role="status"></p>
+            
           </article>
         </section>
       </div>
