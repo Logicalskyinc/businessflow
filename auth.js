@@ -401,6 +401,65 @@ window.BusinessFlowCloud = Object.freeze({
   deleteGoal: async (businessId, goalId) => apiRequest(
     "/api/business-intelligence/goals/" + encodeURIComponent(goalId) + "?business_id=" + encodeURIComponent(businessId),
     { method: "DELETE" }
+  ),
+  loadExperiments: async businessId => {
+    const result = await apiRequest("/api/business-intelligence/experiments?business_id=" + encodeURIComponent(businessId));
+    return Array.isArray(result.experiments) ? result.experiments : [];
+  },
+  createExperiment: async (businessId, experiment) => {
+    const result = await apiRequest("/api/business-intelligence/experiments", {
+      method: "POST",
+      body: JSON.stringify({
+        business_id: businessId, title: experiment.title, hypothesis: experiment.hypothesis,
+        success_metric: experiment.successMetric || null, status: experiment.status,
+        result_summary: experiment.resultSummary || null,
+        started_at: experiment.startedAt || null, completed_at: experiment.completedAt || null
+      })
+    });
+    if (!result.experiment?.id) throw new Error("Experiment save response did not contain its ID.");
+    return result.experiment;
+  },
+  updateExperiment: async (businessId, experiment) => {
+    const result = await apiRequest("/api/business-intelligence/experiments/" + encodeURIComponent(experiment.id), {
+      method: "PATCH",
+      body: JSON.stringify({
+        business_id: businessId, title: experiment.title, hypothesis: experiment.hypothesis,
+        success_metric: experiment.successMetric || null, status: experiment.status,
+        result_summary: experiment.resultSummary || null,
+        started_at: experiment.startedAt || null, completed_at: experiment.completedAt || null
+      })
+    });
+    return result.experiment;
+  },
+  deleteExperiment: async (businessId, id) => apiRequest(
+    "/api/business-intelligence/experiments/" + encodeURIComponent(id) + "?business_id=" + encodeURIComponent(businessId),
+    { method: "DELETE" }
+  ),
+  loadMemories: async businessId => {
+    const result = await apiRequest("/api/business-intelligence/memory?business_id=" + encodeURIComponent(businessId));
+    return Array.isArray(result.memory) ? result.memory : [];
+  },
+  createMemory: async (businessId, memory) => {
+    const result = await apiRequest("/api/business-intelligence/memory", {
+      method: "POST",
+      body: JSON.stringify({
+        business_id: businessId, category: memory.category,
+        content: memory.content, source: "user"
+      })
+    });
+    if (!result.memory?.id) throw new Error("Memory save response did not contain its ID.");
+    return result.memory;
+  },
+  updateMemory: async (businessId, memory) => {
+    const result = await apiRequest("/api/business-intelligence/memory/" + encodeURIComponent(memory.id), {
+      method: "PATCH",
+      body: JSON.stringify({ business_id: businessId, category: memory.category, content: memory.content })
+    });
+    return result.memory;
+  },
+  deleteMemory: async (businessId, id) => apiRequest(
+    "/api/business-intelligence/memory/" + encodeURIComponent(id) + "?business_id=" + encodeURIComponent(businessId),
+    { method: "DELETE" }
   )
 });
 
