@@ -187,18 +187,18 @@
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-analytics-metric="revenue">—</strong>
+              <p class="metric-note" data-analytics-note="revenue">Awaiting mapped revenue records</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-analytics-metric="customers">—</strong>
+              <p class="metric-note" data-analytics-note="customers">Awaiting customer identifiers</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-analytics-metric="conversion">—</strong>
+              <p class="metric-note" data-analytics-note="conversion">Not available from current imports</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
@@ -210,11 +210,9 @@
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue trend</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
-              </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
+              <p class="muted">Monthly revenue calculated from mapped transaction dates and amounts.</p>
+              <div id="analytics-revenue-chart" class="chart chart-empty" role="status"><p class="empty-state">Import records with mapped revenue and dates to see the trend.</p></div>
+              <p class="chart-disclaimer" id="analytics-revenue-disclaimer">Only imported, mapped records are included.</p>
             </article>
 
             <article class="panel">
