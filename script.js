@@ -1462,6 +1462,45 @@ window.addEventListener("businessflow:workspace-changed", event => {
 });
 
 let latestBusinessInsights = null;
+function renderAnalyticsMetrics(result) {
+  const setMetric = (key, value, note) => {
+    const valueNode = document.querySelector('[data-analytics-metric="' + key + '"]');
+    const noteNode = document.querySelector('[data-analytics-note="' + key + '"]');
+    if (valueNode) valueNode.textContent = value;
+    if (noteNode) noteNode.textContent = note;
+  };
+  if (!result) {
+    setMetric("revenue", "—", "Awaiting mapped revenue records");
+    setMetric("customers", "—", "Awaiting customer identifiers");
+    setMetric("conversion", "—", "Not available from current imports");
+    const chart = document.querySelector("#analytics-revenue-chart");
+    if (chart) chart.innerHTML = '<p class="empty-state">Select a workspace to load your revenue trend.</p>';
+    return;
+  }
+  const metrics = result.metrics || {};
+  const currency = metrics.revenueCurrency || "XOF";
+  const number = value => Number(value).toLocaleString(undefined,{maximumFractionDigits:2});
+  setMetric("revenue", metrics.revenueTotal === null || metrics.revenueTotal === undefined ? "—" : number(metrics.revenueTotal) + " " + currency,
+    metrics.revenueRecords + " readable transaction values");
+  setMetric("customers", metrics.customers === null || metrics.customers === undefined ? "—" : number(metrics.customers),
+    metrics.customers === null || metrics.customers === undefined ? "Customer identity is not mapped" : "Distinct mapped customers");
+  setMetric("conversion", "—", "Not available from current imports");
+  const chart = document.querySelector("#analytics-revenue-chart");
+  if (!chart) return;
+  const months = Array.isArray(metrics.monthlyRevenue) ? metrics.monthlyRevenue : [];
+  if (!months.length) {
+    chart.innerHTML = '<p class="empty-state">No dated revenue records are available. Map both Revenue and Order date to build this trend.</p>';
+    return;
+  }
+  const maximum = Math.max(1,...months.map(item=>Math.abs(Number(item.total)||0)));
+  chart.classList.remove("chart-empty");
+  chart.innerHTML = '<div class="revenue-trend-list">' + months.map(item => {
+    const value = Number(item.total)||0;
+    const width = Math.max(2,Math.round(Math.abs(value)/maximum*100));
+    const label = String(item.month || "");
+    return '<div class="revenue-trend-row"><div class="revenue-trend-label"><span>' + escapeHTML(label) + '</span><strong>' + escapeHTML(number(value)) + ' ' + escapeHTML(currency) + '</strong></div><div class="revenue-trend-track"><span style="width:' + width + '%"></span></div></div>';
+  }).join("") + '</div>';
+}
 function renderBusinessInsights() {
   const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
@@ -1471,9 +1510,11 @@ function renderBusinessInsights() {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
     if (status) status.textContent = "Waiting for a selected workspace.";
+    renderAnalyticsMetrics(null);
     return;
   }
   const coverage = result.coverage || {};
+  renderAnalyticsMetrics(result);
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
