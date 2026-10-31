@@ -184,7 +184,7 @@ for all to authenticated using (
 );
 
 -- No anonymous/public table access. Authenticated access remains constrained by RLS.
-revoke all on public.businessflow_profiles from anon, public;
+revoke all on public.businessflow_profiles from anon, public, authenticated;
 revoke all on public.businessflow_memberships from anon, public;
 revoke all on public.businessflow_goals from anon, public;
 revoke all on public.businessflow_experiments from anon, public;
