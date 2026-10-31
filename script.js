@@ -1,5 +1,5 @@
 
-/* BusinessFlow workspace UI. Cloud goals use the authenticated API; experiments and business memory remain browser-local for now. */
+/* BusinessFlow workspace UI. Cloud goals use the authenticated API; experiments and business memory remain awaiting account-backed persistence. */
 "use strict";
 
 const STORAGE_KEY = "businessflow_goals_v1";
@@ -81,14 +81,7 @@ function createId() {
 }
 
 function updateStorageStatus() {
-  document.querySelectorAll("[data-storage-status]").forEach(element => {
-    const cloud = window.BusinessFlowCloud?.getState?.();
-    element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
-      ? "Business goals saved to the selected cloud workspace"
-      : storageAvailable
-        ? "Saved locally in this browser · Not synced across devices"
-        : "Browser storage unavailable · Changes may not persist";
-  });
+  // Persistence diagnostics are intentionally kept out of the customer interface.
 }
 
 function saveCollection(key, collection) {
@@ -101,7 +94,7 @@ function saveCollection(key, collection) {
     storageAvailable = false;
     updateStorageStatus();
     console.error("BusinessFlow could not save data:", error);
-    showToast("Could not save. Browser storage may be unavailable.");
+    showToast("Could not save this record. Please try again.");
     return false;
   }
 }
@@ -361,7 +354,7 @@ async function createGoal(title, current, target, unit) {
         id: saved.id, title: saved.title, current: Number(saved.current_value ?? 0),
         target: Number(saved.target_value ?? targetValue), unit: saved.metric_name || cleanUnit || "units"
       });
-      if (!saveGoals()) showToast("Cloud goal saved, but the local browser copy could not be updated.");
+      if (!saveGoals()) showToast("Goal saved to your account, but the secondary copy could not be updated.");
       renderGoals();
       showToast("Goal saved to your BusinessFlow cloud workspace.");
       return true;
@@ -382,7 +375,7 @@ async function createGoal(title, current, target, unit) {
     return false;
   }
   renderGoals();
-  showToast("Goal saved in this browser. Cloud sync is not connected.");
+  showToast("Goal saved. Connect a business workspace to sync it to your account.");
   return true;
 }
 
@@ -397,7 +390,7 @@ async function handleGoalAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + goal.title +
-      '"? This removes the goal from this browser only.'
+      '"? This removes the unsynced goal.'
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
@@ -417,7 +410,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Goal deleted from this browser.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Unsynced goal deleted.");
     return;
   }
 
@@ -454,7 +447,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated locally.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated. This change is not synced to your account yet.");
     return;
   }
 
@@ -510,7 +503,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated locally.");
+    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated. This change is not synced to your account yet.");
   }
 }
 
@@ -808,7 +801,7 @@ function setupExperimentForm() {
 
       renderExperiments();
       cancelExperimentEdit();
-      showToast("Experiment updated in this browser.");
+      showToast("Experiment updated. Account sync is not available yet.");
       return;
     }
 
@@ -831,7 +824,7 @@ function setupExperimentForm() {
 
     renderExperiments();
     form.reset();
-    showToast("Experiment saved in this browser.");
+    showToast("Experiment saved. Account sync is not available yet.");
   });
 }
 
@@ -847,7 +840,7 @@ function handleExperimentAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + item.title +
-      '"? This removes it from this browser only.'
+      '"? This removes the unsynced record.'
     )) return;
 
     const removed = experiments.splice(index, 1)[0];
@@ -1064,7 +1057,7 @@ function setupMemoryForm() {
       dateInput.value = new Date().toISOString().slice(0, 10);
     }
 
-    showToast("Business memory saved in this browser.");
+    showToast("Business memory saved. Account sync is not available yet.");
   });
 }
 
@@ -1080,7 +1073,7 @@ function handleMemoryAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + item.title +
-      '"? This removes it from this browser only.'
+      '"? This removes the unsynced record.'
     )) return;
 
     const removed = memories.splice(index, 1)[0];
@@ -1315,14 +1308,14 @@ async function importLocalGoalsToCloud() {
     const parsed = snapshot ? JSON.parse(snapshot) : [];
     if (Array.isArray(parsed)) localRecords = parsed.filter(isValidGoal);
   } catch (error) {
-    showToast("Could not read local goals for import.");
+    showToast("Could not read the saved goals for import.");
     return;
   }
   if (!localRecords.length) {
-    showToast("No valid browser goals were found to import.");
+    showToast("No valid saved goals were found to import.");
     return;
   }
-  if (!confirm("Import " + localRecords.length + " browser goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your local backup will be kept.")) return;
+  if (!confirm("Import " + localRecords.length + " saved goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your backup will be kept.")) return;
 
   try {
     const remote = await window.BusinessFlowCloud.loadGoals(cloud.businessId);
@@ -1338,9 +1331,9 @@ async function importLocalGoalsToCloud() {
       imported++;
     }
     await loadCloudGoalsForWorkspace(cloud.businessId);
-    showToast("Import complete: " + imported + " imported, " + skipped + " skipped. Local backup retained.");
+    showToast("Import complete: " + imported + " imported, " + skipped + " skipped. Your backup was retained.");
   } catch (error) {
-    showToast("Import stopped: " + error.message + ". Your local backup was retained; retry safely.");
+    showToast("Import stopped: " + error.message + ". Your backup was retained; retry safely.");
   }
 }
 
@@ -1951,7 +1944,7 @@ function initializeBusinessFlowChat() {
     }
     const clientMessageId = pendingClientMessageId;
     if (!clientMessageId) {
-      setStatus("This browser cannot create a secure message ID. Update your browser and try again.");
+      setStatus("Unable to create a secure message ID. Please try again.");
       return;
     }
     busy = true;
