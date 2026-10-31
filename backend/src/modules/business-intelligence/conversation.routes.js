@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
+import { buildBusinessInsights } from "./business-intelligence.analytics.js";
+import { formatBusinessFlowAiReply, reasonAboutBusiness } from "./businessflow-ai.service.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -98,52 +100,19 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
 });
 
 async function buildBusinessFlowReply(supabase, businessId, prompt) {
-  const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
-    supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
-    supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(50),
-    supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(50),
-    supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(20)
+  const [profileResult,importsResult,goalsResult,experimentsResult,memoryResult] = await Promise.all([
+    supabase.from("businessflow_profiles").select("id,name,currency_code,primary_goal,business_description").eq("id",businessId).maybeSingle(),
+    supabase.from("businessflow_imports").select("id,name,source_filename,column_mapping,rows,row_count").eq("business_id",businessId).order("created_at",{ascending:false}).limit(25),
+    supabase.from("businessflow_goals").select("id,title,status,current_value,target_value,metric_name").eq("business_id",businessId).limit(100),
+    supabase.from("businessflow_experiments").select("id,title,status,success_metric,result_summary").eq("business_id",businessId).limit(100),
+    supabase.from("businessflow_memory").select("id,category,content,source,created_at").eq("business_id",businessId).order("created_at",{ascending:false}).limit(100)
   ]);
-  for (const result of [profileResult, goalsResult, experimentsResult, memoryResult]) {
-    if (result.error) throw result.error;
-  }
-  const profile = profileResult.data;
-  if (!profile) throw new Error("Business workspace not found.");
-  const goals = goalsResult.data ?? [];
-  const experiments = experimentsResult.data ?? [];
-  const memory = memoryResult.data ?? [];
-  const activeGoals = goals.filter(item => item.status === "active");
-  const runningExperiments = experiments.filter(item => item.status === "running");
-  const lower = prompt.toLowerCase();
-  const lines = [
-    "I'm BusinessFlow Intelligence for " + profile.name + ". I can use this workspace's saved business records to help you make evidence-based decisions.",
-    profile.primary_goal ? "Your recorded primary goal: " + profile.primary_goal + "." : "Your primary goal has not been recorded yet.",
-    "Workspace context: " + activeGoals.length + " active goal(s), " + runningExperiments.length + " running experiment(s), and " + memory.length + " saved memory item(s)."
-  ];
-  if (/goal|target|progress|revenue|customer|growth|sales|performance/.test(lower) && activeGoals.length) {
-    lines.push("Active goals:");
-    for (const goal of activeGoals.slice(0, 5)) {
-      const progress = typeof goal.target_value === "number" && goal.target_value > 0
-        ? " (" + Math.round((Number(goal.current_value || 0) / goal.target_value) * 100) + "% of target)"
-        : "";
-      lines.push("• " + goal.title + ": " + (goal.current_value ?? 0) + (goal.metric_name ? " " + goal.metric_name : "") +
-        (goal.target_value !== null ? " / " + goal.target_value : "") + progress + ".");
-    }
-  }
-  if (/experiment|test|campaign|marketing/.test(lower) && experiments.length) {
-    lines.push("Recent experiments:");
-    for (const experiment of experiments.slice(0, 5)) {
-      lines.push("• " + experiment.title + " (" + experiment.status + ")" +
-        (experiment.success_metric ? ": " + experiment.success_metric : "") + ".");
-    }
-  }
-  if (memory.length) {
-    lines.push("Relevant saved business memory:");
-    for (const item of memory.slice(0, 3)) {
-      const value = typeof item.content === "string" ? item.content : JSON.stringify(item.content);
-      lines.push("• " + String(value).slice(0, 350));
-    }
-  }
-  lines.push("What I can do right now: review your goals, interpret imported datasets through the Analytics page, and help structure an experiment. This first release uses your saved workspace data and deterministic rules. It does not yet use an external AI model or execute actions. I won't invent figures when the workspace has no supporting data.");
-  return lines.join("\n").slice(0, 7900);
+  for (const result of [profileResult,importsResult,goalsResult,experimentsResult,memoryResult]) if (result.error) throw result.error;
+  if (!profileResult.data) throw new Error("Business workspace not found.");
+  const insights = buildBusinessInsights({
+    profile:profileResult.data, imports:importsResult.data || [], goals:goalsResult.data || [],
+    experiments:experimentsResult.data || [], memory:memoryResult.data || []
+  });
+  const reasoning = reasonAboutBusiness({prompt,profile:profileResult.data,insights});
+  return formatBusinessFlowAiReply(reasoning);
 }
