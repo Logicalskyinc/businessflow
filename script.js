@@ -617,7 +617,7 @@ function encodeCloudExperiment(item) {
   const dbStatus = item.status === "review" ? "running" : item.status;
   return {
     id: item.id, title: item.title, hypothesis: item.hypothesis,
-    successMetric: item.title, status: dbStatus,
+    successMetric: null, status: dbStatus,
     resultSummary: "BFEXP1:" + JSON.stringify({
       baseline: item.baseline, result: item.result, status: item.status, notes: item.notes
     }),
@@ -632,6 +632,7 @@ async function loadExperimentsForWorkspace(businessId) {
     loadExperiments(); renderExperiments(); return;
   }
   const requestWorkspace = businessId;
+  experiments = []; renderExperiments();
   try {
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
     if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
@@ -650,6 +651,7 @@ async function loadMemoriesForWorkspace(businessId) {
     loadMemories(); renderMemories(); return;
   }
   const requestWorkspace = businessId;
+  memories = []; renderMemories();
   try {
     const records = await window.BusinessFlowCloud.loadMemories(businessId);
     if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
@@ -1329,6 +1331,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     return;
   }
 
+  goals = []; renderGoals();
   try {
     if (!localStorage.getItem(LOCAL_GOALS_BACKUP_KEY)) {
       const localSnapshot = localStorage.getItem(STORAGE_KEY);
