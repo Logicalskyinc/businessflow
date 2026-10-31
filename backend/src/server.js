@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import { businessIntelligenceRouter } from "./modules/business-intelligence/business-intelligence.routes.js";
 import { conversationRouter } from "./modules/business-intelligence/conversation.routes.js";
+import { businessFlowAiRouter } from "./modules/business-intelligence/businessflow-ai.routes.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
@@ -48,6 +49,7 @@ app.get("/health", (_request, response) => {
 
 app.use("/api/business-intelligence", businessIntelligenceRouter);
 app.use("/api/business-intelligence/conversations", conversationRouter);
+app.use("/api/v1/ai", businessFlowAiRouter);
 
 app.use((request, response) => {
   response.status(404).json({
