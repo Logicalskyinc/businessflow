@@ -1,15 +1,21 @@
--- Starter plan: maximum two business workspaces per account.
--- Locking the owning auth.users row serializes concurrent inserts for one owner.
+-- Starter plan: maximum two business workspaces per authenticated account.
+-- SECURITY INVOKER keeps the function subject to the caller's RLS policies.
+-- A transaction-scoped advisory lock serializes concurrent inserts for one owner.
 CREATE OR REPLACE FUNCTION public.enforce_businessflow_workspace_limit()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = pg_catalog, public, auth
 AS $$
 DECLARE
   existing_count integer;
 BEGIN
-  PERFORM 1 FROM auth.users WHERE id = NEW.owner_user_id FOR UPDATE;
+  IF NEW.owner_user_id IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'businessflow_workspace_owner_mismatch'
+      USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.owner_user_id::text, 0));
 
   SELECT count(*) INTO existing_count
   FROM public.businessflow_profiles
@@ -19,6 +25,7 @@ BEGIN
     RAISE EXCEPTION 'businessflow_workspace_limit_reached'
       USING ERRCODE = '23514';
   END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -28,4 +35,5 @@ REVOKE ALL ON FUNCTION public.enforce_businessflow_workspace_limit() FROM PUBLIC
 DROP TRIGGER IF EXISTS businessflow_workspace_limit_before_insert ON public.businessflow_profiles;
 CREATE TRIGGER businessflow_workspace_limit_before_insert
 BEFORE INSERT ON public.businessflow_profiles
-FOR EACH ROW EXECUTE FUNCTION public.enforce_businessflow_workspace_limit();
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_businessflow_workspace_limit();
