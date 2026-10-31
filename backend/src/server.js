@@ -57,6 +57,10 @@ app.use((request, response) => {
 });
 
 app.use((error, _request, response, _next) => {
+  if (error?.code === "23514" && String(error.message).includes("businessflow_workspace_limit_reached")) {
+    return response.status(409).json({ error: "business_limit_reached", message: "Your Starter plan includes 2 businesses. Upgrade your plan to add another." });
+  }
+
   if (error?.type === "entity.too.large") {
     return response.status(413).json({
       error: "payload_too_large",
