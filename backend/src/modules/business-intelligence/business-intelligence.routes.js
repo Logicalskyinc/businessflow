@@ -181,7 +181,7 @@ function addCrud(path, table, validator) {
       const { data, error } = await query.select("*").maybeSingle();
       if (error) return next(error);
       if (!data) return res.status(404).json({ error: "record_not_found" });
-      return res.json({ status: "updated", [path.slice(0, -1)]: data });
+      return res.json({ status: "updated", [singularResource[path]]: data });
     } catch (e) { return next(e); }
   });
   businessIntelligenceRouter.delete("/" + path + "/:id", requireAuthenticatedUser, async (req, res, next) => {
