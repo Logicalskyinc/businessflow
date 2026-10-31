@@ -45,7 +45,7 @@ export function getOnboardingQuestions() {
 }
 
 /**
- * Validate an onboarding answer payload before a future persistence layer stores it.
+ * Validate and normalize an onboarding answer payload before the authenticated route persists it.
  * Tenant identity must come from verified authentication middleware, never from the
  * request body. This function intentionally does not write to a database.
  */
