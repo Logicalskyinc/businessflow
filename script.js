@@ -8,6 +8,9 @@ const MEMORY_KEY = "businessflow_memory_v1";
 const LOCAL_GOALS_BACKUP_KEY = "businessflow_goals_local_backup_v1";
 let cloudGoalWorkspaceId = null;
 let cloudGoalBusy = false;
+let cloudExperimentWorkspaceId = null;
+let cloudMemoryWorkspaceId = null;
+let cloudCollectionBusy = false;
 
 const DEFAULT_GOALS = [];
 
@@ -581,25 +584,115 @@ function isValidExperiment(item) {
 }
 
 function loadExperiments() {
-  experiments = loadCollection(EXPERIMENTS_KEY)
-    .filter(isValidExperiment)
-    .map(item => ({
-      id: item.id,
-      title: item.title.trim().slice(0, 120),
-      hypothesis: item.hypothesis.trim().slice(0, 1000),
-      baseline: item.baseline === null || item.baseline === undefined ? null : Number(item.baseline),
-      result: item.result === null || item.result === undefined
-        ? null
-        : Number(item.result),
-      status: item.status,
-      notes: String(item.notes ?? "").slice(0, 2000),
-      createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-    }));
+  experiments = loadCollection(EXPERIMENTS_KEY).filter(isValidExperiment).map(normalizeExperiment);
 }
-
-function saveExperiments() {
-  return saveCollection(EXPERIMENTS_KEY, experiments);
+function normalizeExperiment(item) {
+  return {
+    id: String(item.id), title: String(item.title).trim().slice(0,120),
+    hypothesis: String(item.hypothesis || "").trim().slice(0,1000),
+    baseline: item.baseline === null || item.baseline === undefined ? null : Number(item.baseline),
+    result: item.result === null || item.result === undefined ? null : Number(item.result),
+    status: EXPERIMENT_STATUSES.includes(item.status) ? item.status : "planned",
+    notes: String(item.notes || "").slice(0,2000),
+    createdAt: item.createdAt || new Date().toISOString(),
+    updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+  };
+}
+function saveExperiments() { return saveCollection(EXPERIMENTS_KEY, experiments); }
+function decodeCloudExperiment(record) {
+  let extra = {};
+  try {
+    const raw = String(record.result_summary || "");
+    if (raw.startsWith("BFEXP1:")) extra = JSON.parse(raw.slice(7));
+    else if (raw) extra = { notes: raw };
+  } catch { extra = {}; }
+  return normalizeExperiment({
+    id: record.id, title: record.title, hypothesis: record.hypothesis || "",
+    baseline: extra.baseline ?? null, result: extra.result ?? null,
+    status: extra.status || record.status || "planned", notes: extra.notes || "",
+    createdAt: record.created_at, updatedAt: record.updated_at
+  });
+}
+function encodeCloudExperiment(item) {
+  const dbStatus = item.status === "review" ? "running" : item.status;
+  return {
+    id: item.id, title: item.title, hypothesis: item.hypothesis,
+    successMetric: item.title, status: dbStatus,
+    resultSummary: "BFEXP1:" + JSON.stringify({
+      baseline: item.baseline, result: item.result, status: item.status, notes: item.notes
+    }),
+    startedAt: item.status === "running" || item.status === "review" ? item.createdAt : null,
+    completedAt: item.status === "completed" ? item.updatedAt : null
+  };
+}
+async function loadExperimentsForWorkspace(businessId) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    cloudExperimentWorkspaceId = null;
+    loadExperiments(); renderExperiments(); return;
+  }
+  const requestWorkspace = businessId;
+  try {
+    const records = await window.BusinessFlowCloud.loadExperiments(businessId);
+    if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
+    experiments = records.map(decodeCloudExperiment);
+    cloudExperimentWorkspaceId = businessId;
+    renderExperiments();
+  } catch (error) {
+    console.error("BusinessFlow experiments could not load:", error);
+    showToast("Could not load experiments: " + error.message);
+  }
+}
+async function loadMemoriesForWorkspace(businessId) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    cloudMemoryWorkspaceId = null;
+    loadMemories(); renderMemories(); return;
+  }
+  const requestWorkspace = businessId;
+  try {
+    const records = await window.BusinessFlowCloud.loadMemories(businessId);
+    if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
+    memories = records.map(record => {
+      const value = record.content && typeof record.content === "object" ? record.content : {};
+      const categoryMap = { business_context:"Other", decision:"Decision", observation:"Customer insight", preference:"Other", lesson:"Lesson learned", experiment_result:"Other" };
+      return {
+        id: record.id, title: String(value.title || "Business note").slice(0,120),
+        category: categoryMap[record.category] || "Other",
+        date: String(value.date || record.created_at || new Date().toISOString()).slice(0,10),
+        content: String(value.content || "").slice(0,4000),
+        createdAt: record.created_at, updatedAt: record.updated_at
+      };
+    }).filter(isValidMemory);
+    cloudMemoryWorkspaceId = businessId;
+    renderMemories();
+  } catch (error) {
+    console.error("BusinessFlow memory could not load:", error);
+    showToast("Could not load Business Memory: " + error.message);
+  }
+}
+async function saveExperimentToCloud(item, create) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) throw new Error("Select a connected business workspace before saving.");
+  const payload = encodeCloudExperiment(item);
+  const saved = create
+    ? await window.BusinessFlowCloud.createExperiment(cloud.businessId, payload)
+    : await window.BusinessFlowCloud.updateExperiment(cloud.businessId, { ...payload, id: item.id });
+  if (create && saved.id) item.id = saved.id;
+  return saved;
+}
+function cloudMemoryCategory(category) {
+  return ({ "Decision":"decision", "Customer insight":"observation", "Lesson learned":"lesson", "Process":"business_context", "Follow-up":"decision", "Other":"business_context" })[category] || "business_context";
+}
+async function saveMemoryToCloud(item, create) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) throw new Error("Select a connected business workspace before saving.");
+  const payload = { id:item.id, category:cloudMemoryCategory(item.category), content:{title:item.title,date:item.date,content:item.content} };
+  const saved = create
+    ? await window.BusinessFlowCloud.createMemory(cloud.businessId,payload)
+    : await window.BusinessFlowCloud.updateMemory(cloud.businessId,payload);
+  if (create && saved.id) item.id=saved.id;
+  return saved;
 }
 
 function renderOverviewExperiments() {
@@ -794,41 +887,33 @@ function setupExperimentForm() {
         updatedAt: now
       });
 
-      if (!saveExperiments()) {
-        Object.assign(item, previous);
-        return;
+      const cloud = window.BusinessFlowCloud?.getState?.();
+      if (cloud?.signedIn && cloud.apiConnected && cloud.businessId) {
+        try { await saveExperimentToCloud(item, false); }
+        catch (error) { Object.assign(item, previous); showToast("Experiment update failed: " + error.message); return; }
       }
-
-      renderExperiments();
-      cancelExperimentEdit();
-      showToast("Experiment updated. Account sync is not available yet.");
+      if (!saveExperiments()) { Object.assign(item, previous); return; }
+      renderExperiments(); cancelExperimentEdit();
+      showToast(cloud?.signedIn && cloud.apiConnected && cloud.businessId ? "Experiment updated in your workspace." : "Select a workspace to sync this experiment.");
       return;
     }
 
-    experiments.unshift({
-      id: createId(),
-      title,
-      hypothesis,
-      baseline,
-      result,
-      status,
-      notes,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveExperiments()) {
-      experiments.shift();
+    const item = { id:createId(), title, hypothesis, baseline, result, status, notes, createdAt:now, updatedAt:now };
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
+      showToast("Select a connected workspace before saving an experiment.");
       return;
     }
-
-    renderExperiments();
-    form.reset();
-    showToast("Experiment saved. Account sync is not available yet.");
+    try {
+      await saveExperimentToCloud(item, true);
+      experiments.unshift(item);
+      renderExperiments(); form.reset();
+      showToast("Experiment saved to your workspace.");
+    } catch (error) { showToast("Experiment save failed: " + error.message); }
   });
 }
 
-function handleExperimentAction(action, id) {
+async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
   if (index < 0) {
     showToast("Experiment not found.");
@@ -843,17 +928,13 @@ function handleExperimentAction(action, id) {
       '"? This removes the unsynced record.'
     )) return;
 
-    const removed = experiments.splice(index, 1)[0];
-
-    if (!saveExperiments()) {
-      experiments.splice(index, 0, removed);
-      renderExperiments();
-      return;
-    }
-
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) { showToast("Select the workspace containing this experiment."); return; }
+    try { await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id); }
+    catch (error) { showToast("Experiment delete failed: " + error.message); return; }
+    experiments.splice(index, 1);
     if (editingExperimentId === id) cancelExperimentEdit();
-    renderExperiments();
-    showToast("Experiment deleted.");
+    renderExperiments(); showToast("Experiment deleted from your workspace.");
     return;
   }
 
@@ -1035,33 +1116,22 @@ function setupMemoryForm() {
 
     const now = new Date().toISOString();
 
-    memories.unshift({
-      id: createId(),
-      title,
-      category,
-      date,
-      content,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveMemories()) {
-      memories.shift();
+    const item = { id:createId(), title, category, date, content, createdAt:now, updatedAt:now };
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
+      showToast("Select a connected workspace before saving Business Memory.");
       return;
     }
-
-    renderMemories();
-    form.reset();
-
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
-
-    showToast("Business memory saved. Account sync is not available yet.");
+    try {
+      await saveMemoryToCloud(item, true);
+      memories.unshift(item); renderMemories(); form.reset();
+      if (dateInput) dateInput.value = new Date().toISOString().slice(0,10);
+      showToast("Business Memory saved to your workspace.");
+    } catch (error) { showToast("Memory save failed: " + error.message); }
   });
 }
 
-function handleMemoryAction(action, id) {
+async function handleMemoryAction(action, id) {
   const index = memories.findIndex(item => item.id === id);
   if (index < 0) {
     showToast("Memory entry not found.");
@@ -1076,16 +1146,11 @@ function handleMemoryAction(action, id) {
       '"? This removes the unsynced record.'
     )) return;
 
-    const removed = memories.splice(index, 1)[0];
-
-    if (!saveMemories()) {
-      memories.splice(index, 0, removed);
-      renderMemories();
-      return;
-    }
-
-    renderMemories();
-    showToast("Memory entry deleted.");
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) { showToast("Select the workspace containing this memory."); return; }
+    try { await window.BusinessFlowCloud.deleteMemory(cloud.businessId, id); }
+    catch (error) { showToast("Memory delete failed: " + error.message); return; }
+    memories.splice(index, 1); renderMemories(); showToast("Memory entry deleted from your workspace.");
     return;
   }
 
@@ -1147,13 +1212,11 @@ function handleMemoryAction(action, id) {
     updatedAt: new Date().toISOString()
   });
 
-  if (!saveMemories()) {
-    Object.assign(item, previous);
-    return;
-  }
-
-  renderMemories();
-  showToast("Memory entry updated.");
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) { Object.assign(item, previous); showToast("Select a connected workspace before editing memory."); return; }
+  try { await saveMemoryToCloud(item, false); }
+  catch (error) { Object.assign(item, previous); showToast("Memory update failed: " + error.message); return; }
+  renderMemories(); showToast("Memory entry updated in your workspace.");
 }
 
 function setupMemoryActions() {
@@ -1367,6 +1430,8 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
+  void loadExperimentsForWorkspace(businessId);
+  void loadMemoriesForWorkspace(businessId);
   void loadBusinessInsights(businessId);
 });
 
