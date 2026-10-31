@@ -1833,6 +1833,8 @@ function initializeBusinessFlowChat() {
   let conversations = [];
   let activeConversationId = null;
   let busy = false;
+  let pendingClientMessageId = null;
+  let pendingClientMessageContent = null;
   const api = () => window.BusinessFlowCloud;
   const state = () => api()?.getState?.() ?? {};
   const setStatus = value => { if (status) status.textContent = value; };
@@ -1943,7 +1945,11 @@ function initializeBusinessFlowChat() {
     }
     if (!activeConversationId) await createConversation();
     if (!activeConversationId) return;
-    const clientMessageId = uuid();
+    if (pendingClientMessageContent !== content) {
+      pendingClientMessageId = uuid();
+      pendingClientMessageContent = content;
+    }
+    const clientMessageId = pendingClientMessageId;
     if (!clientMessageId) {
       setStatus("This browser cannot create a secure message ID. Update your browser and try again.");
       return;
@@ -1965,6 +1971,8 @@ function initializeBusinessFlowChat() {
       if (found) found.updated_at = new Date().toISOString();
       conversations.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
       renderList();
+      pendingClientMessageId = null;
+      pendingClientMessageContent = null;
       setStatus(result.replayed ? "Previous response restored safely." : "Saved to your business workspace.");
     } catch (error) {
       input.value = previous;
