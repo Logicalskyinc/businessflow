@@ -1817,10 +1817,177 @@ function setupDataImport(){
   loadSavedImports();
 }
 
+
+/* Persistent BusinessFlow Intelligence conversations */
+function initializeBusinessFlowChat() {
+  const panel = document.querySelector("#businessflow-intelligence-panel");
+  const list = document.querySelector("#bf-conversation-list");
+  const messages = document.querySelector("#bf-chat-messages");
+  const form = document.querySelector("#bf-chat-form");
+  const input = document.querySelector("#bf-chat-input");
+  const send = document.querySelector("#bf-chat-send");
+  const status = document.querySelector("#bf-chat-status");
+  const newButton = document.querySelector("#bf-new-conversation");
+  if (!panel || !list || !messages || !form || !input || !send) return;
+
+  let conversations = [];
+  let activeConversationId = null;
+  let busy = false;
+  const api = () => window.BusinessFlowCloud;
+  const state = () => api()?.getState?.() ?? {};
+  const setStatus = value => { if (status) status.textContent = value; };
+  const uuid = () => window.crypto?.randomUUID?.() || null;
+
+  function renderList() {
+    if (!conversations.length) {
+      list.innerHTML = '<p class="empty-state">No conversations yet. Start a new one.</p>';
+      return;
+    }
+    list.innerHTML = conversations.map(item =>
+      '<button type="button" class="bf-conversation-item' + (item.id === activeConversationId ? ' active' : '') +
+      '" data-conversation-id="' + escapeHTML(item.id) + '"><strong>' + escapeHTML(item.title || 'New conversation') +
+      '</strong><small>' + escapeHTML(new Date(item.updated_at).toLocaleDateString()) + '</small></button>'
+    ).join("");
+  }
+
+  function renderMessages(items) {
+    if (!items.length) {
+      messages.innerHTML = '<div class="bf-chat-empty"><strong>What should we work on?</strong><p>Ask a question about your business. I will use the records saved in this workspace.</p></div>';
+      return;
+    }
+    messages.innerHTML = items.map(item =>
+      '<article class="bf-message ' + (item.role === "user" ? "user" : "assistant") + '"><span>' +
+      (item.role === "user" ? "YOU" : "BUSINESSFLOW INTELLIGENCE") + '</span><p>' +
+      formatText(item.content) + '</p></article>'
+    ).join("");
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function loadConversations(keepActive = true) {
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId) {
+      conversations = [];
+      activeConversationId = null;
+      renderList();
+      renderMessages([]);
+      setStatus("Sign in and select a business workspace to use saved conversations.");
+      return;
+    }
+    setStatus("Loading your saved conversations…");
+    try {
+      const result = await api().request("/api/business-intelligence/conversations?business_id=" + encodeURIComponent(current.businessId));
+      conversations = Array.isArray(result.conversations) ? result.conversations : [];
+      if (!keepActive || !conversations.some(item => item.id === activeConversationId)) {
+        activeConversationId = conversations[0]?.id ?? null;
+      }
+      renderList();
+      if (activeConversationId) await loadMessages(activeConversationId);
+      else renderMessages([]);
+      setStatus("Conversation history is saved to this business workspace.");
+    } catch (error) {
+      setStatus(error.message || "Could not load conversation history.");
+    }
+  }
+
+  async function loadMessages(conversationId) {
+    const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(conversationId) + "/messages");
+    if (activeConversationId === conversationId) renderMessages(Array.isArray(result.messages) ? result.messages : []);
+  }
+
+  async function createConversation() {
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId) {
+      setStatus("Sign in and select a business workspace first.");
+      return;
+    }
+    if (busy) return;
+    busy = true;
+    newButton.disabled = true;
+    try {
+      const result = await api().request("/api/business-intelligence/conversations", {
+        method: "POST",
+        body: JSON.stringify({ business_id: current.businessId, title: "New conversation" })
+      });
+      activeConversationId = result.conversation.id;
+      conversations.unshift(result.conversation);
+      renderList();
+      renderMessages([]);
+      input.focus();
+      setStatus("New conversation created. Your messages will be saved automatically.");
+    } catch (error) {
+      setStatus(error.message || "Could not create a conversation.");
+    } finally {
+      busy = false;
+      newButton.disabled = false;
+    }
+  }
+
+  list.addEventListener("click", async event => {
+    const button = event.target.closest("[data-conversation-id]");
+    if (!button || busy) return;
+    activeConversationId = button.dataset.conversationId;
+    renderList();
+    renderMessages([]);
+    try { await loadMessages(activeConversationId); }
+    catch (error) { setStatus(error.message || "Could not load messages."); }
+  });
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const content = input.value.trim();
+    if (!content || busy) return;
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId) {
+      setStatus("Sign in and select a business workspace before sending a message.");
+      return;
+    }
+    if (!activeConversationId) await createConversation();
+    if (!activeConversationId) return;
+    const clientMessageId = uuid();
+    if (!clientMessageId) {
+      setStatus("This browser cannot create a secure message ID. Update your browser and try again.");
+      return;
+    }
+    busy = true;
+    send.disabled = true;
+    input.disabled = true;
+    const previous = input.value;
+    input.value = "";
+    setStatus("BusinessFlow Intelligence is reviewing your workspace…");
+    try {
+      const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
+        method: "POST",
+        body: JSON.stringify({ content, client_message_id: clientMessageId })
+      });
+      const items = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
+      renderMessages(items.messages || []);
+      const found = conversations.find(item => item.id === activeConversationId);
+      if (found) found.updated_at = new Date().toISOString();
+      conversations.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+      renderList();
+      setStatus(result.replayed ? "Previous response restored safely." : "Saved to your business workspace.");
+    } catch (error) {
+      input.value = previous;
+      setStatus(error.message || "Message could not be saved. Your text is still here so you can retry.");
+    } finally {
+      busy = false;
+      send.disabled = false;
+      input.disabled = false;
+      input.focus();
+    }
+  });
+
+  newButton.addEventListener("click", createConversation);
+  window.addEventListener("businessflow:cloud-state", () => { void loadConversations(false); });
+  window.addEventListener("businessflow:workspace-changed", () => { void loadConversations(false); });
+  void loadConversations(false);
+}
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeBusinessFlow, {
+  document.addEventListener("DOMContentLoaded", () => { initializeBusinessFlow(); initializeBusinessFlowChat(); }, {
     once: true
   });
 } else {
   initializeBusinessFlow();
+  initializeBusinessFlowChat();
 }
