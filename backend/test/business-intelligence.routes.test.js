@@ -90,3 +90,34 @@ test("business insights require authentication", async () => {
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error, "authentication_required");
 });
+
+for (const endpoint of [
+  "/api/business-intelligence/conversations?business_id=00000000-0000-4000-8000-000000000000",
+  "/api/business-intelligence/conversations/00000000-0000-4000-8000-000000000000/messages"
+]) {
+  test(`conversation endpoint ${endpoint.split("?")[0]} requires authentication`, async () => {
+    const response = await fetch(`${baseUrl}${endpoint}`);
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "authentication_required");
+  });
+}
+
+test("conversation creation requires authentication", async () => {
+  const response = await fetch(`${baseUrl}/api/business-intelligence/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ business_id: "00000000-0000-4000-8000-000000000000", title: "Test" })
+  });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "authentication_required");
+});
+
+test("conversation message creation requires authentication", async () => {
+  const response = await fetch(`${baseUrl}/api/business-intelligence/conversations/00000000-0000-4000-8000-000000000000/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: "Hello", client_message_id: "00000000-0000-4000-8000-000000000000" })
+  });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, "authentication_required");
+});

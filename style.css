@@ -428,3 +428,33 @@ body.auth-required .account-page { max-width: 100%; }
 .insight-item small { display: block; color: #7a8799; font-size: 10px; line-height: 1.5; }
 .insight-item .insight-action { margin-top: 11px; padding-top: 10px; border-top: 1px solid #edf0f5; color: #344258; }
 @media (max-width: 760px) { .insight-list { grid-template-columns: minmax(0,1fr); } }
+
+/* Persistent BusinessFlow Intelligence chat */
+.bf-chat-panel{margin:22px 0}.bf-chat-layout{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:16px;min-height:430px}.bf-chat-history{padding:12px;border:1px solid var(--border);border-radius:13px;background:#fafbfe;min-width:0}.bf-chat-history-heading{padding:5px 7px 12px;color:#78869b;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.bf-conversation-item{display:flex;flex-direction:column;gap:5px;width:100%;margin:0 0 6px;padding:11px;border:1px solid transparent;border-radius:9px;background:transparent;text-align:left;cursor:pointer}.bf-conversation-item:hover,.bf-conversation-item.active{border-color:#dce5f8;background:#fff}.bf-conversation-item strong{overflow:hidden;color:#30415c;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.bf-conversation-item small{color:#8a96a8;font-size:9px}.bf-chat-main{display:flex;flex-direction:column;min-width:0;border:1px solid var(--border);border-radius:13px;background:#fff;overflow:hidden}.bf-chat-messages{display:flex;flex:1;flex-direction:column;gap:13px;min-height:310px;max-height:520px;overflow:auto;padding:18px;background:#fbfcff}.bf-chat-empty{display:grid;align-content:center;justify-items:center;flex:1;min-height:240px;text-align:center;color:#6c7a91}.bf-chat-empty strong{color:#283a57;font-size:15px}.bf-chat-empty p{max-width:420px;font-size:12px;line-height:1.7}.bf-message{max-width:88%;padding:12px 14px;border:1px solid #e7ebf3;border-radius:12px;background:#fff;overflow-wrap:anywhere}.bf-message.user{align-self:flex-end;border-color:#dbe5ff;background:#f1f5ff}.bf-message>span{color:#7182a1;font-size:9px;font-weight:800;letter-spacing:.07em}.bf-message p{margin:7px 0 0;color:#34445d;font-size:12px;line-height:1.75}.bf-chat-composer{padding:12px;border-top:1px solid #edf0f5}.bf-chat-composer textarea{width:100%;min-height:62px;resize:vertical;padding:12px;border:1px solid #dfe5ef;border-radius:10px;background:#fff;color:#283a57;font:inherit;font-size:12px;outline:none}.bf-chat-composer textarea:focus{border-color:#8ca7ed;box-shadow:0 0 0 3px rgba(74,111,210,.09)}.bf-chat-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px}.bf-chat-compose-footer span{color:#8792a5;font-size:10px;line-height:1.5}.bf-chat-disclaimer{margin:12px 0 0;color:#8a96a8;font-size:10px;line-height:1.6}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:700px){.bf-chat-layout{grid-template-columns:minmax(0,1fr)}.bf-chat-history{max-height:155px;overflow:auto}.bf-chat-history>div:last-child{display:flex;gap:7px;overflow-x:auto}.bf-conversation-item{flex:0 0 165px;margin:0}.bf-chat-messages{min-height:280px;padding:12px}.bf-message{max-width:96%}.bf-chat-compose-footer{align-items:flex-start;flex-direction:column}.bf-chat-compose-footer .primary-button{width:100%}}
+
+
+/* Account page: quieter layout and clear Starter workspace allowance */
+.account-page-simple{max-width:1120px}
+.account-intro-simple{min-height:180px;padding:32px 38px;border-color:#e5eaf3;background:linear-gradient(115deg,#fff 0%,#f4f7ff 60%,#f1faf6 100%)}
+.account-intro-simple .account-intro-copy{max-width:720px}
+.account-intro-simple h1{font-size:clamp(30px,4vw,42px)}
+.account-plan-line{display:flex;align-items:center;gap:9px;margin-top:18px;color:#718099;font-size:12px}
+.account-plan-line strong{color:#2c4164}
+.account-plan-dot{width:8px;height:8px;border-radius:50%;background:#29956b}
+.account-columns-simple{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);margin-top:20px}
+.workspace-plan-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px;padding:14px 15px;border:1px solid #e5ebf4;border-radius:12px;background:#f8faff}
+.workspace-plan-summary>div{display:grid;gap:4px}
+.workspace-plan-summary strong{color:#273a59;font-size:14px}
+.workspace-plan-summary span{color:#8190a5;font-size:10px}
+.workspace-plan-pill{padding:6px 9px;border-radius:20px;background:#eaf0ff;color:#365fc5!important;font-size:9px!important;font-weight:800;letter-spacing:.07em}
+.workspace-add-button{width:100%;justify-content:center}
+.workspace-add-button:disabled{opacity:.6;cursor:not-allowed}
+#business-workspace-create-area[hidden],#business-workspace-upgrade[hidden]{display:none!important}
+.workspace-import-button{justify-self:start}
+.workspace-upgrade-note{margin-top:14px;padding:13px 15px;border:1px solid #e9e1c8;border-radius:11px;background:#fffaf0}
+.workspace-upgrade-note strong{color:#795b20;font-size:12px}
+.workspace-upgrade-note p{margin:5px 0 0;color:#87734d;font-size:11px;line-height:1.6}
+.account-data-note-simple{border-color:#e4eaf2;background:#f8fafc}
+@media(max-width:1050px){.account-columns-simple{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:680px){.account-intro-simple{min-height:auto;padding:25px 21px}.account-plan-line{flex-wrap:wrap}.account-columns-simple{margin-top:14px}}
