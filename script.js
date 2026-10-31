@@ -927,7 +927,7 @@ async function handleExperimentAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + item.title +
-      '"? This removes the unsynced record.'
+      '"? This removes the record from your selected workspace.'
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
@@ -1332,12 +1332,15 @@ async function loadCloudGoalsForWorkspace(businessId) {
   }
 
   goals = []; renderGoals();
+  goals = []; renderGoals();
+  const requestedBusinessId = businessId;
   try {
     if (!localStorage.getItem(LOCAL_GOALS_BACKUP_KEY)) {
       const localSnapshot = localStorage.getItem(STORAGE_KEY);
       if (localSnapshot !== null) localStorage.setItem(LOCAL_GOALS_BACKUP_KEY, localSnapshot);
     }
     const records = await window.BusinessFlowCloud.loadGoals(businessId);
+    if (window.BusinessFlowCloud.getBusinessId() !== requestedBusinessId) return;
     goals = records.filter(record =>
       record && typeof record.id === "string" &&
       typeof record.title === "string" &&
