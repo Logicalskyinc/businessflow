@@ -42,7 +42,8 @@ businessIntelligenceRouter.post("/onboarding", requireAuthenticatedUser, async (
     }).select("id,name,business_type,business_description,primary_goal,onboarding_answers,country_code,currency_code,created_at,updated_at").single();
     if (error?.code === "23514" && String(error.message).includes("businessflow_workspace_limit_reached")) {
       return res.status(409).json({ error: "business_limit_reached", message: "Your Starter plan includes 2 businesses. Upgrade your plan to add another." });
-    }\n    if (error) return next(error);
+    }
+    if (error) return next(error);
     return res.status(201).json({ status: "created", business: data });
   } catch (e) { return next(e); }
 });
