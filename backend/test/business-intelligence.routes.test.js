@@ -65,6 +65,23 @@ for (const endpoint of [
   });
 }
 
+
+for (const resource of ["goals","experiments","memory"]) {
+  test(`PATCH /api/business-intelligence/${resource}/:id requires authentication`, async () => {
+    const response = await fetch(`${baseUrl}/api/business-intelligence/${resource}/00000000-0000-4000-8000-000000000000`, {
+      method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({business_id:"00000000-0000-4000-8000-000000000000",title:"Test"})
+    });
+    assert.equal(response.status,401);
+    assert.equal((await response.json()).error,"authentication_required");
+  });
+  test(`DELETE /api/business-intelligence/${resource}/:id requires authentication`, async () => {
+    const response = await fetch(`${baseUrl}/api/business-intelligence/${resource}/00000000-0000-4000-8000-000000000000`,{method:"DELETE"});
+    assert.equal(response.status,401);
+    assert.equal((await response.json()).error,"authentication_required");
+  });
+}
+
 test.after(async () => {
   await new Promise((resolve, reject) => {
     server.close(error => error ? reject(error) : resolve());
