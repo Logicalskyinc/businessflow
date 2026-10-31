@@ -809,7 +809,7 @@ function setupExperimentForm() {
   const cancelButton = document.querySelector("#experiment-cancel-edit");
   cancelButton?.addEventListener("click", cancelExperimentEdit);
 
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
 
@@ -1362,44 +1362,64 @@ async function loadCloudGoalsForWorkspace(businessId) {
 async function importLocalGoalsToCloud() {
   const cloud = window.BusinessFlowCloud?.getState?.();
   if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
-    showToast("Sign in, connect the backend, and select a business workspace first.");
+    showToast("Sign in and select a business workspace before importing saved records.");
     return;
   }
-  let localRecords = [];
+  let legacy = { goals:[], experiments:[], memories:[] };
   try {
-    const snapshot = localStorage.getItem(LOCAL_GOALS_BACKUP_KEY) ?? localStorage.getItem(STORAGE_KEY);
-    const parsed = snapshot ? JSON.parse(snapshot) : [];
-    if (Array.isArray(parsed)) localRecords = parsed.filter(isValidGoal);
-  } catch (error) {
-    showToast("Could not read the saved goals for import.");
+    const goalsRaw = localStorage.getItem(LOCAL_GOALS_BACKUP_KEY) ?? localStorage.getItem(STORAGE_KEY);
+    const experimentsRaw = localStorage.getItem(EXPERIMENTS_KEY);
+    const memoriesRaw = localStorage.getItem(MEMORY_KEY);
+    const goalsParsed = goalsRaw ? JSON.parse(goalsRaw) : [];
+    const experimentsParsed = experimentsRaw ? JSON.parse(experimentsRaw) : [];
+    const memoriesParsed = memoriesRaw ? JSON.parse(memoriesRaw) : [];
+    legacy.goals = Array.isArray(goalsParsed) ? goalsParsed.filter(isValidGoal) : [];
+    legacy.experiments = Array.isArray(experimentsParsed) ? experimentsParsed.filter(isValidExperiment).map(normalizeExperiment) : [];
+    legacy.memories = Array.isArray(memoriesParsed) ? memoriesParsed.filter(isValidMemory) : [];
+  } catch {
+    showToast("Saved records could not be read. No import was started.");
     return;
   }
-  if (!localRecords.length) {
-    showToast("No valid saved goals were found to import.");
-    return;
-  }
-  if (!confirm("Import " + localRecords.length + " saved goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your backup will be kept.")) return;
-
+  const total = legacy.goals.length + legacy.experiments.length + legacy.memories.length;
+  if (!total) { showToast("There are no saved records waiting to be imported."); return; }
+  if (!confirm("Import " + total + " saved records into the selected workspace? Existing records with matching titles will be skipped. Your original copies will be kept.")) return;
   try {
-    const remote = await window.BusinessFlowCloud.loadGoals(cloud.businessId);
-    const existingTitles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
-    let imported = 0, skipped = 0;
-    for (const local of localRecords) {
-      if (existingTitles.has(local.title.trim().toLowerCase())) {
-        skipped++;
-        continue;
-      }
-      await window.BusinessFlowCloud.createGoal(cloud.businessId, local);
-      existingTitles.add(local.title.trim().toLowerCase());
-      imported++;
+    const [remoteGoals,remoteExperiments,remoteMemories] = await Promise.all([
+      window.BusinessFlowCloud.loadGoals(cloud.businessId),
+      window.BusinessFlowCloud.loadExperiments(cloud.businessId),
+      window.BusinessFlowCloud.loadMemories(cloud.businessId)
+    ]);
+    const keys = {
+      goals:new Set(remoteGoals.map(x=>String(x.title).trim().toLowerCase())),
+      experiments:new Set(remoteExperiments.map(x=>String(x.title).trim().toLowerCase())),
+      memories:new Set(remoteMemories.map(x=>String(x.content?.title || "").trim().toLowerCase()))
+    };
+    let imported=0,skipped=0;
+    for(const item of legacy.goals){
+      const key=item.title.trim().toLowerCase();
+      if(keys.goals.has(key)){skipped++;continue;}
+      await window.BusinessFlowCloud.createGoal(cloud.businessId,item);keys.goals.add(key);imported++;
     }
-    await loadCloudGoalsForWorkspace(cloud.businessId);
-    showToast("Import complete: " + imported + " imported, " + skipped + " skipped. Your backup was retained.");
-  } catch (error) {
-    showToast("Import stopped: " + error.message + ". Your backup was retained; retry safely.");
+    for(const item of legacy.experiments){
+      const key=item.title.trim().toLowerCase();
+      if(keys.experiments.has(key)){skipped++;continue;}
+      await saveExperimentToCloud(item,true);keys.experiments.add(key);imported++;
+    }
+    for(const item of legacy.memories){
+      const key=item.title.trim().toLowerCase();
+      if(keys.memories.has(key)){skipped++;continue;}
+      await saveMemoryToCloud(item,true);keys.memories.add(key);imported++;
+    }
+    await Promise.all([
+      loadCloudGoalsForWorkspace(cloud.businessId),
+      loadExperimentsForWorkspace(cloud.businessId),
+      loadMemoriesForWorkspace(cloud.businessId)
+    ]);
+    showToast("Import complete: " + imported + " saved and " + skipped + " matching records skipped. Original copies were kept.");
+  } catch(error) {
+    showToast("Import stopped: " + error.message + ". Original copies were kept; you can safely retry.");
   }
 }
-
 window.addEventListener("businessflow:auth-state", event => {
   const signedIn = Boolean(event.detail?.signedIn);
   if (!signedIn) navigateTo("account");
