@@ -62,3 +62,12 @@ test("reports missing data without fabricating metrics", () => {
   assert.equal(result.metrics.customers, null);
   assert.equal(result.insights[0].type, "data_needed");
 });
+
+
+test("recognizes completed BusinessFlow experiments whose structured result is still empty", () => {
+  const result = buildBusinessInsights({
+    profile,
+    experiments: [{ title:"Price test", status:"completed", result_summary:"BFEXP1:" + JSON.stringify({ baseline:10, result:null, status:"completed", notes:"" }) }]
+  });
+  assert.ok(result.insights.some(item => item.type === "learning"));
+});
