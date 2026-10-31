@@ -398,55 +398,52 @@
         </section>
 
 <section class="page" id="account">
-          <div class="account-page">
-            <div class="account-intro">
-              <div class="account-intro-copy">
-                <p class="eyebrow">YOUR BUSINESS, IN ONE PLACE</p>
-                <h1>Make room for better decisions.</h1>
-                <p class="subtitle">Manage your account, choose a business workspace, and control the information BusinessFlow uses.</p>
-              </div>
-              <div class="account-hero-art" aria-hidden="true">
-                <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
-                <div class="hero-glass-card"><span class="hero-spark">✳</span><strong>Business clarity</strong><small>Goals · Experiments · Learning</small><div class="hero-mini-bars"><i></i><i></i><i></i><i></i><i></i></div></div>
-              </div>
-            </div>
-            <div class="account-steps" aria-label="Setup steps">
-              <div class="account-step"><span class="step-number">01</span><span><strong>Account</strong><small>Sign in securely</small></span></div><span class="step-connector" aria-hidden="true"></span>
-              <div class="account-step"><span class="step-number">02</span><span><strong>Business</strong><small>Choose your workspace</small></span></div><span class="step-connector" aria-hidden="true"></span>
-              <div class="account-step"><span class="step-number">03</span><span><strong>Goals</strong><small>Start making progress</small></span></div>
-            </div>
-            <div class="account-columns">
-              <article class="panel account-card" aria-labelledby="account-heading">
-                <div class="account-card-heading"><div class="account-icon account-icon-blue" aria-hidden="true">↗</div><div><p class="eyebrow">ACCOUNT ACCESS</p><h2 id="account-heading">Your BusinessFlow account</h2><p class="muted">Sign in to continue, or create an account to get started.</p></div></div>
-                <p id="account-status" class="account-live-status" role="status" aria-live="polite">Checking account configuration…</p>
-                <form id="account-form" class="form-grid account-form">
-                  <label class="form-label">Email address<input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@yourbusiness.com" required></label>
-                  <label class="form-label">Password<input id="account-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Enter your password" required></label>
-                  <div class="full-span account-actions"><button type="submit" class="primary-button" id="account-submit">Sign in</button><button type="button" class="small-button" id="account-signup">Create account</button><button type="button" class="small-button" id="account-signout" hidden>Sign out</button></div>
-                </form>
-                <div class="account-security-note"><span aria-hidden="true">✓</span><p>Your account helps protect access to your cloud business workspace.</p></div>
-                <p id="api-status" class="account-api-status" role="status" aria-live="polite">Checking BusinessFlow connection…</p>
-              </article>
-              <article class="panel account-card workspace-card" aria-labelledby="business-workspace-heading">
-                <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESS</p><h2 id="business-workspace-heading">Your business workspace</h2><p class="muted">Your selected workspace and its connected business information.</p></div></div>
-                <div id="business-workspace" class="workspace-form-area">
-                  <label class="form-label">Current workspace<select id="business-workspace-select" name="business_workspace" disabled><option value="">Sign in to load your workspaces</option></select></label>
-                  <div class="workspace-divider"><span>OR CREATE A NEW WORKSPACE</span></div>
-                  <form id="business-workspace-form" class="form-grid workspace-create-form">
-                    <label class="form-label full-span">Business name<input id="business-workspace-name" name="business_name" maxlength="160" placeholder="e.g. My business" required></label>
-                    <label class="form-label full-span">What does the business do?<input id="business-workspace-basics" name="business_basics" maxlength="2000" placeholder="Describe your product or service" required></label>
-                    <label class="form-label full-span">Main business goal<input id="business-workspace-goal" name="primary_goal" maxlength="2000" placeholder="e.g. Get more paying customers" required></label>
-                    <div class="full-span workspace-actions"><button id="business-workspace-create" type="submit" class="primary-button" disabled>Create workspace</button><button id="businessflow-import-local-goals" type="button" class="small-button" disabled>Import browser goals…</button></div>
-                  </form>
-                  <p id="business-workspace-status" class="workspace-live-status" role="status" aria-live="polite">Your workspace status will appear here.</p>
-                </div>
-              </article>
-            </div>
-            <div class="account-data-note"><div class="data-note-icon" aria-hidden="true">↗</div><div><strong>Already have goals saved on this device?</strong><p>They are still here. Signing in does not move or delete them automatically. After you create or select a cloud workspace, choose <b>Import browser goals</b> if you want to copy those goals into it.</p></div></div>
+  <div class="account-page account-page-simple">
+    <div class="account-intro account-intro-simple">
+      <div class="account-intro-copy">
+        <p class="eyebrow">BUSINESSFLOW WORKSPACE</p>
+        <h1>Your business. Your decisions.</h1>
+        <p class="subtitle">Manage your account and keep the businesses you work on in one secure place.</p>
+        <div class="account-plan-line"><span class="account-plan-dot"></span><strong>Starter plan</strong><span>Up to 2 businesses</span></div>
+      </div>
+    </div>
+    <div class="account-columns account-columns-simple">
+      <article class="panel account-card" aria-labelledby="account-heading">
+        <div class="account-card-heading"><div class="account-icon account-icon-blue" aria-hidden="true">↗</div><div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="account-heading">Account access</h2><p class="muted">Sign in or create your BusinessFlow account.</p></div></div>
+        <p id="account-status" class="account-live-status" role="status" aria-live="polite">Checking account configuration…</p>
+        <form id="account-form" class="form-grid account-form">
+          <label class="form-label">Email address<input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@yourbusiness.com" required></label>
+          <label class="form-label">Password<input id="account-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Enter your password" required></label>
+          <div class="full-span account-actions"><button type="submit" class="primary-button" id="account-submit">Sign in</button><button type="button" class="small-button" id="account-signup">Create account</button><button type="button" class="small-button" id="account-signout" hidden>Sign out</button></div>
+        </form>
+        <p id="api-status" class="account-api-status" role="status" aria-live="polite">Checking BusinessFlow connection…</p>
+      </article>
+      <article class="panel account-card workspace-card" aria-labelledby="business-workspace-heading">
+        <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESSES</p><h2 id="business-workspace-heading">Business workspaces</h2><p class="muted">Each business has its own goals, records and conversations.</p></div></div>
+        <div class="workspace-plan-summary"><div><strong id="business-workspace-count">0 of 2 businesses</strong><span>Included in your Starter plan</span></div><span class="workspace-plan-pill">STARTER</span></div>
+        <div id="business-workspace" class="workspace-form-area">
+          <label class="form-label">Connected workspace<select id="business-workspace-select" name="business_workspace" disabled><option value="">Sign in to load your businesses</option></select></label>
+          <button type="button" class="secondary-button workspace-add-button" id="business-workspace-add" disabled>+ Add another business</button>
+          <div id="business-workspace-create-area" hidden>
+            <div class="workspace-divider"><span>NEW BUSINESS</span></div>
+            <form id="business-workspace-form" class="form-grid workspace-create-form">
+              <label class="form-label full-span">Business name<input id="business-workspace-name" name="business_name" maxlength="160" placeholder="e.g. My business" required></label>
+              <label class="form-label full-span">What does the business do?<input id="business-workspace-basics" name="business_basics" maxlength="2000" placeholder="Describe your product or service" required></label>
+              <label class="form-label full-span">Main business goal<input id="business-workspace-goal" name="primary_goal" maxlength="2000" placeholder="e.g. Get more paying customers" required></label>
+              <div class="full-span workspace-actions"><button id="business-workspace-create" type="submit" class="primary-button" disabled>Create business</button><button id="business-workspace-cancel" type="button" class="small-button">Cancel</button></div>
+            </form>
           </div>
-        </section>
+          <button id="businessflow-import-local-goals" type="button" class="small-button workspace-import-button" disabled>Import browser goals</button>
+          <p id="business-workspace-status" class="workspace-live-status" role="status" aria-live="polite">Sign in to load your connected business.</p>
+        </div>
+        <div class="workspace-upgrade-note" id="business-workspace-upgrade" hidden><strong>Business limit reached</strong><p>Your Starter plan includes 2 businesses. Upgrade your plan to add more.</p></div>
+      </article>
+    </div>
+    <div class="account-data-note account-data-note-simple"><div class="data-note-icon" aria-hidden="true">✓</div><div><strong>Your existing business stays connected.</strong><p>Your current business workspace remains unchanged. Adding another business creates a separate workspace and does not move or delete existing goals or records.</p></div></div>
+  </div>
+</section>
 
-        <section class="page" id="data-import">
+<section class="page" id="data-import">
           <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your business records into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
           <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>How to add your CSV</strong><p><b>1.</b> Tap Choose a CSV or Excel file. <b>2.</b> Check the preview and map customer, service, amount, date and status columns where available. <b>3.</b> Tap <b>Add to BusinessFlow</b>. The saved dataset will open below with a summary calculated from your imported records. You must be signed in and have a business workspace selected.</p></div></div>
           <article class="panel import-upload-panel"><div class="panel-heading"><div><h2>Choose a file</h2><p class="muted">CSV or Excel workbook · maximum 2 MB, 40 columns and 250 data rows per import.</p></div><span class="count-pill">CSV / XLSX</span></div>
