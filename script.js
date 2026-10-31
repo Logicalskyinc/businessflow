@@ -401,9 +401,11 @@ async function handleGoalAction(action, id) {
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
+    let deletedInCloud = false;
     if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
       try {
         await window.BusinessFlowCloud.deleteGoal(cloud.businessId, id);
+        deletedInCloud = true;
       } catch (error) {
         showToast("Cloud delete failed: " + error.message);
         return;
@@ -411,13 +413,13 @@ async function handleGoalAction(action, id) {
     }
     const index = goals.findIndex(item => item.id === id);
     const removed = goals.splice(index, 1)[0];
-    if (!saveGoals()) {
+    if (!deletedInCloud && !saveGoals()) {
       goals.splice(index, 0, removed);
       renderGoals();
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Unsynced goal deleted.");
+    showToast(deletedInCloud ? "Goal deleted from your workspace." : "Unsynced goal deleted.");
     return;
   }
 
@@ -440,21 +442,23 @@ async function handleGoalAction(action, id) {
     goal.current = value;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
+    let updatedInCloud = false;
     if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
       try {
         await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
+        updatedInCloud = true;
       } catch (error) {
         goal.current = previous;
         showToast("Cloud update failed: " + error.message);
         return;
       }
     }
-    if (!saveGoals()) {
+    if (!updatedInCloud && !saveGoals()) {
       goal.current = previous;
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated. This change is not synced to your account yet.");
+    showToast(updatedInCloud ? "Progress updated in your workspace." : "Progress updated. This change is not synced to your account yet.");
     return;
   }
 
@@ -496,21 +500,23 @@ async function handleGoalAction(action, id) {
     goal.unit = unit.trim() || "units";
 
     const cloud = window.BusinessFlowCloud?.getState?.();
+    let updatedInCloud = false;
     if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
       try {
         await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
+        updatedInCloud = true;
       } catch (error) {
         Object.assign(goal, previous);
         showToast("Cloud update failed: " + error.message);
         return;
       }
     }
-    if (!saveGoals()) {
+    if (!updatedInCloud && !saveGoals()) {
       Object.assign(goal, previous);
       return;
     }
     renderGoals();
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated. This change is not synced to your account yet.");
+    showToast(updatedInCloud ? "Goal updated in your workspace." : "Goal updated. This change is not synced to your account yet.");
   }
 }
 
