@@ -14,7 +14,7 @@ businessIntelligenceRouter.get("/health", (_req, res) => res.json({
   module: "business-intelligence", status: "available",
   capabilities: { onboardingQuestions: true, answerValidation: true, profilePersistence: true,
     goalsPersistence: true, experimentsPersistence: true, persistentBusinessMemory: true, persistentConversations: true,
-    liveBusinessAnalytics: true, ruleBasedRecommendations: true, aiReasoning: false, externalActions: false }
+    liveBusinessAnalytics: true, ruleBasedRecommendations: true, firstPartyReasoning: true, aiReasoning: false, externalProviderRequired: false, externalActions: false }
 }));
 businessIntelligenceRouter.get("/onboarding/questions", (_req, res) => res.json({ status: "ok", questions: getOnboardingQuestions() }));
 businessIntelligenceRouter.post("/onboarding/validate", (req, res) => {
