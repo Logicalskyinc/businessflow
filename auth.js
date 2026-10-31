@@ -17,6 +17,11 @@ const workspaceGoal = document.querySelector("#business-workspace-goal");
 const workspaceCreate = document.querySelector("#business-workspace-create");
 const importLocalGoals = document.querySelector("#businessflow-import-local-goals");
 const workspaceStatus = document.querySelector("#business-workspace-status");
+const workspaceCount = document.querySelector("#business-workspace-count");
+const workspaceAdd = document.querySelector("#business-workspace-add");
+const workspaceCreateArea = document.querySelector("#business-workspace-create-area");
+const workspaceCancel = document.querySelector("#business-workspace-cancel");
+const workspaceUpgrade = document.querySelector("#business-workspace-upgrade");
 
 let supabase = null;
 let session = null;
@@ -64,7 +69,8 @@ function setSession(next) {
   if (email) email.disabled = signedIn;
   if (password) password.disabled = signedIn;
   if (workspaceSelect) workspaceSelect.disabled = !(signedIn && apiConnected);
-  if (workspaceCreate) workspaceCreate.disabled = !(signedIn && apiConnected);
+  if (workspaceCreate) workspaceCreate.disabled = !(signedIn && apiConnected) || businesses.length >= 2;
+  if (workspaceAdd) workspaceAdd.disabled = !(signedIn && apiConnected) || businesses.length >= 2;
   if (importLocalGoals) importLocalGoals.disabled = !(signedIn && apiConnected && activeBusinessId);
   document.body.classList.toggle("auth-required", !signedIn);
   document.body.classList.toggle("auth-pending", false);
@@ -142,6 +148,13 @@ function renderBusinesses() {
   saveWorkspaceId(activeBusinessId);
   workspaceSelect.value = activeBusinessId ?? "";
   if (importLocalGoals) importLocalGoals.disabled = !(session?.user && apiConnected && activeBusinessId);
+  if (workspaceCount) workspaceCount.textContent = businesses.length + " of 2 businesses";
+  if (workspaceAdd) {
+    workspaceAdd.disabled = !(session?.user && apiConnected) || businesses.length >= 2;
+    workspaceAdd.textContent = businesses.length >= 2 ? "Upgrade required to add more" : "+ Add another business";
+  }
+  if (workspaceUpgrade) workspaceUpgrade.hidden = businesses.length < 2;
+  if (businesses.length === 0 && workspaceCreateArea) workspaceCreateArea.hidden = false;
   emitCloudState();
 }
 
@@ -181,6 +194,10 @@ async function createBusiness(event) {
     return;
   }
   const name = workspaceName?.value.trim() ?? "";
+  if (businesses.length >= 2) {
+    showWorkspace("Your Starter plan includes 2 businesses. Upgrade your plan to add another.");
+    return;
+  }
   const basics = workspaceBasics?.value.trim() ?? "";
   const goal = workspaceGoal?.value.trim() ?? "";
   if (!name || !basics || !goal) {
@@ -213,12 +230,19 @@ async function createBusiness(event) {
     showWorkspace(error.message);
   } finally {
     businessCreateBusy = false;
-    if (workspaceCreate) workspaceCreate.disabled = !(session?.user && apiConnected);
+    if (workspaceCreate) workspaceCreate.disabled = !(session?.user && apiConnected) || businesses.length >= 2;
   }
 }
 let businessCreateBusy = false;
 
 workspaceForm?.addEventListener("submit", createBusiness);
+workspaceAdd?.addEventListener("click", () => {
+  if (businesses.length < 2 && workspaceCreateArea) workspaceCreateArea.hidden = false;
+});
+workspaceCancel?.addEventListener("click", () => {
+  workspaceForm?.reset();
+  if (workspaceCreateArea) workspaceCreateArea.hidden = true;
+});
 
 document.querySelector("#onboarding-skip")?.addEventListener("click", async () => {
   const button = document.querySelector("#onboarding-skip");
