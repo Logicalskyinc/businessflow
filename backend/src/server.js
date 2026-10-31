@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import { businessIntelligenceRouter } from "./modules/business-intelligence/business-intelligence.routes.js";
+import { conversationRouter } from "./modules/business-intelligence/conversation.routes.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
@@ -46,6 +47,7 @@ app.get("/health", (_request, response) => {
 });
 
 app.use("/api/business-intelligence", businessIntelligenceRouter);
+app.use("/api/business-intelligence/conversations", conversationRouter);
 
 app.use((request, response) => {
   response.status(404).json({
@@ -58,7 +60,7 @@ app.use((error, _request, response, _next) => {
   if (error?.type === "entity.too.large") {
     return response.status(413).json({
       error: "payload_too_large",
-      message: "Request body exceeds the 16 KB limit."
+      message: "Request body exceeds the 1 MB limit."
     });
   }
 
