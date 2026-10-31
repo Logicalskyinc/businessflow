@@ -393,7 +393,7 @@ async function handleGoalAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + goal.title +
-      '"? This removes the unsynced goal.'
+      '"? This removes the goal from your selected workspace.'
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
@@ -1078,7 +1078,7 @@ function setupMemoryForm() {
     dateInput.value = new Date().toISOString().slice(0, 10);
   }
 
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
 
@@ -1145,7 +1145,7 @@ async function handleMemoryAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + item.title +
-      '"? This removes the unsynced record.'
+      '"? This removes the record from your selected workspace.'
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
@@ -1331,7 +1331,6 @@ async function loadCloudGoalsForWorkspace(businessId) {
     return;
   }
 
-  goals = []; renderGoals();
   goals = []; renderGoals();
   const requestedBusinessId = businessId;
   try {
