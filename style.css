@@ -468,3 +468,12 @@ body.auth-required .account-page { max-width: 100%; }
 @media (max-width: 760px) {
   .intelligence-page .bf-chat-layout { min-height: 560px; }
 }
+
+
+/* Workspace analytics: accessible, data-backed monthly revenue bars. */
+.revenue-trend-list { display: grid; gap: 16px; padding: 8px 0; }
+.revenue-trend-row { display: grid; gap: 7px; }
+.revenue-trend-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 0.88rem; }
+.revenue-trend-label strong { font-variant-numeric: tabular-nums; text-align: right; }
+.revenue-trend-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--surface-soft, #edf1f7); }
+.revenue-trend-track span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #3268d5); }
