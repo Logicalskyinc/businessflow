@@ -664,7 +664,7 @@ async function loadMemoriesForWorkspace(businessId) {
       const categoryMap = { business_context:"Other", decision:"Decision", observation:"Customer insight", preference:"Other", lesson:"Lesson learned", experiment_result:"Other" };
       return {
         id: record.id, title: String(value.title || "Business note").slice(0,120),
-        category: categoryMap[record.category] || "Other",
+        category: MEMORY_CATEGORIES.includes(value.category) ? value.category : (categoryMap[record.category] || "Other"),
         date: String(value.date || record.created_at || new Date().toISOString()).slice(0,10),
         content: String(value.content || "").slice(0,4000),
         createdAt: record.created_at, updatedAt: record.updated_at
@@ -693,7 +693,7 @@ function cloudMemoryCategory(category) {
 async function saveMemoryToCloud(item, create) {
   const cloud = window.BusinessFlowCloud?.getState?.();
   if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId || cloudMemoryWorkspaceId !== cloud.businessId) throw new Error("Wait for the selected workspace to finish loading before saving.");
-  const payload = { id:item.id, category:cloudMemoryCategory(item.category), content:{title:item.title,date:item.date,content:item.content} };
+  const payload = { id:item.id, category:cloudMemoryCategory(item.category), content:{title:item.title,category:item.category,date:item.date,content:item.content} };
   const saved = create
     ? await window.BusinessFlowCloud.createMemory(cloud.businessId,payload)
     : await window.BusinessFlowCloud.updateMemory(cloud.businessId,payload);
