@@ -30,11 +30,17 @@ businessIntelligenceRouter.post("/onboarding", requireAuthenticatedUser, async (
     if (!name || name.length > 160) return bad(res, ["Business name must contain 1 to 160 characters."]);
     const checked = validateOnboardingAnswers(req.body.answers);
     if (!checked.valid) return bad(res, checked.errors);
+    const { count, error: countError } = await req.supabase.from("businessflow_profiles")
+      .select("id", { count: "exact", head: true }).eq("owner_user_id", req.user.id);
+    if (countError) return next(countError);
+    if ((count ?? 0) >= 2) {
+      return res.status(409).json({ error: "business_limit_reached", message: "Your Starter plan includes 2 businesses. Upgrade your plan to add another." });
+    }
     const { data, error } = await req.supabase.from("businessflow_profiles").insert({
       owner_user_id: req.user.id, name, business_description: checked.answers.business_basics,
       primary_goal: checked.answers.primary_goal, onboarding_answers: checked.answers
     }).select("id,name,business_type,business_description,primary_goal,onboarding_answers,country_code,currency_code,created_at,updated_at").single();
-    if (error) return next(error);
+    if (error?.code === "23514" && String(error.message).includes("businessflow_workspace_limit_reached")) {\n      return res.status(409).json({ error: "business_limit_reached", message: "Your Starter plan includes 2 businesses. Upgrade your plan to add another." });\n    }\n    if (error) return next(error);
     return res.status(201).json({ status: "created", business: data });
   } catch (e) { return next(e); }
 });
