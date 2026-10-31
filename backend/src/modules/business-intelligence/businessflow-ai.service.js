@@ -6,7 +6,7 @@ const INTENTS = [
   { id:"operations", terms:/operation|process|staff|time|delivery|service|stock|inventory/ }
 ];
 
-const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
+const number = value => value === null || value === undefined || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
 
 export function classifyBusinessIntent(prompt) {
   const text = String(prompt || "").toLowerCase();
