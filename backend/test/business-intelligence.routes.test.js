@@ -23,6 +23,8 @@ test("Business Intelligence health reports only implemented capabilities", async
   assert.equal(body.capabilities.liveBusinessAnalytics, true);
   assert.equal(body.capabilities.ruleBasedRecommendations, true);
   assert.equal(body.capabilities.aiReasoning, false);
+  assert.equal(body.capabilities.firstPartyReasoning, true);
+  assert.equal(body.capabilities.externalProviderRequired, false);
 });
 
 test("business listing requires a verified bearer token", async () => {
