@@ -156,7 +156,18 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: activeExperiments.map(item => item.title).join("; "),
     recommendedAction: "Record the outcome and success metric when each experiment finishes."
   });
-  if (experiments.some(item => item.status === "completed" && !String(item.result_summary || "").trim())) insights.push({
+  const completedWithoutResults = experiments.some(item => {
+    if (item.status !== "completed") return false;
+    const summary = String(item.result_summary || "");
+    if (summary.startsWith("BFEXP1:")) {
+      try {
+        const stored = JSON.parse(summary.slice(7));
+        return stored.result === null || stored.result === undefined;
+      } catch { return true; }
+    }
+    return !summary.trim();
+  });
+  if (completedWithoutResults) insights.push({
     type: "learning", priority: "normal", title: "Completed experiments need their results",
     summary: "At least one completed experiment has no recorded result summary.",
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
