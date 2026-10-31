@@ -1374,6 +1374,10 @@ async function importLocalGoalsToCloud() {
     showToast("Sign in and select a business workspace before importing saved records.");
     return;
   }
+  if (cloudGoalWorkspaceId !== cloud.businessId || cloudExperimentWorkspaceId !== cloud.businessId || cloudMemoryWorkspaceId !== cloud.businessId) {
+    showToast("Wait for all workspace records to finish loading before importing.");
+    return;
+  }
   let legacy = { goals:[], experiments:[], memories:[] };
   try {
     const goalsRaw = localStorage.getItem(LOCAL_GOALS_BACKUP_KEY) ?? localStorage.getItem(STORAGE_KEY);
