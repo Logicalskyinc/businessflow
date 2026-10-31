@@ -5,7 +5,11 @@ This directory contains BusinessFlow's API and its internal Business Intelligenc
 ## Current API
 
 - `GET /health` — process health.
-- `GET /api/business-intelligence/health` — reports implemented module capabilities.
+- `GET /api/business-intelligence/health` — reports implemented business intelligence capabilities.
+- `GET /api/v1/ai/health` — reports the first-party BusinessFlow AI engine and its implementation boundary.
+- `POST /api/v1/ai/analyze` — calculates workspace analysis from saved imports, goals, experiments, and memory.
+- `POST /api/v1/ai/recommendations` — returns deterministic, evidence-based recommendations.
+- `POST /api/v1/ai/chat` — returns a first-party reasoning response for a workspace and prompt.
 - `GET /api/business-intelligence/onboarding/questions` — returns deterministic onboarding questions.
 - `POST /api/business-intelligence/onboarding/validate` — validates answers without saving.
 - `POST /api/business-intelligence/onboarding` — verifies a Supabase access token and persists a business profile under the authenticated user.
@@ -14,7 +18,7 @@ This directory contains BusinessFlow's API and its internal Business Intelligenc
 - `GET/POST /api/business-intelligence/experiments` and `PATCH/DELETE /api/business-intelligence/experiments/:id` — authenticated experiment management.
 - `GET/POST /api/business-intelligence/memory` and `PATCH/DELETE /api/business-intelligence/memory/:id` — authenticated structured business-memory records.
 
-For goal, experiment, and memory list/create requests, supply `business_id` as a UUID. Listing accepts an optional `limit` from 1 to 100. Database RLS still determines whether the verified user can access that business. These endpoints persist structured records only; they do not infer insights or invoke an AI provider.
+For goal, experiment, and memory list/create requests, supply `business_id` as a UUID. Listing accepts an optional `limit` from 1 to 100. Database RLS still determines whether the verified user can access that business. The CRUD endpoints persist structured records. BusinessFlow AI uses a first-party deterministic reasoning engine and does not require an external AI provider.
 
 ### Persist onboarding
 
@@ -90,11 +94,15 @@ These are initial owner-only policies. Membership roles are groundwork only; tea
 - **Grey:** a future internal orchestrator for approved cross-capability tasks. BusinessFlow should retain core functionality if Grey is unavailable.
 - **GreyFlow:** a future content-generation provider behind explicit cost, permission, and action-approval controls.
 
-## Not implemented yet
+## BusinessFlow AI boundary
 
-The backend code persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. The frontend code now contains account authentication, workspace selection, goal loading, cloud goal CRUD, and an explicit local-goal import flow. However, `apiBaseUrl` is intentionally empty in `frontend-config.js`, so these flows cannot reach the backend until a deployment is separately approved, configured, and verified. The `onboarding/validate` endpoint remains non-persistent. The API does not yet compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions.
+BusinessFlow AI is a first-party backend capability, mounted at `/api/v1/ai`. It reads only the authenticated user's selected workspace through a user-scoped Supabase client and the existing RLS policies. It provides deterministic intent classification, evidence extraction, and recommended next steps using saved business records.
 
-Before adding further customer data, implement and test the complete authorization flow, automated RLS integration tests, and server-side secret configuration. Never trust a business or tenant ID supplied by the browser, and never expose a Supabase service-role key to the frontend.
+This first version is not a trained language model. It does not call OpenAI, Groq, or another external model provider, and it does not execute business actions. Its health response reports `engine: businessflow_ai_rules_v1`, `provider: first_party_deterministic`, `externalProviderRequired: false`, and `trainedLanguageModel: false`. Persistent BusinessFlow Intelligence conversations now use this same reasoning engine.
+
+The frontend currently points at the configured BusinessFlow API URL in `frontend-config.js`. Deployment configuration and the live application still need release verification. The onboarding validation endpoint remains validation-only; persistent onboarding is handled by the authenticated `POST /api/business-intelligence/onboarding` route.
+
+Before expanding team access or adding privileged operations, add repeatable authenticated integration tests for cross-account isolation, deletion behavior, and membership authorization. Never trust a business ID supplied by the browser as authorization, and never expose a Supabase service-role key to the frontend.
 
 ## Existing Supabase advisor findings
 
