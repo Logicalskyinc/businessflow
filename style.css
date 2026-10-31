@@ -458,3 +458,13 @@ body.auth-required .account-page { max-width: 100%; }
 .account-data-note-simple{border-color:#e4eaf2;background:#f8fafc}
 @media(max-width:1050px){.account-columns-simple{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:680px){.account-intro-simple{min-height:auto;padding:25px 21px}.account-plan-line{flex-wrap:wrap}.account-columns-simple{margin-top:14px}}
+
+
+/* Feature 1: compact overview and dedicated Intelligence workspace. */
+.overview-content-grid { grid-template-columns: minmax(0, 1fr); }
+.intelligence-page .page-heading { margin-bottom: 22px; }
+.intelligence-page .bf-chat-panel { margin: 0; }
+.intelligence-page .bf-chat-layout { min-height: min(68vh, 720px); }
+@media (max-width: 760px) {
+  .intelligence-page .bf-chat-layout { min-height: 560px; }
+}
