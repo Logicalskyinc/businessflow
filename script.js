@@ -1540,6 +1540,8 @@ async function loadBusinessInsights(businessId) {
     renderBusinessInsights();
     return;
   }
+  latestBusinessInsights = null;
+  renderBusinessInsights();
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
   try {
