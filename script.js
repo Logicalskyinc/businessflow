@@ -347,6 +347,10 @@ async function createGoal(title, current, target, unit) {
       showToast("Create or select a business workspace before saving a cloud goal.");
       return false;
     }
+    if (cloudGoalWorkspaceId !== cloud.businessId) {
+      showToast("Wait for the selected workspace to finish loading before saving.");
+      return false;
+    }
     if (cloudGoalBusy) return false;
     cloudGoalBusy = true;
     try {
@@ -632,7 +636,7 @@ async function loadExperimentsForWorkspace(businessId) {
     loadExperiments(); renderExperiments(); return;
   }
   const requestWorkspace = businessId;
-  experiments = []; renderExperiments();
+  cloudExperimentWorkspaceId = null; experiments = []; renderExperiments();
   try {
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
     if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
@@ -651,7 +655,7 @@ async function loadMemoriesForWorkspace(businessId) {
     loadMemories(); renderMemories(); return;
   }
   const requestWorkspace = businessId;
-  memories = []; renderMemories();
+  cloudMemoryWorkspaceId = null; memories = []; renderMemories();
   try {
     const records = await window.BusinessFlowCloud.loadMemories(businessId);
     if (window.BusinessFlowCloud.getBusinessId() !== requestWorkspace) return;
@@ -675,7 +679,7 @@ async function loadMemoriesForWorkspace(businessId) {
 }
 async function saveExperimentToCloud(item, create) {
   const cloud = window.BusinessFlowCloud?.getState?.();
-  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) throw new Error("Select a connected business workspace before saving.");
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId || cloudExperimentWorkspaceId !== cloud.businessId) throw new Error("Wait for the selected workspace to finish loading before saving.");
   const payload = encodeCloudExperiment(item);
   const saved = create
     ? await window.BusinessFlowCloud.createExperiment(cloud.businessId, payload)
@@ -688,7 +692,7 @@ function cloudMemoryCategory(category) {
 }
 async function saveMemoryToCloud(item, create) {
   const cloud = window.BusinessFlowCloud?.getState?.();
-  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) throw new Error("Select a connected business workspace before saving.");
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId || cloudMemoryWorkspaceId !== cloud.businessId) throw new Error("Wait for the selected workspace to finish loading before saving.");
   const payload = { id:item.id, category:cloudMemoryCategory(item.category), content:{title:item.title,date:item.date,content:item.content} };
   const saved = create
     ? await window.BusinessFlowCloud.createMemory(cloud.businessId,payload)
@@ -1331,7 +1335,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     return;
   }
 
-  goals = []; renderGoals();
+  goals = []; cloudGoalWorkspaceId = null; renderGoals();
   const requestedBusinessId = businessId;
   try {
     if (!localStorage.getItem(LOCAL_GOALS_BACKUP_KEY)) {
