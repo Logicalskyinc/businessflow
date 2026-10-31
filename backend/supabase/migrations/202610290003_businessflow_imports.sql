@@ -17,5 +17,5 @@ alter table public.businessflow_imports enable row level security;
 create policy businessflow_imports_owner_all on public.businessflow_imports for all to authenticated
 using (exists (select 1 from public.businessflow_profiles p where p.id = business_id and p.owner_user_id = (select auth.uid())))
 with check (created_by = (select auth.uid()) and exists (select 1 from public.businessflow_profiles p where p.id = business_id and p.owner_user_id = (select auth.uid())));
-revoke all on public.businessflow_imports from anon, public;
+revoke all on public.businessflow_imports from anon, public, authenticated;
 grant select, insert, delete on public.businessflow_imports to authenticated;
