@@ -14,6 +14,9 @@ const workspaceForm = document.querySelector("#business-workspace-form");
 const workspaceName = document.querySelector("#business-workspace-name");
 const workspaceBasics = document.querySelector("#business-workspace-basics");
 const workspaceGoal = document.querySelector("#business-workspace-goal");
+const workspaceBaseline = document.querySelector("#business-workspace-baseline");
+const workspaceConstraints = document.querySelector("#business-workspace-constraints");
+const workspaceSuccess = document.querySelector("#business-workspace-success");
 const workspaceCreate = document.querySelector("#business-workspace-create");
 const importLocalGoals = document.querySelector("#businessflow-import-local-goals");
 const workspaceStatus = document.querySelector("#business-workspace-status");
@@ -211,7 +214,7 @@ async function createBusiness(event) {
   try {
     const result = await apiRequest("/api/business-intelligence/onboarding", {
       method: "POST",
-      body: JSON.stringify({ name, answers: { business_basics: basics, primary_goal: goal } })
+      body: JSON.stringify({ name, answers: { business_basics: basics, primary_goal: goal, current_baseline: workspaceBaseline?.value.trim() || "", constraints: workspaceConstraints?.value.trim() || "", success_measure: workspaceSuccess?.value.trim() || "" } })
     });
     if (!result.business?.id) throw new Error("Workspace was created but the response did not contain its ID.");
     workspaceForm.reset();
