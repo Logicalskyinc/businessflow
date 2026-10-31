@@ -1,7 +1,7 @@
 -- BusinessFlow Intelligence core tables.
 -- Shared GrowthFlow Supabase project; BusinessFlow-owned tables use the businessflow_ prefix.
 -- Phase 1 is owner-only. Do not expose service-role credentials to browsers.
--- This migration has not been applied to any database yet.
+-- This migration is present in the connected GrowthFlow project history. Verify the target database before applying elsewhere.
 
 create table public.businessflow_profiles (
   id uuid primary key default gen_random_uuid(),
