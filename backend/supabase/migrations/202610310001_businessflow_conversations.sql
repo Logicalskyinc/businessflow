@@ -80,7 +80,8 @@ create policy "Business owners add user messages"
   );
 
 revoke all on public.businessflow_conversations, public.businessflow_messages from anon;
-grant select, insert, update on public.businessflow_conversations to authenticated;
+grant select, insert on public.businessflow_conversations to authenticated;
+grant update (title, updated_at) on public.businessflow_conversations to authenticated;
 grant select, insert on public.businessflow_messages to authenticated;
 
 create or replace function public.businessflow_append_assistant_message(
