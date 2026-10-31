@@ -241,7 +241,7 @@ workspaceAdd?.addEventListener("click", () => {
 });
 workspaceCancel?.addEventListener("click", () => {
   workspaceForm?.reset();
-  if (workspaceCreateArea) workspaceCreateArea.hidden = true;
+  if (workspaceCreateArea) workspaceCreateArea.hidden = businesses.length > 0;
 });
 
 document.querySelector("#onboarding-skip")?.addEventListener("click", async () => {
