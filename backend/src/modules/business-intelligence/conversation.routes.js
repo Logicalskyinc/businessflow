@@ -91,7 +91,8 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     });
     if (assistantError) return next(assistantError);
 
-    await req.supabase.from("businessflow_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
+    await req.supabase.from("businessflow_conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
     return res.status(201).json({ user_message: userMessage, assistant_message: assistantMessage, replayed: false });
   } catch (error) { return next(error); }
 });
