@@ -74,7 +74,7 @@ export function reasonAboutBusiness({ prompt, profile, insights }) {
     summary: goal,
     evidence,
     recommendedActions: actions,
-    limitations: records === 0 ? ["No imported dataset is available. Recommendations are based only on workspace setup and saved records."] : ["This version uses transparent deterministic rules, not a trained language model."],
+    limitations: ["This version uses transparent deterministic rules, not a trained language model.", ...(records === 0 ? ["No imported dataset is available. Recommendations are based only on workspace setup and saved records."] : [])],
     nextQuestion: intent === "general" ? "Which result matters most right now: revenue, customer growth, or operational efficiency?" : "What time period or target should we use to measure progress?"
   };
 }
