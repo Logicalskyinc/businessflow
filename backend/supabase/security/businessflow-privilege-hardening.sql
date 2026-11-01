@@ -1,4 +1,4 @@
--- Prepared security hardening for the existing GrowthFlow Supabase project.
+-- Prepared security hardening for the existing BusinessFlow Supabase project.
 -- This is a review script, not an applied migration. Apply through a tracked
 -- Supabase migration after the release owner approves the database change.
 
@@ -38,5 +38,5 @@ grant update (title, updated_at)
 grant select
   on table public.businessflow_messages to authenticated;
 
-grant insert (conversation_id, created_by, role, content, client_message_id)
-  on table public.businessflow_messages to authenticated;
+-- Assistant messages are written only by the ownership-checking RPC.
+-- Direct client inserts are intentionally not granted.
