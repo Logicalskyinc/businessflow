@@ -1,5 +1,5 @@
 
-/* BusinessFlow workspace UI. Cloud goals use the authenticated API; experiments and business memory remain awaiting account-backed persistence. */
+/* BusinessFlow workspace UI. Goals, experiments, and business memory sync through the authenticated workspace API. */
 "use strict";
 
 const STORAGE_KEY = "businessflow_goals_v1";
