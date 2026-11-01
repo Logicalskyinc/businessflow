@@ -38,5 +38,7 @@ grant update (title, updated_at)
 grant select
   on table public.businessflow_messages to authenticated;
 
--- Assistant messages are written only by the ownership-checking RPC.
--- Direct client inserts are intentionally not granted.
+-- The API inserts user messages directly. RLS limits these to owner-authored
+-- user messages with a client_message_id. Assistant replies use the RPC.
+grant insert (conversation_id, created_by, role, content, client_message_id)
+  on table public.businessflow_messages to authenticated;
