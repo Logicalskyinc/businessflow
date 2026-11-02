@@ -20,3 +20,7 @@ services:
         value: https://xsembvcmcodcseqnpyrr.supabase.co
       - key: SUPABASE_ANON_KEY
         sync: false
+      - key: OYOSKY_SERVICE_URL
+        value: https://oyosky.onrender.com
+      - key: OYOSKY_BUSINESSFLOW_SERVICE_TOKEN
+        sync: false
