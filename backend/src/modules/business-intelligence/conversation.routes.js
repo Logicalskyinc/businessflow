@@ -107,6 +107,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
           message: userMessage.content,
           userId: req.user.id,
           businessId: conversation.business_id,
+          requestId: userMessage.id,
           conversationId: conversation.grey_conversation_id ?? null,
           workspaceContext
         });
