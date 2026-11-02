@@ -75,6 +75,11 @@ begin
 end;
 $$;
 
+-- The earlier three-argument overload does not validate the selected mode.
+-- Remove its authenticated grant so callers cannot bypass this invariant.
+revoke all on function public.businessflow_append_assistant_message(uuid, uuid, text)
+  from public, anon, authenticated;
+
 revoke all on function public.businessflow_append_assistant_message(uuid, uuid, text, text)
   from public, anon;
 grant execute on function public.businessflow_append_assistant_message(uuid, uuid, text, text)
