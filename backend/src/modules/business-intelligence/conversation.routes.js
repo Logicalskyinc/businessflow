@@ -42,7 +42,7 @@ conversationRouter.get("/:conversationId/messages", async (req, res, next) => {
     const parsed = Number.parseInt(req.query.limit ?? "100", 10);
     const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 100;
     const { data, error } = await req.supabase.from("businessflow_messages")
-      .select("id,conversation_id,role,content,assistant_mode,created_at")
+      .select("id,conversation_id,role,content,assistant_mode,client_message_id,reply_to_message_id,created_at")
       .eq("conversation_id", req.params.conversationId)
       .order("created_at", { ascending: true }).limit(limit);
     if (error) return next(error);
