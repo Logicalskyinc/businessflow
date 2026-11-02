@@ -469,3 +469,7 @@ body.auth-required .account-page { max-width: 100%; }
 
 .bf-message.grey{border-color:#ccefe6;background:linear-gradient(145deg,#fff,#f3fcf9)}
 .bf-message.grey>span{color:#137b65}
+
+.bf-message-retry{display:inline-flex;align-items:center;margin-top:10px;padding:7px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;font:inherit;font-size:12px;cursor:pointer}
+.bf-message-retry:hover{border-color:#0f9b78;color:#08785f}
+.bf-message-retry:disabled{opacity:.55;cursor:wait}
