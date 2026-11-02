@@ -458,3 +458,11 @@ body.auth-required .account-page { max-width: 100%; }
 .account-data-note-simple{border-color:#e4eaf2;background:#f8fafc}
 @media(max-width:1050px){.account-columns-simple{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:680px){.account-intro-simple{min-height:auto;padding:25px 21px}.account-plan-line{flex-wrap:wrap}.account-columns-simple{margin-top:14px}}
+
+
+/* Explicit assistant selection for workspace conversations */
+.bf-assistant-mode{display:flex;align-items:center;gap:7px;color:#718096;font-size:10px;font-weight:700;white-space:nowrap}
+.bf-assistant-mode select{width:auto;min-width:145px;min-height:36px;padding:7px 28px 7px 10px;border:1px solid #dfe5ef;border-radius:9px;background:#f9fbff;color:#2f4568;font-size:11px;font-weight:700}
+.bf-message.oyosky{border-color:#d8e4ff;background:linear-gradient(145deg,#fff,#f5f8ff)}
+.bf-message.oyosky>span{color:#315fce}
+@media(max-width:700px){.bf-assistant-mode{width:100%;justify-content:space-between}.bf-assistant-mode select{flex:1}.bf-chat-compose-footer .bf-assistant-mode{margin:2px 0}}
