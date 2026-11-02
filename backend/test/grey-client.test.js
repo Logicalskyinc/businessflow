@@ -130,7 +130,7 @@ test("Grey client rejects a missing or malformed request ID", async t => {
     return new Response("{}");
   });
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
     error => error instanceof GreyClientError && error.code === "invalid_grey_request_id"
   );
   assert.equal(called, false);
