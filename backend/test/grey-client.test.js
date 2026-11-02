@@ -42,6 +42,7 @@ test("Grey client signs a short-lived tenant-scoped service token", async t => {
     assert.equal(signature, expected);
     const body = JSON.parse(options.body);
     assert.equal(body.message, "Review my retention goals");
+    assert.equal(body.request_id, "11111111-1111-4111-8111-111111111111");
     assert.equal(body.workspace_context.business.name, "Example shop");
     return new Response(JSON.stringify({
       ok: true,
@@ -55,6 +56,7 @@ test("Grey client signs a short-lived tenant-scoped service token", async t => {
     message: "Review my retention goals",
     userId: "user-123",
     businessId: "business-456",
+    requestId: "11111111-1111-4111-8111-111111111111",
     workspaceContext: { business: { name: "Example shop" } }
   });
   assert.equal(result.content, "Start by measuring repeat purchases over 30 days.");
@@ -71,7 +73,7 @@ test("Grey client refuses missing configuration", async t => {
     if (oldSecret !== undefined) process.env[SECRET_KEY] = oldSecret;
   });
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
     error => error instanceof GreyClientError && error.code === "grey_not_configured"
   );
 });
@@ -93,7 +95,7 @@ test("Grey client rejects oversized context before sending a request", async t =
     return new Response("{}");
   });
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b", workspaceContext: { notes: "x".repeat(17000) } }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111", workspaceContext: { notes: "x".repeat(17000) } }),
     error => error instanceof GreyClientError && error.code === "grey_context_too_large"
   );
   assert.equal(called, false);
