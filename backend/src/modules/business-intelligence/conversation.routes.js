@@ -135,6 +135,13 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       }
       return next(error);
     }
+    if (greyConversationId && greyConversationId !== conversation.grey_conversation_id) {
+      const { error: linkError } = await req.supabase.from("businessflow_conversations")
+        .update({ grey_conversation_id: greyConversationId })
+        .eq("id", conversationId).eq("business_id", conversation.business_id);
+      if (linkError) return next(linkError);
+    }
+
     const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
       p_conversation_id: conversationId,
       p_reply_to_message_id: userMessage.id,
@@ -142,13 +149,6 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       p_assistant_mode: assistantMode
     });
     if (assistantError) return next(assistantError);
-
-    if (greyConversationId && greyConversationId !== conversation.grey_conversation_id) {
-      const { error: linkError } = await req.supabase.from("businessflow_conversations")
-        .update({ grey_conversation_id: greyConversationId })
-        .eq("id", conversationId).eq("business_id", conversation.business_id);
-      if (linkError) return next(linkError);
-    }
 
     const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
     await req.supabase.from("businessflow_conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
