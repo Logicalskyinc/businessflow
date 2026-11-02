@@ -2,7 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 
 const TIMEOUT_MS = 15000;
 const MAX_MESSAGE_LENGTH = 4000;
-const MAX_CONTEXT_BYTES = 16000;
+const MAX_CONTEXT_BYTES = 12000;
 const MAX_RESPONSE_BYTES = 128000;
 
 export class GreyClientError extends Error {
