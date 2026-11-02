@@ -1860,9 +1860,11 @@ function initializeBusinessFlowChat() {
     }
     messages.innerHTML = items.map(item => {
       const isUser = item.role === "user";
-      const isOyoSky = !isUser && typeof item.content === "string" && item.content.startsWith("OYOSKY / ATLAS ASSESSMENT");
-      const label = isUser ? "YOU" : (isOyoSky ? "OYOSKY · ATLAS" : "BUSINESSFLOW INTELLIGENCE");
-      return '<article class="bf-message ' + (isUser ? "user" : "assistant") + (isOyoSky ? " oyosky" : "") + '"><span>' +
+      const mode = item.assistant_mode || (typeof item.content === "string" && item.content.startsWith("OYOSKY / ATLAS ASSESSMENT") ? "oyosky" : "businessflow");
+      const isOyoSky = !isUser && mode === "oyosky";
+      const isGrey = !isUser && mode === "grey";
+      const label = isUser ? "YOU" : (isOyoSky ? "OYOSKY · ATLAS" : isGrey ? "GREY" : "BUSINESSFLOW INTELLIGENCE");
+      return '<article class="bf-message ' + (isUser ? "user" : "assistant") + (isOyoSky ? " oyosky" : isGrey ? " grey" : "") + '"><span>' +
         label + '</span><p>' + formatText(item.content) + '</p></article>';
     }).join("");
     messages.scrollTop = messages.scrollHeight;
