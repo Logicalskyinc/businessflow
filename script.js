@@ -1962,7 +1962,7 @@ function initializeBusinessFlowChat() {
     input.disabled = true;
     const previous = input.value;
     input.value = "";
-    const selectedAssistant = assistantMode?.value === "oyosky" ? "OYOSKY" : "BusinessFlow Intelligence";
+    const selectedAssistant = assistantMode?.value === "oyosky" ? "OYOSKY" : assistantMode?.value === "grey" ? "Grey" : "BusinessFlow Intelligence";
     setStatus(selectedAssistant + " is reviewing your workspace…");
     try {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
@@ -1970,7 +1970,7 @@ function initializeBusinessFlowChat() {
         body: JSON.stringify({
           content,
           client_message_id: clientMessageId,
-          assistant_mode: assistantMode?.value === "oyosky" ? "oyosky" : "businessflow"
+          assistant_mode: ["oyosky", "grey"].includes(assistantMode?.value) ? assistantMode.value : "businessflow"
         })
       });
       const items = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
