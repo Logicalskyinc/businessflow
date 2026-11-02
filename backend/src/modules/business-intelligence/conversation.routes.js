@@ -42,7 +42,7 @@ conversationRouter.get("/:conversationId/messages", async (req, res, next) => {
     const parsed = Number.parseInt(req.query.limit ?? "100", 10);
     const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 100;
     const { data, error } = await req.supabase.from("businessflow_messages")
-      .select("id,conversation_id,role,content,created_at")
+      .select("id,conversation_id,role,content,assistant_mode,created_at")
       .eq("conversation_id", req.params.conversationId)
       .order("created_at", { ascending: true }).limit(limit);
     if (error) return next(error);
@@ -72,11 +72,11 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
 
     let userMessage;
     const { data: inserted, error: insertError } = await req.supabase.from("businessflow_messages")
-      .insert({ conversation_id: conversationId, created_by: req.user.id, role: "user", content: content.trim(), client_message_id: clientMessageId })
-      .select("id,conversation_id,role,content,created_at").single();
+      .insert({ conversation_id: conversationId, created_by: req.user.id, role: "user", content: content.trim(), client_message_id: clientMessageId, assistant_mode: assistantMode })
+      .select("id,conversation_id,role,content,assistant_mode,created_at").single();
     if (insertError?.code === "23505") {
       const { data, error } = await req.supabase.from("businessflow_messages")
-        .select("id,conversation_id,role,content,created_at")
+        .select("id,conversation_id,role,content,assistant_mode,created_at")
         .eq("conversation_id", conversationId).eq("client_message_id", clientMessageId).maybeSingle();
       if (error) return next(error);
       userMessage = data;
@@ -91,7 +91,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     }
 
     const { data: existingReply, error: replyLookupError } = await req.supabase.from("businessflow_messages")
-      .select("id,conversation_id,role,content,created_at")
+      .select("id,conversation_id,role,content,assistant_mode,created_at")
       .eq("reply_to_message_id", userMessage.id).maybeSingle();
     if (replyLookupError) return next(replyLookupError);
     if (existingReply) return res.json({ user_message: userMessage, assistant_message: existingReply, replayed: true });
@@ -137,7 +137,8 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
       p_conversation_id: conversationId,
       p_reply_to_message_id: userMessage.id,
-      p_content: answer
+      p_content: answer,
+      p_assistant_mode: assistantMode
     });
     if (assistantError) return next(assistantError);
 
