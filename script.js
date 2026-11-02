@@ -1827,6 +1827,7 @@ function initializeBusinessFlowChat() {
   const input = document.querySelector("#bf-chat-input");
   const send = document.querySelector("#bf-chat-send");
   const status = document.querySelector("#bf-chat-status");
+  const assistantMode = document.querySelector("#bf-assistant-mode");
   const newButton = document.querySelector("#bf-new-conversation");
   if (!panel || !list || !messages || !form || !input || !send) return;
 
@@ -1857,11 +1858,13 @@ function initializeBusinessFlowChat() {
       messages.innerHTML = '<div class="bf-chat-empty"><strong>What should we work on?</strong><p>Ask a question about your business. I will use the records saved in this workspace.</p></div>';
       return;
     }
-    messages.innerHTML = items.map(item =>
-      '<article class="bf-message ' + (item.role === "user" ? "user" : "assistant") + '"><span>' +
-      (item.role === "user" ? "YOU" : "BUSINESSFLOW INTELLIGENCE") + '</span><p>' +
-      formatText(item.content) + '</p></article>'
-    ).join("");
+    messages.innerHTML = items.map(item => {
+      const isUser = item.role === "user";
+      const isOyoSky = !isUser && typeof item.content === "string" && item.content.startsWith("OYOSKY / ATLAS ASSESSMENT");
+      const label = isUser ? "YOU" : (isOyoSky ? "OYOSKY · ATLAS" : "BUSINESSFLOW INTELLIGENCE");
+      return '<article class="bf-message ' + (isUser ? "user" : "assistant") + (isOyoSky ? " oyosky" : "") + '"><span>' +
+        label + '</span><p>' + formatText(item.content) + '</p></article>';
+    }).join("");
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -1959,11 +1962,16 @@ function initializeBusinessFlowChat() {
     input.disabled = true;
     const previous = input.value;
     input.value = "";
-    setStatus("BusinessFlow Intelligence is reviewing your workspace…");
+    const selectedAssistant = assistantMode?.value === "oyosky" ? "OYOSKY" : "BusinessFlow Intelligence";
+    setStatus(selectedAssistant + " is reviewing your workspace…");
     try {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
         method: "POST",
-        body: JSON.stringify({ content, client_message_id: clientMessageId })
+        body: JSON.stringify({
+          content,
+          client_message_id: clientMessageId,
+          assistant_mode: assistantMode?.value === "oyosky" ? "oyosky" : "businessflow"
+        })
       });
       const items = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
       renderMessages(items.messages || []);
