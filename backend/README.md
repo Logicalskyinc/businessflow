@@ -48,6 +48,7 @@ Copy `.env.example` to your local environment and set:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY` (the project's publishable/anon key, never a service-role key)
 - optionally `PORT` and `NODE_ENV`
+- optionally `OYOSKY_SERVICE_URL` and `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` to enable the explicit OYOSKY assistant mode. The token must match `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on the OYOSKY service and must never be exposed to the browser.
 
 The deployed backend will need the same values in its hosting provider's secret/environment settings. No production hosting variables have been changed by this commit.
 
@@ -105,3 +106,11 @@ The shared project's security advisor also reports two findings on existing Grow
 The API permits browser requests from `https://logicalskyinc.github.io` by default. If the frontend is hosted elsewhere, set `BUSINESSFLOW_ALLOWED_ORIGINS` in the backend environment to a comma-separated list of exact origins (scheme and hostname, no path). The CORS middleware does not enable credentialed cookies; the API uses bearer tokens. Keep the frontend's Supabase publishable/anon key public and never expose a service-role key.
 
 The frontend account panel supports Supabase email/password sign-in, account creation, sign-out, workspace selection, goal loading and CRUD calls, and an explicit local-goal import flow. The frontend's `apiBaseUrl` remains blank until the backend is deployed and verified, so these cloud calls are not currently live. Do not describe the app as cloud-synced until end-to-end tests confirm sign-in, workspace creation, goal persistence across reloads, and cross-account isolation.
+
+## OYOSKY assistant mode
+
+The conversation API accepts `assistant_mode: "businessflow"` (default) or `assistant_mode: "oyosky"`. BusinessFlow loads the selected authenticated workspace's profile, goals, experiments, and bounded business-memory context on the backend. It sends that context to OYOSKY over HTTPS using a dedicated server-to-server bearer token. The browser never receives this credential.
+
+Set `OYOSKY_SERVICE_URL` and `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on the BusinessFlow backend. Set the same token as `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on OYOSKY. The OYOSKY endpoint disables shared OYOSKY memory and rejects requests without its dedicated credential. If OYOSKY is unavailable, BusinessFlow returns an explicit error and does not silently substitute a different reasoning provider.
+
+The current OYOSKY endpoint returns its deterministic ATLAS/ORBIT reasoning assessment. It does not use trained OYOSKY model weights, execute actions, or write OYOSKY memory. This integration is not live until both services are separately configured and deployed.
