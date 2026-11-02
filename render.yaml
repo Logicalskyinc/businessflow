@@ -24,3 +24,7 @@ services:
         value: https://oyosky.onrender.com
       - key: OYOSKY_BUSINESSFLOW_SERVICE_TOKEN
         sync: false
+      - key: GREY_SERVICE_URL
+        value: https://grey-chat-preview.onrender.com
+      - key: GREY_BUSINESSFLOW_JWT_SECRET
+        sync: false
