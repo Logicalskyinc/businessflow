@@ -1834,6 +1834,7 @@ function initializeBusinessFlowChat() {
   let conversations = [];
   let activeConversationId = null;
   let busy = false;
+  let activeMessages = [];
   let pendingClientMessageId = null;
   let pendingClientMessageContent = null;
   const api = () => window.BusinessFlowCloud;
@@ -1854,18 +1855,24 @@ function initializeBusinessFlowChat() {
   }
 
   function renderMessages(items) {
+    activeMessages = Array.isArray(items) ? items : [];
     if (!items.length) {
       messages.innerHTML = '<div class="bf-chat-empty"><strong>What should we work on?</strong><p>Ask a question about your business. I will use the records saved in this workspace.</p></div>';
       return;
     }
+    const repliedTo = new Set(items.filter(item => item.reply_to_message_id).map(item => String(item.reply_to_message_id)));
     messages.innerHTML = items.map(item => {
       const isUser = item.role === "user";
       const mode = item.assistant_mode || (typeof item.content === "string" && item.content.startsWith("OYOSKY / ATLAS ASSESSMENT") ? "oyosky" : "businessflow");
       const isOyoSky = !isUser && mode === "oyosky";
       const isGrey = !isUser && mode === "grey";
       const label = isUser ? "YOU" : (isOyoSky ? "OYOSKY · ATLAS" : isGrey ? "GREY" : "BUSINESSFLOW INTELLIGENCE");
+      const canRetry = isUser && item.client_message_id && !repliedTo.has(String(item.id));
+      const retry = canRetry
+        ? '<button type="button" class="bf-message-retry" data-retry-message-id="' + escapeHTML(item.id) + '">Retry assistant response</button>'
+        : "";
       return '<article class="bf-message ' + (isUser ? "user" : "assistant") + (isOyoSky ? " oyosky" : isGrey ? " grey" : "") + '"><span>' +
-        label + '</span><p>' + formatText(item.content) + '</p></article>';
+        label + '</span><p>' + formatText(item.content) + '</p>' + retry + '</article>';
     }).join("");
     messages.scrollTop = messages.scrollHeight;
   }
@@ -1937,6 +1944,43 @@ function initializeBusinessFlowChat() {
     renderMessages([]);
     try { await loadMessages(activeConversationId); }
     catch (error) { setStatus(error.message || "Could not load messages."); }
+  });
+
+  messages.addEventListener("click", async event => {
+    const button = event.target.closest("[data-retry-message-id]");
+    if (!button || busy) return;
+    const item = activeMessages.find(message => String(message.id) === button.dataset.retryMessageId);
+    if (!item || item.role !== "user" || !item.client_message_id) return;
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId) {
+      setStatus("Sign in and select the original business workspace before retrying.");
+      return;
+    }
+    busy = true;
+    send.disabled = true;
+    input.disabled = true;
+    button.disabled = true;
+    setStatus("Retrying the saved message with the same message ID…");
+    try {
+      await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          content: item.content,
+          client_message_id: item.client_message_id,
+          assistant_mode: ["oyosky", "grey"].includes(item.assistant_mode) ? item.assistant_mode : "businessflow"
+        })
+      });
+      const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
+      renderMessages(result.messages || []);
+      setStatus("Saved response restored to this conversation.");
+    } catch (error) {
+      setStatus(error.message || "Retry failed. Your original message remains saved.");
+      button.disabled = false;
+    } finally {
+      busy = false;
+      send.disabled = false;
+      input.disabled = false;
+    }
   });
 
   form.addEventListener("submit", async event => {
