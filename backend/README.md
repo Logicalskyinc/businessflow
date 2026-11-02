@@ -114,3 +114,11 @@ The conversation API accepts `assistant_mode: "businessflow"` (default) or `assi
 Set `OYOSKY_SERVICE_URL` and `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on the BusinessFlow backend. Set the same token as `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on OYOSKY. The OYOSKY endpoint disables shared OYOSKY memory and rejects requests without its dedicated credential. If OYOSKY is unavailable, BusinessFlow returns an explicit error and does not silently substitute a different reasoning provider.
 
 The current OYOSKY endpoint returns its deterministic ATLAS/ORBIT reasoning assessment. It does not use trained OYOSKY model weights, execute actions, or write OYOSKY memory. This integration is not live until both services are separately configured and deployed.
+
+## Grey assistant mode
+
+The conversation API accepts `assistant_mode: "grey"`. The authenticated BusinessFlow backend signs a short-lived HS256 token for the selected user and business workspace and sends it to the configured Grey HTTPS endpoint. The browser never receives the signing secret. Grey stores its own tenant-scoped persistent conversation history; BusinessFlow stores the returned Grey conversation ID to reconnect future turns.
+
+Set `GREY_SERVICE_URL` and `GREY_BUSINESSFLOW_JWT_SECRET` on the BusinessFlow backend. Set the same secret as `GREY_BUSINESSFLOW_JWT_SECRET` on Grey. Grey also requires `GREY_CHAT_HISTORY_DATABASE_URL` for persistent history, replay protection and rate limits. If Grey or its history database is unavailable, BusinessFlow reports an explicit error and does not fall back to another assistant. The first migration adds the Grey conversation link column; apply migrations before enabling the integration.
+
+BusinessFlow sends the selected workspace's business profile, goals, experiments and saved business memory. Users should choose Grey only when they are comfortable sharing that data with the configured Grey service. Grey treats this context as untrusted reference data and does not grant it owner memory permissions.
