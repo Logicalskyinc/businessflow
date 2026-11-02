@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
+import { askOyoSky, OyoSkyClientError } from "./oyosky.client.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -53,6 +54,10 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const { content, client_message_id: clientMessageId } = req.body ?? {};
+    const assistantMode = req.body?.assistant_mode ?? "businessflow";
+    if (!["businessflow", "oyosky"].includes(assistantMode)) {
+      return res.status(400).json({ error: "invalid_assistant_mode" });
+    }
     if (!isUuid(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
     if (typeof content !== "string" || !content.trim() || content.trim().length > 8000) {
       return res.status(400).json({ error: "invalid_message", message: "Message must contain 1 to 8,000 characters." });
@@ -77,13 +82,35 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     } else if (insertError) return next(insertError);
     else userMessage = inserted;
 
+    if (!userMessage || userMessage.content !== content.trim()) {
+      return res.status(409).json({
+        error: "client_message_id_conflict",
+        message: "This message ID was already used for different content. Start a new send attempt."
+      });
+    }
+
     const { data: existingReply, error: replyLookupError } = await req.supabase.from("businessflow_messages")
       .select("id,conversation_id,role,content,created_at")
       .eq("reply_to_message_id", userMessage.id).maybeSingle();
     if (replyLookupError) return next(replyLookupError);
     if (existingReply) return res.json({ user_message: userMessage, assistant_message: existingReply, replayed: true });
 
-    const answer = await buildBusinessFlowReply(req.supabase, conversation.business_id, userMessage.content);
+    let answer;
+    try {
+      answer = assistantMode === "oyosky"
+        ? await buildOyoSkyReply(req.supabase, conversation.business_id, userMessage.content)
+        : await buildBusinessFlowReply(req.supabase, conversation.business_id, userMessage.content);
+    } catch (error) {
+      if (error instanceof OyoSkyClientError) {
+        return res.status(503).json({
+          error: error.code,
+          message: error.message,
+          user_message_saved: true,
+          retryable: true
+        });
+      }
+      return next(error);
+    }
     const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
       p_conversation_id: conversationId,
       p_reply_to_message_id: userMessage.id,
@@ -97,9 +124,9 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-async function buildBusinessFlowReply(supabase, businessId, prompt) {
+async function loadBusinessWorkspaceContext(supabase, businessId) {
   const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
-    supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
+    supabase.from("businessflow_profiles").select("name,primary_goal,business_description,currency_code").eq("id", businessId).maybeSingle(),
     supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(50),
     supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(50),
     supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(20)
@@ -107,11 +134,17 @@ async function buildBusinessFlowReply(supabase, businessId, prompt) {
   for (const result of [profileResult, goalsResult, experimentsResult, memoryResult]) {
     if (result.error) throw result.error;
   }
-  const profile = profileResult.data;
-  if (!profile) throw new Error("Business workspace not found.");
-  const goals = goalsResult.data ?? [];
-  const experiments = experimentsResult.data ?? [];
-  const memory = memoryResult.data ?? [];
+  if (!profileResult.data) throw new Error("Business workspace not found.");
+  return {
+    profile: profileResult.data,
+    goals: goalsResult.data ?? [],
+    experiments: experimentsResult.data ?? [],
+    memory: memoryResult.data ?? []
+  };
+}
+
+async function buildBusinessFlowReply(supabase, businessId, prompt) {
+  const { profile, goals, experiments, memory } = await loadBusinessWorkspaceContext(supabase, businessId);
   const activeGoals = goals.filter(item => item.status === "active");
   const runningExperiments = experiments.filter(item => item.status === "running");
   const lower = prompt.toLowerCase();
@@ -144,6 +177,36 @@ async function buildBusinessFlowReply(supabase, businessId, prompt) {
       lines.push("• " + String(value).slice(0, 350));
     }
   }
-  lines.push("What I can do right now: review your goals, interpret imported datasets through the Analytics page, and help structure an experiment. This first release uses your saved workspace data and deterministic rules. It does not yet use an external AI model or execute actions. I won't invent figures when the workspace has no supporting data.");
+  lines.push("What I can do right now: review your goals, interpret imported datasets through the Analytics page, and help structure an experiment. This mode uses saved workspace data and deterministic rules. It does not use a trained language model or execute actions. I won't invent figures when the workspace has no supporting data.");
   return lines.join("\n").slice(0, 7900);
+}
+
+async function buildOyoSkyReply(supabase, businessId, prompt) {
+  const { profile, goals, experiments, memory } = await loadBusinessWorkspaceContext(supabase, businessId);
+  const context = {
+    business: {
+      name: String(profile.name || "").slice(0, 160),
+      description: String(profile.business_description || "").slice(0, 1500),
+      primary_goal: String(profile.primary_goal || "").slice(0, 500),
+      currency_code: String(profile.currency_code || "").slice(0, 8)
+    },
+    goals: goals.slice(0, 20).map(item => ({
+      title: String(item.title || "").slice(0, 160),
+      status: item.status,
+      current_value: item.current_value,
+      target_value: item.target_value,
+      metric_name: String(item.metric_name || "").slice(0, 80)
+    })),
+    experiments: experiments.slice(0, 15).map(item => ({
+      title: String(item.title || "").slice(0, 160),
+      status: item.status,
+      success_metric: String(item.success_metric || "").slice(0, 250),
+      result_summary: String(item.result_summary || "").slice(0, 350)
+    })),
+    business_memory: memory.slice(0, 10).map(item => ({
+      category: String(item.category || "other").slice(0, 50),
+      content: String(typeof item.content === "string" ? item.content : JSON.stringify(item.content)).slice(0, 300)
+    }))
+  };
+  return askOyoSky(prompt, context);
 }
