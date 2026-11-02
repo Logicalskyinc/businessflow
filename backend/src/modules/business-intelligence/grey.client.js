@@ -78,13 +78,16 @@ async function readBoundedBody(response) {
   return Buffer.concat(chunks, total);
 }
 
-export async function askGrey({ message, userId, businessId, conversationId = null, workspaceContext = {} }) {
+export async function askGrey({ message, userId, businessId, requestId, conversationId = null, workspaceContext = {} }) {
   if (typeof message !== "string" || !message.trim() || message.trim().length > MAX_MESSAGE_LENGTH) {
     throw new GreyClientError("The Grey message must contain 1 to 4,000 characters.", "invalid_grey_request");
   }
   if (typeof userId !== "string" || !userId.trim() || userId.length > 100 ||
       typeof businessId !== "string" || !businessId.trim() || businessId.length > 100) {
     throw new GreyClientError("The authenticated BusinessFlow identity is invalid.", "invalid_grey_identity");
+  }
+  if (typeof requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new GreyClientError("A stable BusinessFlow message ID is required for safe retries.", "invalid_grey_request_id");
   }
   if (conversationId !== null && (typeof conversationId !== "string" || conversationId.length > 100)) {
     throw new GreyClientError("The linked Grey conversation ID is invalid.", "invalid_grey_conversation");
@@ -109,6 +112,7 @@ export async function askGrey({ message, userId, businessId, conversationId = nu
       },
       body: JSON.stringify({
         message: message.trim(),
+        request_id: requestId,
         conversation_id: conversationId,
         workspace_context: workspaceContext
       }),
