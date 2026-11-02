@@ -83,10 +83,10 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     } else if (insertError) return next(insertError);
     else userMessage = inserted;
 
-    if (!userMessage || userMessage.content !== content.trim()) {
+    if (!userMessage || userMessage.content !== content.trim() || userMessage.assistant_mode !== assistantMode) {
       return res.status(409).json({
         error: "client_message_id_conflict",
-        message: "This message ID was already used for different content. Start a new send attempt."
+        message: "This message ID was already used for different content or assistant mode. Start a new send attempt."
       });
     }
 
