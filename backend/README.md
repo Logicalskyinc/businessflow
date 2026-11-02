@@ -47,20 +47,22 @@ npm test
 npm start
 ```
 
-The test command is Node's built-in test runner. The cross-owner RLS integration test is skipped unless all four variables are set: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BUSINESSFLOW_RLS_TEST_USER_TOKEN`, and `BUSINESSFLOW_RLS_TEST_FOREIGN_BUSINESS_ID`. Use a dedicated test identity and a workspace owned by a different dedicated test identity. That integration test performs read-only queries against profiles, goals, experiments, memory, imports and conversations and asserts RLS returns no foreign records. It does not create or delete test data.
+The test command is Node's built-in test runner. The cross-owner RLS integration test is skipped unless all four variables are set: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BUSINESSFLOW_RLS_TEST_USER_TOKEN`, and `BUSINESSFLOW_RLS_TEST_FOREIGN_BUSINESS_ID`. Use a dedicated test identity and a workspace owned by a different dedicated test identity. That integration test performs read-only queries against profiles, goals, experiments, memory, imports and conversations and asserts RLS returns no foreign records. It does not create or delete test data. It currently verifies read isolation only; write, update and delete isolation still need dedicated tests.
 
 ## Database
 
 BusinessFlow tables are isolated from GrowthFlow by the `businessflow_` prefix. They cover profiles, memberships, goals, experiments, memory, imports, conversations and messages.
 
-Repository migrations:
+Repository migrations, in chronological order:
 - `20261029140844_businessflow_intelligence_core.sql`
 - `20261029141124_businessflow_owner_membership_trigger.sql`
 - `20261029201846_businessflow_imports.sql`
+- `202610310001_businessflow_conversations.sql`
+- `202610310002_businessflow_workspace_limit.sql`
 - `20261101073947_businessflow_existing_schema_baseline.sql`
 - `20261101074003_businessflow_privilege_hardening.sql`
 
-The baseline migration checks the existing schema; privilege hardening restricts direct table operations and secures the assistant-message RPC. The initial membership model creates an owner membership. Team-role access is not enabled merely because membership records exist. Apply migrations only through an explicitly reviewed migration process; do not assume the shared project has the same state as a fresh local database.
+The workspace-limit trigger enforces a maximum of two workspaces per owner and serializes concurrent inserts for that owner. The baseline migration checks the existing schema; privilege hardening restricts direct table operations and secures the assistant-message RPC. The initial membership model creates an owner membership. Team-role access is not enabled merely because membership records exist. Apply migrations only through an explicitly reviewed migration process; do not assume the shared project has the same state as a fresh local database.
 
 ## BusinessFlow AI
 
