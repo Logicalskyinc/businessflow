@@ -27,7 +27,7 @@ begin
   if p_content is null or char_length(p_content) not between 1 and 8000 then
     raise exception 'invalid_message_content' using errcode = '22023';
   end if;
-  if p_assistant_mode not in ('businessflow', 'oyosky', 'grey') then
+  if p_assistant_mode is null or p_assistant_mode not in ('businessflow', 'oyosky', 'grey') then
     raise exception 'invalid_assistant_mode' using errcode = '22023';
   end if;
   if not exists (
