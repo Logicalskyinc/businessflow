@@ -466,3 +466,6 @@ body.auth-required .account-page { max-width: 100%; }
 .bf-message.oyosky{border-color:#d8e4ff;background:linear-gradient(145deg,#fff,#f5f8ff)}
 .bf-message.oyosky>span{color:#315fce}
 @media(max-width:700px){.bf-assistant-mode{width:100%;justify-content:space-between}.bf-assistant-mode select{flex:1}.bf-chat-compose-footer .bf-assistant-mode{margin:2px 0}}
+
+.bf-message.grey{border-color:#ccefe6;background:linear-gradient(145deg,#fff,#f3fcf9)}
+.bf-message.grey>span{color:#137b65}
