@@ -82,7 +82,7 @@ test("Grey client rejects insecure service origins", async t => {
   configure(t);
   process.env[URL_KEY] = "http://grey.example";
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
     error => error instanceof GreyClientError && error.code === "grey_invalid_config"
   );
 });
@@ -119,4 +119,19 @@ test("Grey client fails closed on unavailable service", async t => {
     askGrey({ message: "Hello", userId: "u", businessId: "b" }),
     error => error instanceof GreyClientError && error.code === "grey_request_failed"
   );
+});
+
+
+test("Grey client rejects a missing or malformed request ID", async t => {
+  configure(t);
+  let called = false;
+  t.mock.method(globalThis, "fetch", async () => {
+    called = true;
+    return new Response("{}");
+  });
+  await assert.rejects(
+    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    error => error instanceof GreyClientError && error.code === "invalid_grey_request_id"
+  );
+  assert.equal(called, false);
 });
