@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { askOyoSky, OyoSkyClientError } from "./oyosky.client.js";
+import { askGrey, GreyClientError } from "./grey.client.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -55,7 +56,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     const { conversationId } = req.params;
     const { content, client_message_id: clientMessageId } = req.body ?? {};
     const assistantMode = req.body?.assistant_mode ?? "businessflow";
-    if (!["businessflow", "oyosky"].includes(assistantMode)) {
+    if (!["businessflow", "oyosky", "grey"].includes(assistantMode)) {
       return res.status(400).json({ error: "invalid_assistant_mode" });
     }
     if (!isUuid(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
@@ -96,11 +97,33 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (existingReply) return res.json({ user_message: userMessage, assistant_message: existingReply, replayed: true });
 
     let answer;
+    let greyConversationId = null;
     try {
-      answer = assistantMode === "oyosky"
-        ? await buildOyoSkyReply(req.supabase, conversation.business_id, userMessage.content)
-        : await buildBusinessFlowReply(req.supabase, conversation.business_id, userMessage.content);
+      if (assistantMode === "oyosky") {
+        answer = await buildOyoSkyReply(req.supabase, conversation.business_id, userMessage.content);
+      } else if (assistantMode === "grey") {
+        const workspaceContext = await buildGreyWorkspaceContext(req.supabase, conversation.business_id);
+        const greyResult = await askGrey({
+          message: userMessage.content,
+          userId: req.user.id,
+          businessId: conversation.business_id,
+          conversationId: conversation.grey_conversation_id ?? null,
+          workspaceContext
+        });
+        answer = greyResult.content;
+        greyConversationId = greyResult.conversationId;
+      } else {
+        answer = await buildBusinessFlowReply(req.supabase, conversation.business_id, userMessage.content);
+      }
     } catch (error) {
+      if (error instanceof GreyClientError) {
+        return res.status(503).json({
+          error: error.code,
+          message: error.message,
+          user_message_saved: true,
+          retryable: true
+        });
+      }
       if (error instanceof OyoSkyClientError) {
         return res.status(503).json({
           error: error.code,
@@ -117,6 +140,13 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       p_content: answer
     });
     if (assistantError) return next(assistantError);
+
+    if (greyConversationId && greyConversationId !== conversation.grey_conversation_id) {
+      const { error: linkError } = await req.supabase.from("businessflow_conversations")
+        .update({ grey_conversation_id: greyConversationId })
+        .eq("id", conversationId).eq("business_id", conversation.business_id);
+      if (linkError) return next(linkError);
+    }
 
     const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
     await req.supabase.from("businessflow_conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
@@ -140,6 +170,35 @@ async function loadBusinessWorkspaceContext(supabase, businessId) {
     goals: goalsResult.data ?? [],
     experiments: experimentsResult.data ?? [],
     memory: memoryResult.data ?? []
+  };
+}
+
+async function buildGreyWorkspaceContext(supabase, businessId) {
+  const { profile, goals, experiments, memory } = await loadBusinessWorkspaceContext(supabase, businessId);
+  return {
+    business: {
+      name: String(profile.name || "").slice(0, 160),
+      description: String(profile.business_description || "").slice(0, 1000),
+      primary_goal: String(profile.primary_goal || "").slice(0, 300),
+      currency_code: String(profile.currency_code || "").slice(0, 8)
+    },
+    goals: goals.slice(0, 15).map(item => ({
+      title: String(item.title || "").slice(0, 120),
+      status: item.status,
+      current_value: item.current_value,
+      target_value: item.target_value,
+      metric_name: String(item.metric_name || "").slice(0, 60)
+    })),
+    experiments: experiments.slice(0, 10).map(item => ({
+      title: String(item.title || "").slice(0, 120),
+      status: item.status,
+      success_metric: String(item.success_metric || "").slice(0, 180),
+      result_summary: String(item.result_summary || "").slice(0, 200)
+    })),
+    business_memory: memory.slice(0, 5).map(item => ({
+      category: String(item.category || "other").slice(0, 40),
+      content: String(typeof item.content === "string" ? item.content : JSON.stringify(item.content)).slice(0, 200)
+    }))
   };
 }
 
