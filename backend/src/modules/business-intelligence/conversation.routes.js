@@ -66,7 +66,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (!isUuid(clientMessageId)) return res.status(400).json({ error: "invalid_client_message_id" });
 
     const { data: conversation, error: conversationError } = await req.supabase.from("businessflow_conversations")
-      .select("id,business_id,title").eq("id", conversationId).maybeSingle();
+      .select("id,business_id,title,grey_conversation_id").eq("id", conversationId).maybeSingle();
     if (conversationError) return next(conversationError);
     if (!conversation) return res.status(404).json({ error: "conversation_not_found" });
 
