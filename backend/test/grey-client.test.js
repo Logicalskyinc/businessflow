@@ -107,7 +107,7 @@ test("Grey client rejects cross-tenant responses", async t => {
     ok: true, response: "Not for this tenant", tenant: "another-business", conversation_id: "c"
   }), { status: 200 }));
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
     error => error instanceof GreyClientError && /workspace identity/.test(error.message)
   );
 });
@@ -116,7 +116,7 @@ test("Grey client fails closed on unavailable service", async t => {
   configure(t);
   t.mock.method(globalThis, "fetch", async () => new Response("unavailable", { status: 503 }));
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
     error => error instanceof GreyClientError && error.code === "grey_request_failed"
   );
 });
@@ -130,7 +130,7 @@ test("Grey client rejects a missing or malformed request ID", async t => {
     return new Response("{}");
   });
   await assert.rejects(
-    askGrey({ message: "Hello", userId: "u", businessId: "b" }),
+    askGrey({ message: "Hello", userId: "u", businessId: "b", requestId: "11111111-1111-4111-8111-111111111111" }),
     error => error instanceof GreyClientError && error.code === "invalid_grey_request_id"
   );
   assert.equal(called, false);
