@@ -124,3 +124,5 @@ Set `GREY_SERVICE_URL` and `GREY_BUSINESSFLOW_JWT_SECRET` on the BusinessFlow ba
 BusinessFlow sends the selected workspace's business profile, goals, experiments and saved business memory. Users should choose Grey only when they are comfortable sharing that data with the configured Grey service. Grey treats this context as untrusted reference data and does not grant it owner memory permissions.
 
 Each persisted BusinessFlow message records its selected assistant mode (`businessflow`, `oyosky`, or `grey`) so the interface can label older replies correctly after a refresh. Apply the `202611020002_businessflow_assistant_modes.sql` migration after the Grey conversation-link migration.
+
+Grey retries use the UUID of the already-persisted BusinessFlow user message as `request_id`. If a request times out after Grey has saved its answer, BusinessFlow can retry the same message ID and Grey returns the original conversation and saved answer rather than appending another turn. The backend persists the Grey conversation ID before committing the assistant reply, so a failed BusinessFlow write can recover the same Grey conversation on retry.
