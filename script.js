@@ -1493,7 +1493,8 @@ function initializeBusinessFlow() {
 
   setupMemoryForm();
   setupMemoryActions();
-  setupMemorySearch();\n  setupLegacyImportActions();
+  setupMemorySearch();
+  setupLegacyImportActions();
 
   renderGoals();
   renderExperiments();
