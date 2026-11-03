@@ -200,13 +200,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const customerFirstMonth = new Map();
-  for (const [month, customers] of [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    for (const customer of customers) if (!customerFirstMonth.has(customer)) customerFirstMonth.set(customer, month);
-  }
-  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
-    let returning = 0;
-    for (const customer of customers) if (customerFirstMonth.get(customer) < month) returning++;
+  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers], index, periods) => {
+    const previous = index > 0 ? periods[index - 1][1] : new Set();
+    const returning = [...customers].filter(customer => previous.has(customer)).length;
     return { month, activeCustomers: customers.size, returningCustomers: returning,
       returningRate: customers.size ? Number((returning / customers.size * 100).toFixed(1)) : 0 };
   });
