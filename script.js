@@ -1333,6 +1333,7 @@ async async function loadCloudCollections(businessId) {
     renderExperiments();
     renderMemories();
     updateStorageStatus();
+    setLegacyImportButtons();
     return;
   }
 
@@ -1353,6 +1354,7 @@ async async function loadCloudCollections(businessId) {
     renderExperiments();
     renderMemories();
     updateStorageStatus();
+    setLegacyImportButtons();
   } catch (error) {
     if (requestId === cloudCollectionsRequest) {
       console.error("Cloud workspace records could not load:", error);
@@ -1361,6 +1363,7 @@ async async function loadCloudCollections(businessId) {
       memories = [];
       renderExperiments();
       renderMemories();
+      setLegacyImportButtons();
     }
   } finally {
     if (requestId === cloudCollectionsRequest) cloudCollectionsBusy = false;
