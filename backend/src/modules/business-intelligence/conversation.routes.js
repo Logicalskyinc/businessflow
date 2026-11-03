@@ -90,7 +90,15 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (existingReply) return res.json({ user_message: userMessage, assistant_message: existingReply, replayed: true });
 
     try {
-      const workspaceContext = await buildWorkspaceContext(req.supabase, conversation.business_id);
+      const contextCandidate = await buildWorkspaceContext(req.supabase, conversation.business_id);
+      const { data: workspaceContext, error: contextError } = await req.supabase.rpc("businessflow_set_message_context", {
+        p_message_id: userMessage.id,
+        p_context: contextCandidate
+      });
+      if (contextError) throw contextError;
+      if (!workspaceContext || typeof workspaceContext !== "object") {
+        throw new GreyIntegrationError("Business workspace context could not be saved.", 503, true);
+      }
       const grey = await sendMessageToGrey({
         userId: req.user.id,
         businessId: conversation.business_id,
