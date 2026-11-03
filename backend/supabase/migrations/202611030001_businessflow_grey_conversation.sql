@@ -2,9 +2,10 @@
 alter table public.businessflow_conversations
   add column if not exists grey_conversation_id uuid,
   add column if not exists grey_initialization_token uuid,
-  add column if not exists grey_initialization_expires_at timestamptz;
+  add column if not exists grey_initialization_expires_at timestamptz,
+  add column if not exists grey_initialization_message_id uuid;
 
-grant update (title, updated_at, grey_conversation_id, grey_initialization_token, grey_initialization_expires_at)
+grant update (title, updated_at, grey_conversation_id, grey_initialization_token, grey_initialization_expires_at, grey_initialization_message_id)
   on public.businessflow_conversations to authenticated;
 
 -- Freeze the workspace snapshot per user message so retries send identical input.
@@ -53,7 +54,8 @@ end;
 $$;
 
 create or replace function public.businessflow_claim_grey_initialization(
-  p_conversation_id uuid
+  p_conversation_id uuid,
+  p_message_id uuid
 ) returns jsonb
 language plpgsql
 security definer
@@ -80,6 +82,17 @@ begin
     raise exception 'conversation_not_found' using errcode = '42501';
   end if;
 
+  if not exists (
+    select 1 from public.businessflow_messages m
+    where m.id = p_message_id
+      and m.conversation_id = p_conversation_id
+      and m.created_by = v_user_id
+      and m.role = 'user'
+      and m.workspace_context is not null
+  ) then
+    raise exception 'initialization_message_not_ready' using errcode = '22023';
+  end if;
+
   if v_conversation.grey_conversation_id is not null then
     return jsonb_build_object('status', 'ready', 'conversation_id', v_conversation.grey_conversation_id);
   end if;
@@ -91,11 +104,17 @@ begin
 
   v_token := gen_random_uuid();
   update public.businessflow_conversations
-  set grey_initialization_token = v_token,
+  set grey_initialization_message_id = coalesce(grey_initialization_message_id, p_message_id),
+      grey_initialization_token = v_token,
       grey_initialization_expires_at = now() + interval '2 minutes'
-  where id = p_conversation_id;
+  where id = p_conversation_id
+  returning * into v_conversation;
 
-  return jsonb_build_object('status', 'claimed', 'token', v_token);
+  return jsonb_build_object(
+    'status', 'claimed',
+    'token', v_token,
+    'message_id', v_conversation.grey_initialization_message_id
+  );
 end;
 $$;
 
@@ -117,7 +136,8 @@ begin
   update public.businessflow_conversations c
   set grey_conversation_id = p_grey_conversation_id,
       grey_initialization_token = null,
-      grey_initialization_expires_at = null
+      grey_initialization_expires_at = null,
+      grey_initialization_message_id = null
   where c.id = p_conversation_id
     and c.created_by = v_user_id
     and c.grey_conversation_id is null
