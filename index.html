@@ -226,6 +226,11 @@
               <label class="form-label full-span">Hypothesis
                 <textarea id="experiment-hypothesis" name="hypothesis" rows="3" maxlength="1000" placeholder="If we do X, we expect Y because..." required></textarea>
               </label>
+              <label class="form-label full-span">Related business goal (optional)
+                <select id="experiment-goal" name="goalId">
+                  <option value="">No linked goal</option>
+                </select>
+              </label>
               <label class="form-label">Baseline value
                 <input id="experiment-baseline" name="baseline" type="number" min="0" step="any" placeholder="Leave blank until measured">
               </label>
