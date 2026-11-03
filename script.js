@@ -1338,7 +1338,7 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
   navigateTo("overview");
 });
 
-async async function loadCloudCollections(businessId) {
+async function loadCloudCollections(businessId) {
   const requestId = ++cloudCollectionsRequest;
   const cloud = window.BusinessFlowCloud?.getState?.();
   cloudCollectionWorkspaceId = null;
