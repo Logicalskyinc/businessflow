@@ -251,7 +251,7 @@ async function buildWorkspaceContext(supabase, businessId) {
     }))
   };
 
-  while (Buffer.byteLength(JSON.stringify(context), "utf8") > 11_000) {
+  while (Buffer.byteLength(JSON.stringify(context), "utf8") > 9_000) {
     if (context.memory.length) context.memory.pop();
     else if (context.experiments.length) context.experiments.pop();
     else if (context.goals.length) context.goals.pop();
