@@ -94,7 +94,7 @@ begin
   end if;
 
   if v_conversation.grey_conversation_id is not null then
-    return jsonb_build_object('status', 'ready', 'conversation_id', v_conversation.grey_conversation_id);
+    return jsonb_build_object('status', 'ready', 'conversation_id', v_conversation.grey_conversation_id, 'message_id', v_conversation.grey_initialization_message_id);
   end if;
 
   if v_conversation.grey_initialization_token is not null
