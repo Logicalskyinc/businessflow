@@ -1446,6 +1446,10 @@ function renderBusinessInsights() {
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
+    ["#explorer-customer-segments", "#explorer-product-performance", "#explorer-data-quality", "#explorer-value-coverage"].forEach(selector => {
+      const host = document.querySelector(selector);
+      if (host) host.textContent = "Select a connected business workspace to load verified analytics.";
+    });
     if (status) status.textContent = "Waiting for a selected workspace.";
     return;
   }
