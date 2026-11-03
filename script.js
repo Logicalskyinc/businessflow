@@ -1225,28 +1225,50 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
 });
 
 async async function loadCloudCollections(businessId) {
+  const requestId = ++cloudCollectionsRequest;
   const cloud = window.BusinessFlowCloud?.getState?.();
-  cloudCollectionWorkspaceId = null; cloudExperiments = false; cloudMemories = false;
+  cloudCollectionWorkspaceId = null;
+  cloudExperiments = false;
+  cloudMemories = false;
+
   if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
-    loadExperiments(); loadMemories(); renderExperiments(); renderMemories(); updateStorageStatus(); return;
+    loadExperiments();
+    loadMemories();
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
+    return;
   }
-  if (cloudCollectionsBusy) return;
+
   cloudCollectionsBusy = true;
   try {
     const [remoteExperiments, remoteMemory] = await Promise.all([
       window.BusinessFlowCloud.loadExperiments(businessId),
       window.BusinessFlowCloud.loadMemory(businessId)
     ]);
-    if (requestId !== cloudCollectionsRequest || window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
+    if (requestId !== cloudCollectionsRequest ||
+        window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
+
     experiments = remoteExperiments.map(experimentFromCloud);
     memories = remoteMemory.map(memoryFromCloud).filter(isValidMemory);
-    cloudCollectionWorkspaceId = businessId; cloudExperiments = true; cloudMemories = true;
-    renderExperiments(); renderMemories(); updateStorageStatus();
+    cloudCollectionWorkspaceId = businessId;
+    cloudExperiments = true;
+    cloudMemories = true;
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
   } catch (error) {
-    console.error("Cloud workspace records could not load:", error);
-    showToast("Could not load cloud experiments and memory: " + error.message);
-    experiments = []; memories = []; renderExperiments(); renderMemories();
-  } finally { cloudCollectionsBusy = false; }
+    if (requestId === cloudCollectionsRequest) {
+      console.error("Cloud workspace records could not load:", error);
+      showToast("Could not load cloud experiments and memory: " + error.message);
+      experiments = [];
+      memories = [];
+      renderExperiments();
+      renderMemories();
+    }
+  } finally {
+    if (requestId === cloudCollectionsRequest) cloudCollectionsBusy = false;
+  }
 }
 
 window.addEventListener("businessflow:workspace-changed", event => {
