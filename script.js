@@ -1471,7 +1471,7 @@ function renderBusinessInsights() {
     });
   }
   const monthly = Array.isArray(metrics.monthlyRevenue)
-    ? metrics.monthlyRevenue.filter(item => item && /^\\d{4}-\\d{2}$/.test(String(item.month)) && Number.isFinite(Number(item.total)))
+    ? metrics.monthlyRevenue.filter(item => item && /^\d{4}-\d{2}$/.test(String(item.month)) && Number.isFinite(Number(item.total)))
     : [];
   const chartMarkup = monthly.length
     ? (() => {
