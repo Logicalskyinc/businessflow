@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { GreyIntegrationError, sendMessageToGrey } from "./grey-client.js";
+import { buildBusinessInsights } from "./business-intelligence.analytics.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -253,20 +254,54 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
 });
 
 async function buildWorkspaceContext(supabase, businessId) {
-  const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
-    supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
+  const [profileResult, importsResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
+    supabase.from("businessflow_profiles").select("id,name,currency_code,primary_goal,business_description").eq("id", businessId).maybeSingle(),
+    supabase.from("businessflow_imports")
+      .select("id,name,source_filename,column_mapping,columns,rows,row_count")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(25),
     supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(30),
     supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(20),
     supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12)
   ]);
-  for (const result of [profileResult, goalsResult, experimentsResult, memoryResult]) {
+  for (const result of [profileResult, importsResult, goalsResult, experimentsResult, memoryResult]) {
     if (result.error) throw result.error;
   }
   if (!profileResult.data) throw new GreyIntegrationError("Business workspace not found.", 404);
 
-  const context = {
-    source: "BusinessFlow workspace records",
+  const imports = importsResult.data ?? [];
+  // Reuse the same deterministic analytics engine as the dashboard. Only
+  // aggregate metrics and evidence enter Grey's prompt; imported row values,
+  // customer names, emails, and phone numbers are never copied into context.
+  const analysis = buildBusinessInsights({
     profile: profileResult.data,
+    imports,
+    goals: goalsResult.data ?? [],
+    experiments: experimentsResult.data ?? [],
+    memory: memoryResult.data ?? []
+  });
+  const context = {
+    source: "BusinessFlow workspace records and imported dataset analysis",
+    profile: {
+      name: profileResult.data.name,
+      primary_goal: profileResult.data.primary_goal,
+      business_description: profileResult.data.business_description,
+      currency_code: profileResult.data.currency_code || "XOF"
+    },
+    dataset_analysis: {
+      generated_at: analysis.generatedAt,
+      coverage: analysis.coverage,
+      metrics: analysis.metrics,
+      data_quality: analysis.dataQuality,
+      insights: analysis.insights.slice(0, 8)
+    },
+    datasets: imports.map(item => ({
+      name: item.name,
+      source_filename: item.source_filename,
+      row_count: item.row_count,
+      mapped_fields: Object.keys(item.column_mapping ?? {}).filter(key => item.column_mapping?.[key])
+    })),
     goals: goalsResult.data ?? [],
     experiments: experimentsResult.data ?? [],
     memory: (memoryResult.data ?? []).map(item => ({
@@ -277,12 +312,14 @@ async function buildWorkspaceContext(supabase, businessId) {
 
   while (Buffer.byteLength(JSON.stringify(context), "utf8") > 9_000) {
     if (context.memory.length) context.memory.pop();
+    else if (context.dataset_analysis.insights.length) context.dataset_analysis.insights.pop();
     else if (context.experiments.length) context.experiments.pop();
     else if (context.goals.length) context.goals.pop();
+    else if (context.datasets.length) context.datasets.pop();
     else {
-      context.profile.business_description = String(context.profile.business_description ?? "").slice(0, 500);
-      context.profile.name = String(context.profile.name ?? "").slice(0, 100);
-      context.profile.primary_goal = String(context.profile.primary_goal ?? "").slice(0, 300);
+      context.profile.business_description = String(context.profile.business_description ?? "").slice(0, 300);
+      context.profile.name = String(context.profile.name ?? "").slice(0, 80);
+      context.profile.primary_goal = String(context.profile.primary_goal ?? "").slice(0, 200);
       break;
     }
   }
