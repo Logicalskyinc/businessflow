@@ -1737,6 +1737,83 @@ function inferImportBusinessField(column, rows) {
   if (/note|description|comment|detail|remark/.test(name)) return "notes";
   return "";
 }
+function renderImportQualitySummary() {
+  const host = document.querySelector("#import-quality-summary");
+  if (!host || !pendingImport) return;
+  const columns = pendingImport.columns || [];
+  const rows = pendingImport.rows || [];
+  const mapped = [...document.querySelectorAll("[data-import-column]")].filter(select => select.value);
+  const mappedFields = new Set(mapped.map(select => select.value));
+  const required = ["revenue", "order_date", "customer_id"];
+  const numericFields = new Set(["revenue", "quantity"]);
+  const cards = [
+    { label: "Rows to import", value: String(rows.length), note: "Within the 250-row limit" },
+    { label: "Source columns", value: String(columns.length), note: "All source columns are retained" },
+    { label: "Mapped fields", value: mapped.length + " / " + columns.length, note: "Business meaning assigned" }
+  ];
+  const issues = [];
+  const duplicateNames = columns.filter((name, index) => columns.indexOf(name) !== index);
+  if (duplicateNames.length) issues.push(duplicateNames.length + " duplicate source column labels were renamed to keep them distinct.");
+  required.forEach(field => {
+    const select = [...document.querySelectorAll("[data-import-column]")].find(item => item.value === field);
+    if (!select) issues.push("No " + field.replace("_", " ") + " column mapped. Related analytics will remain unavailable.");
+  });
+  for (const select of mapped) {
+    const field = select.value;
+    if (numericFields.has(field)) {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const numeric = nonEmpty.filter(value => {
+        const normalized = value.replace(/,/g, "").replace(/[^0-9.\-]/g, "");
+        return normalized && normalized !== "-" && normalized !== "." && normalized !== "-." && Number.isFinite(Number(normalized));
+      });
+      const invalid = nonEmpty.length - numeric.length;
+      if (invalid) issues.push(column + ": " + invalid + " of " + nonEmpty.length + " non-empty values are not numeric.");
+      if (!nonEmpty.length) issues.push(column + ": no non-empty values found.");
+    }
+    if (field === "order_date") {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const valid = nonEmpty.filter(value => !Number.isNaN(new Date(value).getTime()));
+      if (nonEmpty.length && valid.length !== nonEmpty.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " date values could not be parsed.");
+      if (!valid.length) issues.push(column + ": no valid dates found.");
+    }
+  }
+  host.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "import-quality-heading";
+  heading.innerHTML = "<strong>Pre-import data quality</strong><span>Checks run on this file before saving</span>";
+  host.append(heading);
+  const grid = document.createElement("div");
+  grid.className = "import-quality-grid";
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "import-quality-card";
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.textContent = item.value;
+    const note = document.createElement("small");
+    note.textContent = item.note;
+    card.append(label, value, note);
+    grid.append(card);
+  });
+  host.append(grid);
+  const message = document.createElement("p");
+  message.className = "import-quality-message " + (issues.length ? "has-warnings" : "is-ready");
+  message.textContent = issues.length ? issues.length + " item(s) to review. You can still import, but unmapped or invalid fields will limit related analytics." : "No mapping or value-format warnings detected in the checked fields.";
+  host.append(message);
+  if (issues.length) {
+    const list = document.createElement("ul");
+    list.className = "import-quality-issues";
+    issues.slice(0, 8).forEach(issue => {
+      const item = document.createElement("li");
+      item.textContent = issue;
+      list.append(item);
+    });
+    host.append(list);
+  }
+}
 function renderImportReview(){
   if(!pendingImport)return;
   const review=document.querySelector("#import-review"),mappings=document.querySelector("#import-column-mapping"),head=document.querySelector("#import-preview-head"),body=document.querySelector("#import-preview-body");
@@ -1764,6 +1841,7 @@ function renderImportReview(){
     });
     label.append(title,select);mappings.append(label);
   });
+  renderImportQualitySummary();
   head.replaceChildren();body.replaceChildren();
   const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
   pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
