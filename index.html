@@ -149,80 +149,49 @@
         </section>
 
           <section class="page" id="analytics">
-          <div class="page-heading">
+          <div class="page-heading analytics-page-heading">
             <p class="eyebrow">PERFORMANCE INTELLIGENCE</p>
             <h1>Analytics</h1>
-            <p class="subtitle">Understand performance, track trends, and measure progress.</p>
+            <p class="subtitle">See what your records can prove, understand where information is missing, and decide what to measure next.</p>
           </div>
 
-          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span>Revenue, customer, and conversion metrics are not populated with sample values. Goal progress reflects the goals currently loaded in this workspace.</span>
+          <div class="analytics-truth-note" role="note">
+            <span class="analytics-truth-icon">i</span>
+            <p>BusinessFlow only reports figures supported by your saved data. Missing information stays clearly marked instead of being replaced with estimates.</p>
+            <button type="button" class="text-button" data-go-to="data-import">Manage data</button>
           </div>
 
-          <div class="section-heading">
-            <div>
-              <h2>Performance overview</h2>
-              <p class="muted">Connect a real source to populate business indicators</p>
+          <article class="panel analytics-coverage-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">DATA COVERAGE</p><h2>What this analysis can see</h2><p class="muted">Coverage updates when your selected business workspace is analysed.</p></div>
+              <span class="count-pill" id="analytics-engine-label">Not analysed</span>
             </div>
-            <label class="period-control">Period
-              <select id="analytics-period">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="metrics-grid">
-            <article class="metric-card">
-              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value" data-metric-value="active-experiments">0</strong>
-              <p class="metric-note" data-metric-note="active-experiments">From saved experiments</p>
-            </article>
-          </div>
-
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue trend</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
-              </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
-            </article>
-
-            <article class="panel">
-              <h2>Goal performance</h2>
-              <p class="muted">Progress calculated from your saved goals</p>
-              <div id="analytics-goals" class="goal-list">
-                <p class="empty-state">Goal performance will appear here.</p>
-              </div>
-            </article>
-          </div>
-
-          <article class="panel">
-            <h2>Business insights</h2>
-            <p class="muted">Insights should be based on reliable data, not assumptions.</p>
-            <div id="analytics-insights" class="insight-list"><p class="empty-state">Select a workspace to generate verified business insights.</p></div>
+            <div class="analytics-coverage-grid">
+              <div class="analytics-coverage-item"><span>Records analysed</span><strong id="analytics-record-count">—</strong><small>Saved records included in the latest analysis</small></div>
+              <div class="analytics-coverage-item"><span>Datasets included</span><strong id="analytics-dataset-count">—</strong><small>Datasets available to the analysis engine</small></div>
+              <div class="analytics-coverage-item"><span>Active experiments</span><strong data-metric-value="active-experiments">0</strong><small data-metric-note="active-experiments">From saved experiments</small></div>
+            </div>
+            <p id="analytics-coverage-status" class="muted analytics-coverage-status" role="status">Select a workspace to inspect its data coverage.</p>
           </article>
 
-          <footer class="app-footer">BusinessFlow · Performance intelligence</footer>
+          <div class="analytics-content-grid">
+            <article class="panel analytics-goals-panel">
+              <div class="panel-heading"><div><p class="eyebrow">BUSINESS PLANNING</p><h2>Goal progress</h2><p class="muted">Progress is calculated from your saved targets.</p></div><button type="button" class="text-button" data-go-to="goals">Manage goals</button></div>
+              <div id="analytics-goals" class="goal-list"><p class="empty-state">Goal performance will appear here.</p></div>
+            </article>
+            <article class="panel analytics-next-panel">
+              <p class="eyebrow">MAKE THE NEXT DECISION</p>
+              <h2>Turn a finding into an action</h2>
+              <p class="muted">Use your analysis to choose a small, measurable improvement. Track the result instead of relying on guesswork.</p>
+              <div class="analytics-next-actions"><button type="button" class="secondary-button" data-go-to="experiments">Review experiments</button><button type="button" class="primary-button" data-go-to="assistant">Discuss with AI</button></div>
+            </article>
+          </div>
+
+          <article class="panel analytics-insights-panel">
+            <div class="panel-heading"><div><p class="eyebrow">EVIDENCE-BASED FINDINGS</p><h2>Business insights</h2><p class="muted">Each finding includes the evidence and a suggested next step.</p></div><span class="count-pill">Workspace analysis</span></div>
+            <div id="analytics-insights" class="insight-list"><p class="empty-state">Select a workspace to generate verified business insights.</p></div>
+          </article>
+          <footer class="app-footer">BusinessFlow · Understand the evidence before making the decision.</footer>
         </section>
 
         <section class="page" id="experiments">
