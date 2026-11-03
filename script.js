@@ -1035,6 +1035,97 @@ function setupMemoryActions() {
   });
 }
 
+const LEGACY_IMPORT_KEY = "businessflow_legacy_import_v1";
+
+function legacyImportKey(businessId, type) {
+  return LEGACY_IMPORT_KEY + ":" + businessId + ":" + type;
+}
+function getLegacyImportState(businessId, type) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(legacyImportKey(businessId, type)) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter(value => typeof value === "string") : []);
+  } catch { return new Set(); }
+}
+function saveLegacyImportState(businessId, type, ids) {
+  try {
+    localStorage.setItem(legacyImportKey(businessId, type), JSON.stringify([...ids]));
+    return true;
+  } catch {
+    showToast("Import progress could not be saved. No local records were removed.");
+    return false;
+  }
+}
+function setLegacyImportButtons() {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  document.querySelectorAll("[data-import-legacy]").forEach(button => {
+    const type = button.dataset.importLegacy;
+    const ready = cloud?.signedIn && cloud.apiConnected && cloud.businessId &&
+      cloudCollectionWorkspaceId === cloud.businessId &&
+      (type === "experiments" ? cloudExperiments : cloudMemories);
+    button.hidden = !ready;
+    button.disabled = !ready;
+  });
+}
+async function importLegacyCollection(type) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId ||
+      cloud.businessId !== cloudCollectionWorkspaceId) {
+    showToast("Select a cloud-connected business workspace first.");
+    return;
+  }
+  const isExperiment = type === "experiments";
+  const localItems = loadCollection(isExperiment ? EXPERIMENTS_KEY : MEMORY_KEY)
+    .filter(isExperiment ? isValidExperiment : isValidMemory);
+  const imported = getLegacyImportState(cloud.businessId, type);
+  const pending = localItems.filter(item => !imported.has(String(item.id)));
+  if (!pending.length) {
+    showToast("No new local records need importing. Your browser copy is preserved.");
+    return;
+  }
+  const label = isExperiment ? "experiments" : "business memory entries";
+  if (!confirm("Import " + pending.length + " " + label + " into this business workspace? Existing cloud records will not be overwritten. Your browser copy will remain unchanged.")) return;
+
+  const button = document.querySelector('[data-import-legacy="' + type + '"]');
+  if (button) button.disabled = true;
+  let succeeded = 0;
+  const failed = [];
+  try {
+    for (const item of pending) {
+      try {
+        if (isExperiment) {
+          const payload = experimentToCloud(item);
+          payload.status = item.status === "review" ? "draft" : item.status;
+          const created = await window.BusinessFlowCloud.createExperiment(cloud.businessId, payload);
+          if (!created?.id) throw new Error("API did not return a saved experiment ID.");
+        } else {
+          const payload = memoryToCloud(item);
+          const created = await window.BusinessFlowCloud.createMemory(cloud.businessId, payload);
+          if (!created?.id) throw new Error("API did not return a saved memory ID.");
+        }
+        imported.add(String(item.id));
+        succeeded += 1;
+        if (!saveLegacyImportState(cloud.businessId, type, imported)) break;
+      } catch (error) {
+        failed.push(item.title + ": " + error.message);
+      }
+    }
+    await loadCloudCollections(cloud.businessId);
+    if (failed.length) {
+      console.error("Legacy import failures:", failed);
+      showToast(succeeded + " imported; " + failed.length + " failed. Local data remains intact. Retry after checking the errors.");
+    } else {
+      showToast(succeeded + " " + label + " imported. Browser copies are preserved.");
+    }
+  } finally {
+    setLegacyImportButtons();
+  }
+}
+function setupLegacyImportActions() {
+  document.querySelectorAll("[data-import-legacy]").forEach(button => {
+    button.addEventListener("click", () => void importLegacyCollection(button.dataset.importLegacy));
+  });
+}
+
 function setupMemorySearch() {
   const search = document.querySelector("#memory-search");
   if (!search) return;
@@ -1402,7 +1493,7 @@ function initializeBusinessFlow() {
 
   setupMemoryForm();
   setupMemoryActions();
-  setupMemorySearch();
+  setupMemorySearch();\n  setupLegacyImportActions();
 
   renderGoals();
   renderExperiments();
