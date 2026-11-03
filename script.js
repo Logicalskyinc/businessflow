@@ -1390,6 +1390,26 @@ function renderBusinessInsights() {
     return;
   }
   const coverage = result.coverage || {};
+  const metrics = result.metrics || {};
+  const currency = String(metrics.revenueCurrency || result.business?.currencyCode || "XOF").toUpperCase();
+  const money = value => value == null ? "—" : new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value) + " " + currency;
+  const metricCards = document.querySelectorAll("#overview .metrics-grid .metric-card, #analytics .metrics-grid .metric-card");
+  for (let offset = 0; offset < metricCards.length; offset += 4) {
+    const values = [
+      { value: money(metrics.revenueTotal), note: metrics.revenueTotal == null ? "No mapped revenue field" : "Imported dataset total · " + (coverage.recordsAnalysed || 0) + " records" },
+      { value: metrics.customers == null ? "—" : new Intl.NumberFormat().format(metrics.customers), note: metrics.customers == null ? "No customer identifier mapped" : "Distinct customers in imported records" },
+      { value: "—", note: "Unavailable · no funnel or lead-stage data" },
+      { value: String(coverage.activeExperimentsCount ?? 0), note: "Planned or running workspace experiments" }
+    ];
+    values.forEach((item, index) => {
+      const card = metricCards[offset + index];
+      if (!card) return;
+      const value = card.querySelector(".metric-value");
+      const note = card.querySelector(".metric-note");
+      if (value) value.textContent = item.value;
+      if (note) note.textContent = item.note;
+    });
+  }
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
