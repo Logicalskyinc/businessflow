@@ -1836,7 +1836,7 @@ function renderImportReview(){
     select.value=guess;
     select.addEventListener("change",()=>{
       const selected=select.value;
-      if(!selected)return;
+      if(!selected){renderImportQualitySummary();return;}
       const duplicate=[...mappings.querySelectorAll("[data-import-column]")].find(other=>other!==select&&other.value===selected);
       if(duplicate){
         duplicate.value="";
