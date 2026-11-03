@@ -1754,10 +1754,14 @@ function renderImportQualitySummary() {
   const issues = [];
   const duplicateNames = columns.filter((name, index) => columns.indexOf(name) !== index);
   if (duplicateNames.length) issues.push(duplicateNames.length + " duplicate source column labels were renamed to keep them distinct.");
-  required.forEach(field => {
+  ["revenue", "order_date"].forEach(field => {
     const select = [...document.querySelectorAll("[data-import-column]")].find(item => item.value === field);
     if (!select) issues.push("No " + field.replace("_", " ") + " column mapped. Related analytics will remain unavailable.");
   });
+  const hasCustomerIdentity = ["customer_id", "customer_name", "email", "phone"].some(field =>
+    [...document.querySelectorAll("[data-import-column]")].some(item => item.value === field)
+  );
+  if (!hasCustomerIdentity) issues.push("No customer identifier mapped. Customer counts will remain unavailable.");
   for (const select of mapped) {
     const field = select.value;
     if (numericFields.has(field)) {
@@ -2049,6 +2053,7 @@ function setupDataImport(){
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
   window.addEventListener("businessflow:cloud-state",loadSavedImports);
+  window.addEventListener("businessflow:workspace-changed",loadSavedImports);
   renderImportReview();
   loadSavedImports();
 }
