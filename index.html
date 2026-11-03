@@ -439,6 +439,36 @@
         <div class="workspace-upgrade-note" id="business-workspace-upgrade" hidden><strong>Business limit reached</strong><p>Your Starter plan includes 2 businesses. Upgrade your plan to add more.</p></div>
       </article>
     </div>
+    <section class="panel billing-panel" id="businessflow-billing" aria-labelledby="billing-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">BUSINESSFLOW BILLING</p>
+          <h2 id="billing-heading">Plan and subscription</h2>
+          <p class="muted">Manage the plan attached to your selected business workspace.</p>
+        </div>
+        <span class="workspace-plan-pill" id="billing-environment-label">SECURE BILLING</span>
+      </div>
+      <div class="billing-current" aria-live="polite">
+        <div>
+          <span class="billing-label">CURRENT PLAN</span>
+          <strong id="billing-current-plan">Starter</strong>
+          <p id="billing-current-status">Free workspace access. No payment method required.</p>
+        </div>
+        <button type="button" class="secondary-button" id="billing-portal-button" hidden>Manage subscription</button>
+      </div>
+      <p class="billing-feedback" id="billing-feedback" role="status" aria-live="polite">Sign in and select a workspace to load billing details.</p>
+      <div class="billing-plans-heading">
+        <div><h3>Available plans</h3><p class="muted">Prices and features appear here when plans are configured.</p></div>
+      </div>
+      <div class="billing-plan-grid" id="billing-plan-list">
+        <p class="empty-state">Loading available plans…</p>
+      </div>
+      <div class="billing-entitlements" id="billing-entitlements" hidden>
+        <h3>Included with your plan</h3>
+        <ul id="billing-entitlement-list"></ul>
+      </div>
+      <p class="billing-footnote">Payments are handled by Stripe Checkout. BusinessFlow does not store card details. Subscription access updates after Stripe confirms the payment through its signed webhook.</p>
+    </section>
     <div class="account-data-note account-data-note-simple"><div class="data-note-icon" aria-hidden="true">✓</div><div><strong>Your existing business stays connected.</strong><p>Your current business workspace remains unchanged. Adding another business creates a separate workspace and does not move or delete existing goals or records.</p></div></div>
   </div>
 </section>
