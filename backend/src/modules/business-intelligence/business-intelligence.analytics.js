@@ -10,13 +10,14 @@ const uniqueText = value => String(value ?? "").trim().toLowerCase();
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
-  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0;
+  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0, costMapped = false, invalidCostValues = 0, costValueCount = 0, costTotal = 0;
   const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), monthlyCustomerActivity = new Map(), dateValues = [];
   for (const dataset of imports) {
     const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
     const fields = {};
     for (const [column, field] of Object.entries(mapping)) if (field) fields[field] = column;
     revenueMapped ||= Boolean(fields.revenue);
+    costMapped ||= Boolean(fields.cost);
     customerMapped ||= Boolean(fields.customer_id || fields.email || fields.customer_name);
     productMapped ||= Boolean(fields.product);
     dateMapped ||= Boolean(fields.order_date);
@@ -63,6 +64,11 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         else { revenueTotal += amount; revenueValueCount++; }
       }
       const amountForBreakdown = fields.revenue ? numericValue(row[fields.revenue]) : null;
+      const costAmount = fields.cost ? numericValue(row[fields.cost]) : null;
+      if (fields.cost) {
+        if (costAmount === null) invalidCostValues++;
+        else { costTotal += costAmount; costValueCount++; }
+      }
       let customer = "";
       if (fields.customer_id || fields.email || fields.customer_name) {
         customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
@@ -222,9 +228,16 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) })),
       productPerformance,
       customerValueDistribution,
-      customerValueRecords: customerSpend.size, monthlyRetention
+      customerValueRecords: customerSpend.size,
+      costTotal: costMapped && costValueCount ? Number(costTotal.toFixed(2)) : null,
+      costRecords: costValueCount,
+      grossProfit: revenueMapped && costMapped && revenueValueCount && costValueCount
+        ? Number((revenueTotal - costTotal).toFixed(2)) : null,
+      grossMarginPercent: revenueMapped && costMapped && revenueTotal > 0 && revenueValueCount && costValueCount
+        ? Number(((revenueTotal - costTotal) / revenueTotal * 100).toFixed(1)) : null,
+      monthlyRetention
     },
-    dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, invalidRevenueValues,
+    dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, costMapped, invalidRevenueValues, invalidCostValues,
       notes: !rows.length ? ["No imported records are available."] : [
         ...(!revenueMapped ? ["Revenue field is not mapped."] : []),
         ...(!customerMapped ? ["Customer identity is not mapped."] : []),
