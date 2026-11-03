@@ -205,6 +205,17 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     summary: "At least one completed experiment has no recorded result summary.",
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
+  const monthKeys = [...new Set([...monthlyRevenue.keys(), ...monthlyCustomerActivity.keys()])].sort();
+  const monthlyPerformance = monthKeys.map(month => {
+    const revenue = monthlyRevenue.get(month);
+    const index = monthKeys.indexOf(month);
+    const previousMonth = index > 0 ? monthKeys[index - 1] : null;
+    const previousRevenue = previousMonth ? monthlyRevenue.get(previousMonth) : null;
+    return { month, revenue: revenue == null ? null : Number(revenue.toFixed(2)),
+      previousRevenue: previousRevenue == null ? null : Number(previousRevenue.toFixed(2)),
+      revenueChangePercent: revenue != null && previousRevenue != null && previousRevenue !== 0
+        ? Number(((revenue - previousRevenue) / Math.abs(previousRevenue) * 100).toFixed(1)) : null };
+  });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers], index, periods) => {
     const previous = index > 0 ? periods[index - 1][1] : new Set();
@@ -226,6 +237,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       topProduct: topProduct ? { name: topProduct[0], records: topProduct[1] } : null,
       dateRange: sortedDates.length ? { from: sortedDates[0], to: sortedDates.at(-1) } : null,
       monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) })),
+      monthlyPerformance,
       productPerformance,
       customerValueDistribution,
       customerValueRecords: customerSpend.size,
