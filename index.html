@@ -63,14 +63,14 @@
         <section class="page active" id="overview">
           <div class="notice">
             <strong>DATA STATUS</strong>
-            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
+            <span>Imported CSV and Excel datasets power evidence-based summaries. Metrics are labelled as imported data, not live integrations. Conversion analytics require funnel or lead-stage data.</span>
           </div>
 
           <div class="welcome-row">
             <div>
               <p class="eyebrow">BUSINESS INTELLIGENCE</p>
               <h1 id="overview-greeting">Good morning.</h1>
-              <p class="subtitle">Your business, clearly understood. Make confident decisions with reliable information.</p>
+              <p class="subtitle">One workspace for performance, decisions and business intelligence.</p>
             </div>
             <div class="welcome-actions">
               <button type="button" class="secondary-button" data-go-to="account" id="manage-workspace-button">Manage workspace</button>
@@ -91,7 +91,7 @@
           </article>
 
           <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey uses your selected business workspace, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
+            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey can use your imported dataset summaries, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
             <div class="bf-chat-layout">
               <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Grey conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
               <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
@@ -105,7 +105,7 @@
           <div class="section-heading">
             <div>
               <h2>Business overview</h2>
-              <p class="muted">Live indicators appear when you connect business data.</p>
+              <p class="muted">Imported dataset indicators. Live integrations are labelled separately when connected.</p>
             </div>
             <label class="period-control">Period
               <select id="period-select">
@@ -142,11 +142,11 @@
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue performance</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
+              <p class="muted">Imported revenue is summarised below. A time trend appears when valid transaction dates are mapped.</p>
               <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
+                <p class="empty-state">Revenue trend unavailable until transaction dates are mapped. Review the imported dataset analysis above.</p>
               </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
+              <p class="chart-disclaimer">Source: imported workspace datasets. Not a live accounting integration.</p>
             </article>
 
             <article class="panel">
