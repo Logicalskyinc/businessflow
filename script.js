@@ -1991,11 +1991,235 @@ function initializeBusinessFlowChat() {
   void loadConversations(false);
 }
 
+
+function initializeBusinessFlowBilling() {
+  const root = document.querySelector("#businessflow-billing");
+  if (!root || root.dataset.initialized === "true") return;
+  root.dataset.initialized = "true";
+
+  const currentPlan = root.querySelector("#billing-current-plan");
+  const currentStatus = root.querySelector("#billing-current-status");
+  const feedback = root.querySelector("#billing-feedback");
+  const planList = root.querySelector("#billing-plan-list");
+  const portalButton = root.querySelector("#billing-portal-button");
+  const entitlementsWrap = root.querySelector("#billing-entitlements");
+  const entitlementList = root.querySelector("#billing-entitlement-list");
+  let plans = [];
+  let subscription = null;
+  let busy = false;
+
+  const setFeedback = (message, isError = false) => {
+    feedback.textContent = message;
+    feedback.classList.toggle("is-error", isError);
+  };
+
+  const state = () => window.BusinessFlowCloud?.getState?.() ?? {};
+  const api = () => window.BusinessFlowCloud?.request;
+
+  function formatPrice(plan) {
+    if (plan.unit_amount == null || !plan.currency) return "Contact us for pricing";
+    try {
+      const currency = String(plan.currency).toUpperCase();
+      const digits = new Intl.NumberFormat(undefined, { style: "currency", currency }).resolvedOptions().maximumFractionDigits;
+      return new Intl.NumberFormat(undefined, {
+        style: "currency", currency, maximumFractionDigits: digits
+      }).format(Number(plan.unit_amount) / (10 ** digits));
+    } catch {
+      return String(plan.unit_amount) + " " + String(plan.currency).toUpperCase();
+    }
+  }
+
+  function readableInterval(interval) {
+    if (interval === "month") return "per month";
+    if (interval === "year") return "per year";
+    if (interval === "week") return "per week";
+    if (interval === "day") return "per day";
+    return "Recurring billing";
+  }
+
+  function readableFeature(key) {
+    return String(key).replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+  }
+
+  function renderPlans() {
+    planList.replaceChildren();
+    if (!plans.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "Paid plans are not configured yet. Starter remains available while pricing is prepared.";
+      planList.append(empty);
+      return;
+    }
+
+    for (const plan of plans) {
+      const card = document.createElement("article");
+      card.className = "billing-plan-card";
+      const heading = document.createElement("div");
+      heading.className = "billing-plan-top";
+      const title = document.createElement("h4");
+      title.textContent = plan.display_name || readableFeature(plan.plan_key);
+      const price = document.createElement("strong");
+      price.className = "billing-price";
+      price.textContent = formatPrice(plan);
+      const interval = document.createElement("span");
+      interval.className = "billing-interval";
+      interval.textContent = plan.billing_interval ? readableInterval(plan.billing_interval) : "Plan pricing";
+      heading.append(title, price, interval);
+      card.append(heading);
+
+      const features = plan.entitlements && typeof plan.entitlements === "object"
+        ? Object.entries(plan.entitlements).filter(([, value]) => value === true || (value && typeof value === "object" && value.enabled !== false))
+        : [];
+      const list = document.createElement("ul");
+      list.className = "billing-feature-list";
+      for (const [key, value] of features.slice(0, 6)) {
+        const item = document.createElement("li");
+        const detail = value && typeof value === "object" && value.limit != null
+          ? " · " + Number(value.limit).toLocaleString() + " included"
+          : "";
+        item.textContent = readableFeature(key) + detail;
+        list.append(item);
+      }
+      if (features.length) card.append(list);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "primary-button billing-select-button";
+      const isCurrent = subscription?.plan_key === plan.plan_key && ["active", "trialing", "past_due"].includes(subscription.status);
+      button.textContent = isCurrent ? "Current plan" : "Choose " + (plan.display_name || "plan");
+      button.disabled = busy || isCurrent || Boolean(subscription && ["active", "trialing", "past_due"].includes(subscription.status));
+      button.addEventListener("click", () => startCheckout(plan.plan_key, button));
+      card.append(button);
+      planList.append(card);
+    }
+  }
+
+  function renderEntitlements(items) {
+    entitlementList.replaceChildren();
+    const valid = Array.isArray(items) ? items.filter(item => item && item.enabled) : [];
+    if (!valid.length) {
+      entitlementsWrap.hidden = true;
+      return;
+    }
+    for (const item of valid) {
+      const li = document.createElement("li");
+      const limit = item.limit_value == null ? "" : " · limit " + Number(item.limit_value).toLocaleString();
+      li.textContent = readableFeature(item.feature_key) + limit;
+      entitlementList.append(li);
+    }
+    entitlementsWrap.hidden = false;
+  }
+
+  async function loadBilling() {
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId || typeof api() !== "function") {
+      currentPlan.textContent = "Starter";
+      currentStatus.textContent = "Sign in and select a connected business workspace to view its billing status.";
+      portalButton.hidden = true;
+      plans = [];
+      subscription = null;
+      renderPlans();
+      renderEntitlements([]);
+      setFeedback("Billing is waiting for an authenticated workspace.");
+      return;
+    }
+
+    setFeedback("Loading plans and subscription details…");
+    portalButton.hidden = true;
+    try {
+      const businessId = encodeURIComponent(current.businessId);
+      const [planResult, subscriptionResult, entitlementResult] = await Promise.all([
+        api()("/api/billing/plans"),
+        api()("/api/billing/subscription?business_id=" + businessId),
+        api()("/api/billing/entitlements?business_id=" + businessId)
+      ]);
+      if (state().businessId !== current.businessId) return;
+
+      plans = Array.isArray(planResult.plans) ? planResult.plans : [];
+      subscription = subscriptionResult.subscription ?? null;
+      const active = subscription && ["active", "trialing", "past_due"].includes(subscription.status);
+      const matchingPlan = plans.find(item => item.plan_key === subscription?.plan_key);
+      currentPlan.textContent = active
+        ? (matchingPlan?.display_name || readableFeature(subscription.plan_key || "Paid plan"))
+        : "Starter";
+      if (active) {
+        const statusLabel = subscription.status.replace(/_/g, " ");
+        const renewal = subscription.current_period_end
+          ? " · current period ends " + new Date(subscription.current_period_end).toLocaleDateString()
+          : "";
+        currentStatus.textContent = statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1) + renewal +
+          (subscription.cancel_at_period_end ? " · cancellation scheduled" : "");
+        portalButton.hidden = false;
+      } else {
+        currentStatus.textContent = "Free workspace access. No payment method required.";
+        portalButton.hidden = !current.businessId;
+      }
+      renderPlans();
+      renderEntitlements(entitlementResult.entitlements);
+      setFeedback(plans.length ? "Billing details are up to date for " + (current.businessName || "this workspace") + "." : "No paid plans are active yet. Starter remains available.");
+    } catch (error) {
+      plans = [];
+      renderPlans();
+      setFeedback(error.message || "Could not load billing details. Try again shortly.", true);
+    }
+  }
+
+  async function startCheckout(planKey, button) {
+    const current = state();
+    if (busy || !current.businessId) return;
+    busy = true;
+    button.disabled = true;
+    setFeedback("Preparing secure Stripe Checkout…");
+    try {
+      const result = await api()("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ business_id: current.businessId, plan_key: planKey })
+      });
+      if (!result.checkout_url || !/^https:\/\/checkout\.stripe\.com\//i.test(result.checkout_url)) {
+        throw new Error("Stripe did not return a valid Checkout URL.");
+      }
+      window.location.assign(result.checkout_url);
+    } catch (error) {
+      setFeedback(error.message || "Could not start checkout.", true);
+      busy = false;
+      renderPlans();
+    }
+  }
+
+  portalButton.addEventListener("click", async () => {
+    const current = state();
+    if (busy || !current.businessId) return;
+    busy = true;
+    portalButton.disabled = true;
+    setFeedback("Opening Stripe's secure billing portal…");
+    try {
+      const result = await api()("/api/billing/portal", {
+        method: "POST",
+        body: JSON.stringify({ business_id: current.businessId })
+      });
+      if (!result.portal_url || !/^https:\/\/billing\.stripe\.com\//i.test(result.portal_url)) {
+        throw new Error("Stripe did not return a valid billing portal URL.");
+      }
+      window.location.assign(result.portal_url);
+    } catch (error) {
+      setFeedback(error.message || "Could not open the billing portal.", true);
+      busy = false;
+      portalButton.disabled = false;
+    }
+  });
+
+  window.addEventListener("businessflow:cloud-state", () => { void loadBilling(); });
+  window.addEventListener("businessflow:workspace-changed", () => { void loadBilling(); });
+  void loadBilling();
+}
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => { initializeBusinessFlow(); initializeBusinessFlowChat(); }, {
+  document.addEventListener("DOMContentLoaded", () => { initializeBusinessFlow(); initializeBusinessFlowChat(); initializeBusinessFlowBilling(); }, {
     once: true
   });
 } else {
   initializeBusinessFlow();
   initializeBusinessFlowChat();
+  initializeBusinessFlowBilling();
 }
