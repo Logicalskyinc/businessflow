@@ -109,7 +109,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       let greyConversationId = conversation.grey_conversation_id;
       // The first Grey request must always be replayed with the same payload:
       // its original request omitted conversation_id because Grey created it.
-      const isOriginalInitializationMessage =
+      let isOriginalInitializationMessage =
         conversation.grey_initialization_message_id === userMessage.id;
       let grey;
 
@@ -184,6 +184,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
           }
         } else if (claim?.status === "ready" && isUuid(claim.conversation_id)) {
           greyConversationId = claim.conversation_id;
+          isOriginalInitializationMessage = claim.message_id === userMessage.id;
         } else {
           throw new GreyIntegrationError("Grey conversation initialization returned an invalid state.", 502);
         }
