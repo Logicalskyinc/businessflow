@@ -1859,7 +1859,7 @@ function initializeBusinessFlowChat() {
     }
     messages.innerHTML = items.map(item =>
       '<article class="bf-message ' + (item.role === "user" ? "user" : "assistant") + '"><span>' +
-      (item.role === "user" ? "YOU" : "BUSINESSFLOW INTELLIGENCE") + '</span><p>' +
+      (item.role === "user" ? "YOU" : "GREY") + '</span><p>' +
       formatText(item.content) + '</p></article>'
     ).join("");
     messages.scrollTop = messages.scrollHeight;
@@ -1885,7 +1885,7 @@ function initializeBusinessFlowChat() {
       renderList();
       if (activeConversationId) await loadMessages(activeConversationId);
       else renderMessages([]);
-      setStatus("Conversation history is saved to this business workspace.");
+      setStatus("Grey conversation history is saved to this business workspace.");
     } catch (error) {
       setStatus(error.message || "Could not load conversation history.");
     }
@@ -1915,7 +1915,7 @@ function initializeBusinessFlowChat() {
       renderList();
       renderMessages([]);
       input.focus();
-      setStatus("New conversation created. Your messages will be saved automatically.");
+      setStatus("New Grey conversation created. Messages are saved automatically.");
     } catch (error) {
       setStatus(error.message || "Could not create a conversation.");
     } finally {
@@ -1959,7 +1959,7 @@ function initializeBusinessFlowChat() {
     input.disabled = true;
     const previous = input.value;
     input.value = "";
-    setStatus("BusinessFlow Intelligence is reviewing your workspace…");
+    setStatus("Grey is reviewing your workspace…");
     try {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
         method: "POST",
