@@ -26,6 +26,62 @@ const EXPERIMENT_STATUSES = [
   "review",
   "completed"
 ];
+const MEMORY_CATEGORY_MAP = {
+  "Decision": "decision",
+  "Customer insight": "observation",
+  "Lesson learned": "lesson",
+  "Process": "business_context",
+  "Follow-up": "preference",
+  "Other": "business_context"
+};
+const MEMORY_LABEL_MAP = Object.fromEntries(
+  Object.entries(MEMORY_CATEGORY_MAP).map(([label, value]) => [value, label])
+);
+let cloudCollectionWorkspaceId = null;
+let cloudCollectionsBusy = false;
+let cloudExperiments = false;
+let cloudMemories = false;
+
+function experimentToCloud(item) {
+  return {
+    title: item.title,
+    hypothesis: item.hypothesis,
+    successMetric: item.baseline === null ? null : "Baseline: " + item.baseline,
+    status: item.status === "review" ? "draft" : item.status,
+    resultSummary: [item.result === null ? "" : "Result: " + item.result, item.notes].filter(Boolean).join("\\n") || null
+  };
+}
+function experimentFromCloud(item) {
+  const summary = String(item.result_summary || "");
+  const resultMatch = summary.match(/(?:^|\\n)Result:\\s*([0-9.]+)/);
+  const baselineMatch = String(item.success_metric || "").match(/Baseline:\\s*([0-9.]+)/);
+  return {
+    id: item.id, title: item.title || "", hypothesis: item.hypothesis || "",
+    baseline: baselineMatch ? Number(baselineMatch[1]) : null,
+    result: resultMatch ? Number(resultMatch[1]) : null,
+    status: item.status === "draft" ? "review" : item.status,
+    notes: summary.replace(/(?:^|\\n)Result:\\s*[0-9.]+/, "").trim(),
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString()
+  };
+}
+function memoryToCloud(item) {
+  return {
+    category: MEMORY_CATEGORY_MAP[item.category] || "business_context",
+    content: { title: item.title, date: item.date, text: item.content }
+  };
+}
+function memoryFromCloud(item) {
+  const content = item.content && typeof item.content === "object" ? item.content : {};
+  return {
+    id: item.id, title: String(content.title || "Business note"),
+    category: MEMORY_LABEL_MAP[item.category] || "Other",
+    date: String(content.date || (item.created_at || "").slice(0, 10)),
+    content: String(content.text || ""),
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString()
+  };
+}
 
 let goals = [];
 let experiments = [];
