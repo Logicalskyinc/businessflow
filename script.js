@@ -1600,25 +1600,99 @@ function renderBusinessInsights() {
   if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
 }
-async function loadBusinessInsights(businessId) {
+async function loadBusinessInsights(businessId, filters = getAnalyticsFilters()) {
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
     return;
   }
+  const requestId = ++analyticsRequestId;
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
+  updateAnalyticsFilterStatus(filters, "Updating analysis…");
   try {
-    const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    const result = await cloud.loadInsights(businessId, filters);
+    if (requestId !== analyticsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
   } catch (error) {
+    if (requestId !== analyticsRequestId) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
+    updateAnalyticsFilterStatus(filters, "Analysis could not be refreshed.");
     renderBusinessInsights();
   }
+}
+let analyticsRequestId = 0;
+function getAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period")?.value || "all";
+  const datasetId = document.querySelector("#analytics-dataset")?.value || "";
+  let from = "", to = "";
+  if (period === "custom") {
+    from = document.querySelector("#analytics-from")?.value || "";
+    to = document.querySelector("#analytics-to")?.value || "";
+  } else if (["7", "30", "90"].includes(period)) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (Number(period) - 1));
+    from = start.toISOString().slice(0, 10);
+    to = end.toISOString().slice(0, 10);
+  }
+  return { datasetId, from, to };
+}
+function updateAnalyticsFilterStatus(filters = {}, message = "") {
+  const status = document.querySelector("#analytics-filter-status");
+  if (!status) return;
+  const dataset = importedDatasets.find(item => item.id === filters.datasetId);
+  const parts = [];
+  parts.push(dataset ? dataset.name : "All datasets");
+  if (filters.from || filters.to) parts.push((filters.from || "Beginning") + " to " + (filters.to || "Today"));
+  else parts.push("All available dates");
+  status.textContent = (message ? message + " " : "Showing ") + parts.join(" · ");
+}
+function syncAnalyticsDatasetOptions() {
+  const select = document.querySelector("#analytics-dataset");
+  if (!select) return;
+  const selected = select.value;
+  select.replaceChildren();
+  const all = document.createElement("option"); all.value = ""; all.textContent = "All datasets"; select.append(all);
+  importedDatasets.forEach(dataset => {
+    const option = document.createElement("option"); option.value = dataset.id;
+    option.textContent = dataset.name + " · " + Number(dataset.row_count || 0).toLocaleString() + " rows";
+    select.append(option);
+  });
+  select.value = importedDatasets.some(item => item.id === selected) ? selected : "";
+}
+function setupAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period");
+  const dataset = document.querySelector("#analytics-dataset");
+  const from = document.querySelector("#analytics-from");
+  const to = document.querySelector("#analytics-to");
+  const reset = document.querySelector("#analytics-reset");
+  if (!period || period.dataset.bound) return;
+  period.dataset.bound = "true";
+  const update = () => {
+    const custom = period.value === "custom";
+    if (from) from.disabled = !custom;
+    if (to) to.disabled = !custom;
+    const filters = getAnalyticsFilters();
+    if (filters.from && filters.to && filters.from > filters.to) {
+      updateAnalyticsFilterStatus(filters, "The start date must be before the end date.");
+      return;
+    }
+    const businessId = window.BusinessFlowCloud?.getBusinessId?.();
+    if (businessId) void loadBusinessInsights(businessId, filters);
+  };
+  [period, dataset, from, to].forEach(control => control?.addEventListener("change", update));
+  reset?.addEventListener("click", () => {
+    period.value = "all";
+    if (dataset) dataset.value = "";
+    if (from) from.value = "";
+    if (to) to.value = "";
+    update();
+  });
+  update();
 }
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
@@ -1664,6 +1738,7 @@ function initializeBusinessFlow() {
   loadMemories();
 
   setupNavigation();
+  setupAnalyticsFilters();
   setupConnections();
   setupDataImport();
 
@@ -2034,7 +2109,7 @@ async function loadSavedImports(){
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];renderDatasetPortfolio();list.replaceChildren();
+    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
