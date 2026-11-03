@@ -1092,6 +1092,26 @@ function setLegacyImportButtons() {
     button.disabled = !ready;
   });
 }
+function normalizeLegacyMemoryContent(value) {
+  if (value && typeof value === "object") return JSON.stringify(value);
+  if (typeof value !== "string") return "";
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? JSON.stringify(parsed) : JSON.stringify({ text: value });
+  } catch { return JSON.stringify({ text: value }); }
+}
+function sameLegacyRecord(local, remote, type) {
+  if (type === "experiments") {
+    const expected = experimentToCloud(local);
+    return String(remote.title || "").trim() === expected.title &&
+      String(remote.hypothesis || "").trim() === expected.hypothesis &&
+      String(remote.success_metric || "").trim() === String(expected.successMetric || "").trim() &&
+      String(remote.result_summary || "").trim() === String(expected.resultSummary || "").trim();
+  }
+  const expected = memoryToCloud(local);
+  return remote.category === expected.category &&
+    normalizeLegacyMemoryContent(remote.content) === normalizeLegacyMemoryContent(expected.content);
+}
 async function importLegacyCollection(type) {
   const cloud = window.BusinessFlowCloud?.getState?.();
   if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId ||
@@ -1099,6 +1119,7 @@ async function importLegacyCollection(type) {
     showToast("Select a cloud-connected business workspace first.");
     return;
   }
+  if (type !== "experiments" && type !== "memory") return;
   const isExperiment = type === "experiments";
   const localItems = loadCollection(isExperiment ? EXPERIMENTS_KEY : MEMORY_KEY)
     .filter(isExperiment ? isValidExperiment : isValidMemory);
@@ -1109,28 +1130,39 @@ async function importLegacyCollection(type) {
     return;
   }
   const label = isExperiment ? "experiments" : "business memory entries";
-  if (!confirm("Import " + pending.length + " " + label + " into this business workspace? Existing cloud records will not be overwritten. Your browser copy will remain unchanged.")) return;
+  if (!confirm("Check and import " + pending.length + " local " + label + "? Matching cloud records will be skipped. Your browser copy will remain unchanged.")) return;
 
   const button = document.querySelector('[data-import-legacy="' + type + '"]');
   if (button) button.disabled = true;
-  let succeeded = 0;
+  let createdCount = 0;
+  let skippedCount = 0;
   const failed = [];
   try {
+    const remoteItems = isExperiment
+      ? await window.BusinessFlowCloud.loadExperiments(cloud.businessId)
+      : await window.BusinessFlowCloud.loadMemory(cloud.businessId);
+    if (window.BusinessFlowCloud.getState()?.businessId !== cloud.businessId) {
+      throw new Error("The selected workspace changed during import. No further records were submitted.");
+    }
     for (const item of pending) {
       try {
-        if (isExperiment) {
-          const payload = experimentToCloud(item);
-          payload.status = item.status === "review" ? "draft" : item.status;
-          const created = await window.BusinessFlowCloud.createExperiment(cloud.businessId, payload);
-          if (!created?.id) throw new Error("API did not return a saved experiment ID.");
+        const duplicate = remoteItems.find(remote => sameLegacyRecord(item, remote, type));
+        if (duplicate) {
+          imported.add(String(item.id));
+          skippedCount += 1;
         } else {
-          const payload = memoryToCloud(item);
-          const created = await window.BusinessFlowCloud.createMemory(cloud.businessId, payload);
-          if (!created?.id) throw new Error("API did not return a saved memory ID.");
+          const created = isExperiment
+            ? await window.BusinessFlowCloud.createExperiment(cloud.businessId, experimentToCloud(item))
+            : await window.BusinessFlowCloud.createMemory(cloud.businessId, memoryToCloud(item));
+          if (!created?.id) throw new Error("API did not confirm a saved record ID.");
+          remoteItems.push(created);
+          imported.add(String(item.id));
+          createdCount += 1;
         }
-        imported.add(String(item.id));
-        succeeded += 1;
-        if (!saveLegacyImportState(cloud.businessId, type, imported)) break;
+        if (!saveLegacyImportState(cloud.businessId, type, imported)) {
+          failed.push(item.title + ": import progress could not be recorded");
+          break;
+        }
       } catch (error) {
         failed.push(item.title + ": " + error.message);
       }
@@ -1138,9 +1170,9 @@ async function importLegacyCollection(type) {
     await loadCloudCollections(cloud.businessId);
     if (failed.length) {
       console.error("Legacy import failures:", failed);
-      showToast(succeeded + " imported; " + failed.length + " failed. Local data remains intact. Retry after checking the errors.");
+      showToast(createdCount + " imported, " + skippedCount + " matching cloud records skipped, " + failed.length + " failed. Browser data remains intact.");
     } else {
-      showToast(succeeded + " " + label + " imported. Browser copies are preserved.");
+      showToast(createdCount + " imported, " + skippedCount + " already-existing records skipped. Browser data remains intact.");
     }
   } finally {
     setLegacyImportButtons();
