@@ -317,6 +317,7 @@ function renderGoals() {
   if (count) count.textContent = goals.length + (goals.length === 1 ? " goal" : " goals");
 
   updateStorageStatus();
+  renderExperimentGoalOptions();
 }
 
 async function createGoal(title, current, target, unit) {
@@ -599,6 +600,7 @@ function loadExperiments() {
         ? null
         : Number(item.result),
       status: item.status,
+      goalId: typeof item.goalId === "string" ? item.goalId : "",
       notes: String(item.notes ?? "").slice(0, 2000),
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
@@ -631,7 +633,22 @@ function renderOverviewExperiments() {
     }).join("");
 }
 
+function renderExperimentGoalOptions(selectedGoalId = null) {
+  const select = document.querySelector("#experiment-goal");
+  if (!select) return;
+
+  const selected = selectedGoalId === null ? select.value : selectedGoalId;
+  const options = goals.map(goal =>
+    '<option value="' + escapeHTML(goal.id) + '">' +
+    escapeHTML(goal.title) + '</option>'
+  ).join("");
+
+  select.innerHTML = '<option value="">No linked goal</option>' + options;
+  select.value = goals.some(goal => goal.id === selected) ? selected : "";
+}
+
 function renderExperiments() {
+  renderExperimentGoalOptions();
   const container = document.querySelector("#experiment-list");
   const count = document.querySelector("#experiment-count");
 
@@ -667,6 +684,12 @@ function renderExperiments() {
 
         <p><strong>Hypothesis</strong></p>
         <p>${formatText(item.hypothesis)}</p>
+        ${item.goalId ? (() => {
+          const linkedGoal = goals.find(goal => goal.id === item.goalId);
+          return '<p class="muted"><strong>Related goal:</strong> ' +
+            (linkedGoal ? escapeHTML(linkedGoal.title) : "Goal no longer available") +
+            '</p>';
+        })() : ""}
 
         <div class="record-details">
           <p><strong>Baseline:</strong>
@@ -739,6 +762,7 @@ function setupExperimentForm() {
     ).value.trim();
     const status = document.querySelector("#experiment-status").value;
     const notes = document.querySelector("#experiment-notes").value.trim();
+    const goalId = document.querySelector("#experiment-goal").value;
 
     const baseline = baselineInput === "" ? null : Number(baselineInput);
     const result = resultInput === "" ? null : Number(resultInput);
@@ -779,6 +803,11 @@ function setupExperimentForm() {
       return;
     }
 
+    if (goalId && !goals.some(goal => goal.id === goalId)) {
+      showToast("Choose an available business goal or clear the selection.");
+      return;
+    }
+
     const now = new Date().toISOString();
 
     if (editingExperimentId !== null) {
@@ -797,6 +826,7 @@ function setupExperimentForm() {
         baseline,
         result,
         status,
+        goalId,
         notes,
         updatedAt: now
       });
@@ -819,6 +849,7 @@ function setupExperimentForm() {
       baseline,
       result,
       status,
+      goalId,
       notes,
       createdAt: now,
       updatedAt: now
@@ -880,6 +911,7 @@ function handleExperimentAction(action, id) {
   document.querySelector("#experiment-result").value =
     item.result === null ? "" : String(item.result);
   document.querySelector("#experiment-status").value = item.status;
+  renderExperimentGoalOptions(item.goalId || "");
   document.querySelector("#experiment-notes").value = item.notes;
 
   setExperimentFormMode(true);
