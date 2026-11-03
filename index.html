@@ -250,45 +250,43 @@
         </section>
 
         <section class="page" id="goals">
-          <div class="page-heading">
+          <div class="page-heading goals-page-heading">
             <p class="eyebrow">BUSINESS PLANNING</p>
-            <h1>Business Goals</h1>
-            <p class="subtitle">Set measurable targets and track progress.</p>
+            <h1>Goals that move your business forward</h1>
+            <p class="subtitle">Choose a result that matters, set a measurable target, and update progress as real results come in.</p>
           </div>
 
-          <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Goals are stored locally unless you sign in, connect the API, and select a cloud workspace. Browser records are not overwritten automatically.</span>
+          <div class="goals-intro-note"><span>↗</span><p>A useful goal has one clear outcome, a number you can measure, and a current result you can update.</p></div>
+
+          <div class="goals-workspace-grid">
+            <article class="panel goals-list-panel">
+              <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS TARGETS</p><h2>Goal progress</h2><p class="muted">Update a result when your business makes progress.</p></div><span class="count-pill" id="goal-count">0 goals</span></div>
+              <div id="all-goals-list" class="record-list"></div>
+              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+            </article>
+            <article class="panel goals-create-panel">
+              <p class="eyebrow">MAKE A PLAN</p>
+              <h2>Create a business goal</h2>
+              <p class="muted">Start with one outcome you can track. You can edit it later.</p>
+              <form id="goal-form" class="form-grid">
+                <label class="form-label full-span">What do you want to achieve?
+                  <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
+                </label>
+                <label class="form-label">Current result
+                  <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
+                </label>
+                <label class="form-label">Your target
+                  <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
+                </label>
+                <label class="form-label full-span">How will you measure it?
+                  <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
+                </label>
+                <button type="submit" class="primary-button full-span">Save goal</button>
+              </form>
+              <div class="goal-examples"><strong>Examples</strong><span>Get 20 new customers</span><span>Reach 500,000 FCFA in sales</span><span>Reduce missed appointments to 5</span></div>
+            </article>
           </div>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div><h2>Your goals</h2><p class="muted">Update your current result to calculate progress.</p></div>
-              <span class="count-pill" id="goal-count">0</span>
-            </div>
-            <div id="all-goals-list" class="record-list"></div>
-            <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-          </article>
-
-          <article class="panel">
-            <h2>Create a business goal</h2>
-            <p class="muted">Choose a target that you can measure.</p>
-            <form id="goal-form" class="form-grid">
-              <label class="form-label full-span">Goal name
-                <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
-              </label>
-              <label class="form-label">Current value
-                <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
-              </label>
-              <label class="form-label">Target value
-                <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
-              </label>
-              <label class="form-label full-span">Measurement unit
-                <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
-              </label>
-              <button type="submit" class="primary-button full-span">Save goal</button>
-            </form>
-          </article>
+          <footer class="app-footer">BusinessFlow · Progress you can measure and learn from.</footer>
         </section>
 
         <section class="page" id="business-memory">
