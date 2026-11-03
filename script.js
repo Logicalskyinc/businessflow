@@ -1601,13 +1601,13 @@ function renderBusinessInsights() {
   if (analytics) analytics.innerHTML = content;
 }
 async function loadBusinessInsights(businessId, filters = getAnalyticsFilters()) {
+  const requestId = ++analyticsRequestId;
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
     return;
   }
-  const requestId = ++analyticsRequestId;
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
   updateAnalyticsFilterStatus(filters, "Updating analysis…");
@@ -2103,7 +2103,7 @@ function renderDatasetPortfolio() {
     : "No datasets imported yet";
   if (detail) detail.textContent = fields.size + " standard business fields mapped across this workspace.";
 }
-async function loadSavedImports(){
+async async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
   if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
