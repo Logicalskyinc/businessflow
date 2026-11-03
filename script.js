@@ -775,172 +775,76 @@ function cancelExperimentEdit() {
 function setupExperimentForm() {
   const form = document.querySelector("#experiment-form");
   if (!form) return;
-
-  const cancelButton = document.querySelector("#experiment-cancel-edit");
-  cancelButton?.addEventListener("click", cancelExperimentEdit);
-
-  form.addEventListener("submit", event => {
+  document.querySelector("#experiment-cancel-edit")?.addEventListener("click", cancelExperimentEdit);
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-
     const title = document.querySelector("#experiment-title").value.trim();
-    const hypothesis = document.querySelector(
-      "#experiment-hypothesis"
-    ).value.trim();
-    const baselineInput = document.querySelector(
-      "#experiment-baseline"
-    ).value.trim();
-    const resultInput = document.querySelector(
-      "#experiment-result"
-    ).value.trim();
+    const hypothesis = document.querySelector("#experiment-hypothesis").value.trim();
+    const baselineInput = document.querySelector("#experiment-baseline").value.trim();
+    const resultInput = document.querySelector("#experiment-result").value.trim();
     const status = document.querySelector("#experiment-status").value;
     const notes = document.querySelector("#experiment-notes").value.trim();
-
     const baseline = baselineInput === "" ? null : Number(baselineInput);
     const result = resultInput === "" ? null : Number(resultInput);
-
-    if (!title || title.length > 120) {
-      showToast("Experiment name must contain 1–120 characters.");
-      return;
+    if (!title || title.length > 120 || !hypothesis || hypothesis.length > 1000 ||
+      (baselineInput !== "" && (!Number.isFinite(baseline) || baseline < 0)) ||
+      (resultInput !== "" && (!Number.isFinite(result) || result < 0)) ||
+      !EXPERIMENT_STATUSES.includes(status) || notes.length > 2000) {
+      showToast("Check the experiment fields and try again."); return;
     }
-
-    if (!hypothesis || hypothesis.length > 1000) {
-      showToast("Enter a hypothesis of up to 1,000 characters.");
-      return;
-    }
-
-    if (
-      baselineInput !== "" &&
-      (!Number.isFinite(baseline) || baseline < 0)
-    ) {
-      showToast("Baseline must be zero or greater, or left blank until measured.");
-      return;
-    }
-
-    if (
-      resultInput !== "" &&
-      (!Number.isFinite(result) || result < 0)
-    ) {
-      showToast("Test result must be zero or greater.");
-      return;
-    }
-
-    if (!EXPERIMENT_STATUSES.includes(status)) {
-      showToast("Choose a valid experiment status.");
-      return;
-    }
-
-    if (notes.length > 2000) {
-      showToast("Learning notes must be 2,000 characters or fewer.");
-      return;
-    }
-
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudExperiments);
     const now = new Date().toISOString();
-
-    if (editingExperimentId !== null) {
-      const item = experiments.find(entry => entry.id === editingExperimentId);
-
-      if (!item) {
-        cancelExperimentEdit();
-        showToast("Experiment not found. Please try editing it again.");
-        return;
+    const draft = { title, hypothesis, baseline, result, status, notes, updatedAt: now };
+    try {
+      if (editingExperimentId !== null) {
+        const item = experiments.find(entry => entry.id === editingExperimentId);
+        if (!item) { cancelExperimentEdit(); showToast("Experiment not found."); return; }
+        if (cloudMode) {
+          const saved = await window.BusinessFlowCloud.updateExperiment(cloud.businessId, item.id, experimentToCloud(draft));
+          Object.assign(item, experimentFromCloud(saved));
+        } else Object.assign(item, draft);
+        if (!cloudMode && !saveExperiments()) return;
+        renderExperiments(); cancelExperimentEdit(); showToast(cloudMode ? "Experiment updated in cloud." : "Experiment updated in this browser."); return;
       }
-
-      const previous = { ...item };
-      Object.assign(item, {
-        title,
-        hypothesis,
-        baseline,
-        result,
-        status,
-        notes,
-        updatedAt: now
-      });
-
-      if (!saveExperiments()) {
-        Object.assign(item, previous);
-        return;
-      }
-
-      renderExperiments();
-      cancelExperimentEdit();
-      showToast("Experiment updated in this browser.");
-      return;
-    }
-
-    experiments.unshift({
-      id: createId(),
-      title,
-      hypothesis,
-      baseline,
-      result,
-      status,
-      notes,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveExperiments()) {
-      experiments.shift();
-      return;
-    }
-
-    renderExperiments();
-    form.reset();
-    showToast("Experiment saved in this browser.");
+      const created = { id: createId(), ...draft, createdAt: now };
+      if (cloudMode) Object.assign(created, experimentFromCloud(await window.BusinessFlowCloud.createExperiment(cloud.businessId, experimentToCloud(created))));
+      experiments.unshift(created);
+      if (!cloudMode && !saveExperiments()) { experiments.shift(); return; }
+      renderExperiments(); form.reset(); showToast(cloudMode ? "Experiment saved to cloud." : "Experiment saved in this browser.");
+    } catch (error) { showToast("Experiment was not saved: " + error.message); }
   });
 }
 
-function handleExperimentAction(action, id) {
+async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
-  if (index < 0) {
-    showToast("Experiment not found.");
-    return;
-  }
-
+  if (index < 0) { showToast("Experiment not found."); return; }
   const item = experiments[index];
-
   if (action === "delete") {
-    if (!confirm(
-      'Delete "' + item.title +
-      '"? This removes it from this browser only.'
-    )) return;
-
-    const removed = experiments.splice(index, 1)[0];
-
-    if (!saveExperiments()) {
-      experiments.splice(index, 0, removed);
-      renderExperiments();
-      return;
-    }
-
-    if (editingExperimentId === id) cancelExperimentEdit();
-    renderExperiments();
-    showToast("Experiment deleted.");
+    if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudExperiments);
+    try {
+      if (cloudMode) await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id);
+      experiments.splice(index,1);
+      if (!cloudMode && !saveExperiments()) return;
+      if (editingExperimentId === id) cancelExperimentEdit();
+      renderExperiments(); showToast(cloudMode ? "Experiment deleted from cloud." : "Experiment deleted.");
+    } catch(error) { showToast("Could not delete experiment: " + error.message); }
     return;
   }
-
   if (action !== "edit") return;
-
   const form = document.querySelector("#experiment-form");
-  if (!form) {
-    showToast("The experiment form is unavailable.");
-    return;
-  }
-
-  editingExperimentId = id;
-  document.querySelector("#experiment-title").value = item.title;
-  document.querySelector("#experiment-hypothesis").value = item.hypothesis;
-  document.querySelector("#experiment-baseline").value =
-    item.baseline === null ? "" : String(item.baseline);
-  document.querySelector("#experiment-result").value =
-    item.result === null ? "" : String(item.result);
-  document.querySelector("#experiment-status").value = item.status;
-  document.querySelector("#experiment-notes").value = item.notes;
-
-  setExperimentFormMode(true);
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.querySelector("#experiment-title").focus({ preventScroll: true });
+  if (!form) return;
+  editingExperimentId=id;
+  document.querySelector("#experiment-title").value=item.title;
+  document.querySelector("#experiment-hypothesis").value=item.hypothesis;
+  document.querySelector("#experiment-baseline").value=item.baseline ?? "";
+  document.querySelector("#experiment-result").value=item.result ?? "";
+  document.querySelector("#experiment-status").value=item.status;
+  document.querySelector("#experiment-notes").value=item.notes;
+  setExperimentFormMode(true); form.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function setupExperimentActions() {
@@ -1051,172 +955,65 @@ function renderMemories() {
 function setupMemoryForm() {
   const form = document.querySelector("#memory-form");
   if (!form) return;
-
   const dateInput = document.querySelector("#memory-date");
-
-  if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().slice(0, 10);
-  }
-
-  form.addEventListener("submit", event => {
+  if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-
     const title = document.querySelector("#memory-title").value.trim();
     const category = document.querySelector("#memory-category").value;
     const date = document.querySelector("#memory-date").value;
     const content = document.querySelector("#memory-content").value.trim();
-
-    if (!title || title.length > 120) {
-      showToast("Title must contain 1–120 characters.");
-      return;
-    }
-
-    if (!MEMORY_CATEGORIES.includes(category)) {
-      showToast("Choose a valid memory category.");
-      return;
-    }
-
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      showToast("Choose a valid date.");
-      return;
-    }
-
     const parsedDate = new Date(date + "T00:00:00");
-    if (
-      Number.isNaN(parsedDate.getTime()) ||
-      parsedDate.toISOString().slice(0, 10) !== date
-    ) {
-      showToast("Choose a valid calendar date.");
-      return;
-    }
-
-    if (!content || content.length > 4000) {
-      showToast("Details must contain 1–4,000 characters.");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    memories.unshift({
-      id: createId(),
-      title,
-      category,
-      date,
-      content,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveMemories()) {
-      memories.shift();
-      return;
-    }
-
-    renderMemories();
-    form.reset();
-
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
-
-    showToast("Business memory saved in this browser.");
+    if (!title || title.length > 120 || !MEMORY_CATEGORIES.includes(category) || !date ||
+      Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10) !== date ||
+      !content || content.length > 4000) { showToast("Check the business memory fields and try again."); return; }
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudMemories);
+    const item = { id:createId(), title, category, date, content, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+    try {
+      if (cloudMode) Object.assign(item, memoryFromCloud(await window.BusinessFlowCloud.createMemory(cloud.businessId, memoryToCloud(item))));
+      memories.unshift(item);
+      if (!cloudMode && !saveMemories()) { memories.shift(); return; }
+      renderMemories(); form.reset(); if (dateInput) dateInput.value = new Date().toISOString().slice(0,10);
+      showToast(cloudMode ? "Business memory saved to cloud." : "Business memory saved in this browser.");
+    } catch (error) { showToast("Memory was not saved: " + error.message); }
   });
 }
 
-function handleMemoryAction(action, id) {
+async function handleMemoryAction(action, id) {
   const index = memories.findIndex(item => item.id === id);
-  if (index < 0) {
-    showToast("Memory entry not found.");
-    return;
-  }
-
+  if (index < 0) { showToast("Memory entry not found."); return; }
   const item = memories[index];
-
   if (action === "delete") {
-    if (!confirm(
-      'Delete "' + item.title +
-      '"? This removes it from this browser only.'
-    )) return;
-
-    const removed = memories.splice(index, 1)[0];
-
-    if (!saveMemories()) {
-      memories.splice(index, 0, removed);
-      renderMemories();
-      return;
-    }
-
-    renderMemories();
-    showToast("Memory entry deleted.");
+    if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudMemories);
+    try {
+      if (cloudMode) await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);
+      memories.splice(index,1);
+      if (!cloudMode && !saveMemories()) return;
+      renderMemories(); showToast(cloudMode ? "Memory deleted from cloud." : "Memory deleted.");
+    } catch(error) { showToast("Could not delete memory: " + error.message); }
     return;
   }
-
   if (action !== "edit") return;
-
-  const title = prompt("Memory title:", item.title);
-  if (title === null) return;
-
-  const category = prompt(
-    "Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",
-    item.category
-  );
-  if (category === null) return;
-
-  const date = prompt("Date (YYYY-MM-DD):", item.date);
-  if (date === null) return;
-
-  const content = prompt("Details:", item.content);
-  if (content === null) return;
-
-  const cleanCategory = category.trim();
-
-  if (!title.trim() || title.trim().length > 120) {
-    showToast("Title must contain 1–120 characters.");
-    return;
-  }
-
-  if (!MEMORY_CATEGORIES.includes(cleanCategory)) {
-    showToast("Use one of the listed memory categories.");
-    return;
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-    showToast("Date must use YYYY-MM-DD.");
-    return;
-  }
-
-  const parsedDate = new Date(date.trim() + "T00:00:00");
-  if (
-    Number.isNaN(parsedDate.getTime()) ||
-    parsedDate.toISOString().slice(0, 10) !== date.trim()
-  ) {
-    showToast("Choose a valid calendar date.");
-    return;
-  }
-
-  if (!content.trim() || content.trim().length > 4000) {
-    showToast("Details must contain 1–4,000 characters.");
-    return;
-  }
-
-  const previous = { ...item };
-
-  Object.assign(item, {
-    title: title.trim(),
-    category: cleanCategory,
-    date: date.trim(),
-    content: content.trim(),
-    updatedAt: new Date().toISOString()
-  });
-
-  if (!saveMemories()) {
-    Object.assign(item, previous);
-    return;
-  }
-
-  renderMemories();
-  showToast("Memory entry updated.");
+  const title=prompt("Memory title:",item.title); if(title===null)return;
+  const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category); if(category===null)return;
+  const date=prompt("Date (YYYY-MM-DD):",item.date); if(date===null)return;
+  const content=prompt("Details:",item.content); if(content===null)return;
+  const cleanCategory=category.trim(), cleanDate=date.trim();
+  const parsedDate=new Date(cleanDate+"T00:00:00");
+  if(!title.trim()||title.trim().length>120||!MEMORY_CATEGORIES.includes(cleanCategory)||Number.isNaN(parsedDate.getTime())||parsedDate.toISOString().slice(0,10)!==cleanDate||!content.trim()||content.trim().length>4000){showToast("Check the memory fields and try again.");return;}
+  const cloud=window.BusinessFlowCloud?.getState?.();
+  const cloudMode=Boolean(cloud?.signedIn&&cloud.apiConnected&&cloud.businessId&&cloudCollectionWorkspaceId===cloud.businessId&&cloudMemories);
+  const next={...item,title:title.trim(),category:cleanCategory,date:cleanDate,content:content.trim(),updatedAt:new Date().toISOString()};
+  try {
+    if(cloudMode) Object.assign(next,memoryFromCloud(await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryToCloud(next))));
+    Object.assign(item,next);
+    if(!cloudMode&&!saveMemories())return;
+    renderMemories();showToast(cloudMode?"Memory updated in cloud.":"Memory updated.");
+  } catch(error){showToast("Memory was not updated: "+error.message);}
 }
 
 function setupMemoryActions() {
