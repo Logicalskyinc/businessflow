@@ -15,7 +15,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: BUSINESSFLOW_ALLOWED_ORIGINS
-        value: https://logicalskyinc.github.io
+        value: https://businessflow-gba5.onrender.com,https://businessflow-test.onrender.com,https://logicalskyinc.github.io,https://growthflow-7tyx.onrender.com
       - key: SUPABASE_URL
         value: https://xsembvcmcodcseqnpyrr.supabase.co
       - key: SUPABASE_ANON_KEY
@@ -25,6 +25,6 @@ services:
       - key: OYOSKY_BUSINESSFLOW_SERVICE_TOKEN
         sync: false
       - key: GREY_SERVICE_URL
-        value: https://grey-chat-preview.onrender.com
+        value: https://grey-ai-service.onrender.com
       - key: GREY_BUSINESSFLOW_JWT_SECRET
         sync: false
