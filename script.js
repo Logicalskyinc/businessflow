@@ -2046,7 +2046,7 @@ function initializeBusinessFlowBilling() {
     if (!plans.length) {
       const empty = document.createElement("p");
       empty.className = "empty-state";
-      empty.textContent = "Paid plans are not configured yet. Starter remains available while pricing is prepared.";
+      empty.textContent = "Paid plans are being prepared. Starter remains available without a payment method.";
       planList.append(empty);
       return;
     }
@@ -2058,13 +2058,7 @@ function initializeBusinessFlowBilling() {
       heading.className = "billing-plan-top";
       const title = document.createElement("h4");
       title.textContent = plan.display_name || readableFeature(plan.plan_key);
-      const price = document.createElement("strong");
-      price.className = "billing-price";
-      price.textContent = formatPrice(plan);
-      const interval = document.createElement("span");
-      interval.className = "billing-interval";
-      interval.textContent = plan.billing_interval ? readableInterval(plan.billing_interval) : "Plan pricing";
-      heading.append(title, price, interval);
+      heading.append(title);
       card.append(heading);
 
       const features = plan.entitlements && typeof plan.entitlements === "object"
@@ -2082,14 +2076,27 @@ function initializeBusinessFlowBilling() {
       }
       if (features.length) card.append(list);
 
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "primary-button billing-select-button";
-      const isCurrent = subscription?.plan_key === plan.plan_key && ["active", "trialing", "past_due"].includes(subscription.status);
-      button.textContent = isCurrent ? "Current plan" : "Choose " + (plan.display_name || "plan");
-      button.disabled = busy || isCurrent || Boolean(subscription && ["active", "trialing", "past_due"].includes(subscription.status));
-      button.addEventListener("click", () => startCheckout(plan.plan_key, button));
-      card.append(button);
+      const variants = Array.isArray(plan.prices) ? plan.prices : [];
+      if (!variants.length) {
+        const pending = document.createElement("p");
+        pending.className = "billing-interval";
+        pending.textContent = "Pricing is being configured.";
+        card.append(pending);
+      }
+      for (const variant of variants) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "primary-button billing-select-button";
+        const amount = formatPrice(variant);
+        const period = readableInterval(variant.billing_interval);
+        button.textContent = amount + " " + period;
+        const isCurrent = subscription?.plan_key === plan.plan_key &&
+          subscription?.stripe_price_id === variant.stripe_price_id &&
+          ["active", "trialing", "past_due"].includes(subscription.status);
+        button.disabled = busy || isCurrent || Boolean(subscription && ["active", "trialing", "past_due"].includes(subscription.status));
+        button.addEventListener("click", () => startCheckout(plan.plan_key, variant, button));
+        card.append(button);
+      }
       planList.append(card);
     }
   }
@@ -2164,7 +2171,7 @@ function initializeBusinessFlowBilling() {
     }
   }
 
-  async function startCheckout(planKey, button) {
+  async function startCheckout(planKey, price, button) {
     const current = state();
     if (busy || !current.businessId) return;
     busy = true;
@@ -2174,7 +2181,7 @@ function initializeBusinessFlowBilling() {
       const result = await api()("/api/billing/checkout", {
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ business_id: current.businessId, plan_key: planKey })
+        body: JSON.stringify({ business_id: current.businessId, plan_key: planKey, currency: price.currency, billing_interval: price.billing_interval })
       });
       if (!result.checkout_url || !/^https:\/\/checkout\.stripe\.com\//i.test(result.checkout_url)) {
         throw new Error("Stripe did not return a valid Checkout URL.");
