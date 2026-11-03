@@ -60,22 +60,48 @@ businessIntelligenceRouter.get("/businesses", requireAuthenticatedUser, async (r
 businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req, res, next) => {
   try {
     const businessId = req.query.business_id;
+    const datasetId = req.query.dataset_id;
+    const from = req.query.from;
+    const to = req.query.to;
     if (!uuid(businessId)) return bad(res, ["business_id must be a valid UUID."]);
-    const [profileResult, importsResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
+    if (datasetId && !uuid(datasetId)) return bad(res, ["dataset_id must be a valid UUID."]);
+    const validDate = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T00:00:00Z"));
+    if (from && !validDate(from)) return bad(res, ["from must be a valid YYYY-MM-DD date."]);
+    if (to && !validDate(to)) return bad(res, ["to must be a valid YYYY-MM-DD date."]);
+    if (from && to && from > to) return bad(res, ["from must not be later than to."]);
+    const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
       req.supabase.from("businessflow_profiles").select("id,name,currency_code,primary_goal").eq("id", businessId).maybeSingle(),
-      req.supabase.from("businessflow_imports").select("id,name,source_filename,column_mapping,rows,row_count").eq("business_id", businessId).order("created_at", { ascending: false }).limit(25),
       req.supabase.from("businessflow_goals").select("id,title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(100),
       req.supabase.from("businessflow_experiments").select("id,title,status,success_metric,result_summary").eq("business_id", businessId).limit(100),
       req.supabase.from("businessflow_memory").select("id,category,content,source,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(100)
     ]);
+    let importsQuery = req.supabase.from("businessflow_imports")
+      .select("id,name,source_filename,column_mapping,rows,row_count")
+      .eq("business_id", businessId).order("created_at", { ascending: false }).limit(25);
+    if (datasetId) importsQuery = importsQuery.eq("id", datasetId);
+    const importsResult = await importsQuery;
     for (const result of [profileResult, importsResult, goalsResult, experimentsResult, memoryResult]) {
       if (result.error) return next(result.error);
     }
     if (!profileResult.data) return res.status(404).json({ error: "business_not_found", message: "This business workspace is unavailable to your account." });
-    return res.json(buildBusinessInsights({
-      profile: profileResult.data, imports: importsResult.data || [], goals: goalsResult.data || [],
+    const filteredImports = (importsResult.data || []).map(dataset => {
+      if (!from && !to) return dataset;
+      const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
+      const dateColumn = Object.keys(mapping).find(column => mapping[column] === "order_date");
+      if (!dateColumn) return { ...dataset, rows: [] };
+      const filteredRows = (Array.isArray(dataset.rows) ? dataset.rows : []).filter(row => {
+        const parsed = new Date(String(row?.[dateColumn] ?? "").trim());
+        if (Number.isNaN(parsed.getTime())) return false;
+        const day = parsed.toISOString().slice(0, 10);
+        return (!from || day >= from) && (!to || day <= to);
+      });
+      return { ...dataset, rows: filteredRows };
+    });
+    const result = buildBusinessInsights({
+      profile: profileResult.data, imports: filteredImports, goals: goalsResult.data || [],
       experiments: experimentsResult.data || [], memory: memoryResult.data || []
-    }));
+    });
+    return res.json({ ...result, filters: { datasetId: datasetId || null, from: from || null, to: to || null } });
   } catch (error) { return next(error); }
 });
 
