@@ -473,3 +473,39 @@ body.auth-required .account-page { max-width: 100%; }
 .bf-message-retry{display:inline-flex;align-items:center;margin-top:10px;padding:7px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;font:inherit;font-size:12px;cursor:pointer}
 .bf-message-retry:hover{border-color:#0f9b78;color:#08785f}
 .bf-message-retry:disabled{opacity:.55;cursor:wait}
+
+
+/* BusinessFlow workspace refresh: calmer hierarchy and a dedicated assistant page. */
+.dashboard-welcome{margin-bottom:22px}
+.workspace-notice{display:flex;align-items:center;gap:10px;margin:0 0 22px;padding:12px 15px;border:1px solid #e4eaf3;border-radius:12px;background:#fff;color:#647187;font-size:11px;line-height:1.55}
+.workspace-notice-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#d49a35}
+.workspace-notice .text-button{margin-left:auto;white-space:nowrap}
+.dashboard-insights{margin-bottom:22px}
+.dashboard-insights .panel-heading{margin-bottom:12px}
+.dashboard-section-heading{margin:0 0 13px}
+.dashboard-lower-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.dashboard-preview-panel{margin-bottom:16px}
+.dashboard-preview-panel .panel-heading{align-items:flex-start}
+.dashboard-inline-action{margin-top:14px}
+.assistant-page-heading{margin:4px 0 20px}
+.assistant-page-heading .subtitle{max-width:680px;line-height:1.7}
+.assistant-guidance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.assistant-guidance>div{padding:17px 18px;border:1px solid var(--border);border-radius:13px;background:#fff}
+.assistant-guidance strong{font-size:12px}
+.assistant-guidance p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.65}
+#assistant .bf-chat-panel{margin:0}
+#assistant .bf-chat-layout{min-height:500px}
+#assistant .bf-chat-messages{min-height:380px;max-height:620px}
+#assistant .bf-chat-composer textarea{min-height:82px}
+#assistant .bf-chat-disclaimer{max-width:980px}
+@media(max-width:760px){
+ .workspace-notice{align-items:flex-start;flex-wrap:wrap}
+ .workspace-notice .text-button{margin-left:18px}
+ .dashboard-lower-grid,.assistant-guidance{grid-template-columns:minmax(0,1fr)}
+ #assistant .bf-chat-layout{min-height:0}
+ #assistant .bf-chat-messages{min-height:300px;max-height:55vh}
+ #assistant .bf-chat-compose-footer{align-items:stretch;flex-wrap:wrap}
+ #assistant .bf-chat-compose-footer>span{width:100%}
+ #assistant .bf-assistant-mode{flex:1;min-width:150px}
+ #assistant .bf-chat-compose-footer .primary-button{flex:1}
+}
