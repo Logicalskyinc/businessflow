@@ -2105,11 +2105,11 @@ function renderDatasetPortfolio() {
 }
 async async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];renderDatasetPortfolio();return;}
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();list.replaceChildren();
+    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();void loadBusinessInsights(cloud.businessId,getAnalyticsFilters());list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
