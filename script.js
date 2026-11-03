@@ -1949,7 +1949,7 @@ function setupConnections() {
 }
 
 /* CSV / Excel dataset import */
-const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
+const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["cost","Transaction cost"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
 let pendingImport = null;
 let importedDatasets = [];
 
@@ -2001,7 +2001,8 @@ function inferImportBusinessField(column, rows) {
   if (/customer.?name|client.?name|buyer.?name|full.?name/.test(name)) return "customer_name";
   if (/customer.?id|client.?id|buyer.?id|account.?id/.test(name)) return "customer_id";
   if (/date|day|created|transaction.?time|timestamp/.test(name) || samples.filter(value => /^\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}/.test(value) || /^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "order_date";
-  if (/revenue|amount|price|cost|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
+  if (/cost|expense|cogs|purchase.?cost|unit.?cost/.test(name)) return "cost";
+  if (/revenue|amount|price|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
   if (/quantity|qty|units|items.?count/.test(name)) return "quantity";
   if (/product|item|service|job|package|offering/.test(name)) return "product";
   if (/status|progress|state/.test(name)) return "status";
