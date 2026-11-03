@@ -11,7 +11,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
   let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0;
-  const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), dateValues = [];
+  const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), monthlyCustomerActivity = new Map(), dateValues = [];
   for (const dataset of imports) {
     const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
     const fields = {};
@@ -88,9 +88,14 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         const parsed = new Date(String(row[fields.order_date] ?? "").trim());
         if (!Number.isNaN(parsed.getTime())) {
           dateValues.push(parsed.toISOString());
+          const month = parsed.toISOString().slice(0, 7);
           if (fields.revenue) {
             const amount = numericValue(row[fields.revenue]);
-            if (amount !== null) { const month = parsed.toISOString().slice(0, 7); monthlyRevenue.set(month, (monthlyRevenue.get(month) || 0) + amount); }
+            if (amount !== null) monthlyRevenue.set(month, (monthlyRevenue.get(month) || 0) + amount);
+          }
+          if (customer) {
+            if (!monthlyCustomerActivity.has(month)) monthlyCustomerActivity.set(month, new Set());
+            monthlyCustomerActivity.get(month).add(customer);
           }
         }
       }
@@ -195,6 +200,16 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const customerFirstMonth = new Map();
+  for (const [month, customers] of [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    for (const customer of customers) if (!customerFirstMonth.has(customer)) customerFirstMonth.set(customer, month);
+  }
+  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
+    let returning = 0;
+    for (const customer of customers) if (customerFirstMonth.get(customer) < month) returning++;
+    return { month, activeCustomers: customers.size, returningCustomers: returning,
+      returningRate: customers.size ? Number((returning / customers.size * 100).toFixed(1)) : 0 };
+  });
   const sortedDates = dateValues.sort();
   return {
     status: "ok", engine: "businessflow_rules_v1", generatedAt: new Date().toISOString(),
@@ -211,7 +226,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) })),
       productPerformance,
       customerValueDistribution,
-      customerValueRecords: customerSpend.size
+      customerValueRecords: customerSpend.size, monthlyRetention
     },
     dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, invalidRevenueValues,
       notes: !rows.length ? ["No imported records are available."] : [
