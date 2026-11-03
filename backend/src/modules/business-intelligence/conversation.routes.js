@@ -61,7 +61,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (!isUuid(clientMessageId)) return res.status(400).json({ error: "invalid_client_message_id" });
 
     const { data: conversation, error: conversationError } = await req.supabase.from("businessflow_conversations")
-      .select("id,business_id,title,grey_conversation_id")
+      .select("id,business_id,title,grey_conversation_id,grey_initialization_message_id")
       .eq("id", conversationId).maybeSingle();
     if (conversationError) return next(conversationError);
     if (!conversation) return res.status(404).json({ error: "conversation_not_found" });
@@ -107,6 +107,10 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
         throw new GreyIntegrationError("Business workspace context could not be saved.", 503, true);
       }
       let greyConversationId = conversation.grey_conversation_id;
+      // The first Grey request must always be replayed with the same payload:
+      // its original request omitted conversation_id because Grey created it.
+      const isOriginalInitializationMessage =
+        conversation.grey_initialization_message_id === userMessage.id;
       let grey;
 
       if (!greyConversationId) {
@@ -193,7 +197,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
           businessId: conversation.business_id,
           message: userMessage.content,
           requestId: clientMessageId,
-          conversationId: greyConversationId,
+          conversationId: isOriginalInitializationMessage ? undefined : greyConversationId,
           workspaceContext
         });
       }
