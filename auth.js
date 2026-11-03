@@ -361,7 +361,13 @@ window.BusinessFlowCloud = Object.freeze({
     userId: session?.user?.id ?? null
   }),
   request: apiRequest,
-  loadInsights: async businessId => apiRequest("/api/business-intelligence/insights?business_id=" + encodeURIComponent(businessId)),
+  loadInsights: async (businessId, filters = {}) => {
+    const params = new URLSearchParams({ business_id: businessId });
+    if (filters.datasetId) params.set("dataset_id", filters.datasetId);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    return apiRequest("/api/business-intelligence/insights?" + params.toString());
+  },
   listBusinesses: () => [...businesses],
   loadBusinesses,
   getBusinessId: () => activeBusinessId,
@@ -400,6 +406,55 @@ window.BusinessFlowCloud = Object.freeze({
   },
   deleteGoal: async (businessId, goalId) => apiRequest(
     "/api/business-intelligence/goals/" + encodeURIComponent(goalId) + "?business_id=" + encodeURIComponent(businessId),
+    { method: "DELETE" }
+  ),
+  loadExperiments: async businessId => {
+    const result = await apiRequest("/api/business-intelligence/experiments?business_id=" + encodeURIComponent(businessId));
+    return Array.isArray(result.experiments) ? result.experiments : [];
+  },
+  createExperiment: async (businessId, item) => {
+    const result = await apiRequest("/api/business-intelligence/experiments", {
+      method: "POST",
+      body: JSON.stringify({ business_id: businessId, title: item.title, hypothesis: item.hypothesis,
+        success_metric: item.successMetric || null, status: item.status || "planned",
+        result_summary: item.resultSummary || null })
+    });
+    if (!result.experiment?.id) throw new Error("Experiment was saved but the response did not contain its ID.");
+    return result.experiment;
+  },
+  updateExperiment: async (businessId, id, item) => {
+    const result = await apiRequest("/api/business-intelligence/experiments/" + encodeURIComponent(id), {
+      method: "PATCH", body: JSON.stringify({ business_id: businessId, title: item.title,
+        hypothesis: item.hypothesis, success_metric: item.successMetric || null,
+        status: item.status, result_summary: item.resultSummary || null })
+    });
+    return result.experiment;
+  },
+  deleteExperiment: async (businessId, id) => apiRequest(
+    "/api/business-intelligence/experiments/" + encodeURIComponent(id) + "?business_id=" + encodeURIComponent(businessId),
+    { method: "DELETE" }
+  ),
+  loadMemory: async businessId => {
+    const result = await apiRequest("/api/business-intelligence/memory?business_id=" + encodeURIComponent(businessId));
+    return Array.isArray(result.memory) ? result.memory : [];
+  },
+  createMemory: async (businessId, item) => {
+    const result = await apiRequest("/api/business-intelligence/memory", {
+      method: "POST", body: JSON.stringify({ business_id: businessId, category: item.category,
+        content: item.content, source: "user" })
+    });
+    if (!result.memory?.id) throw new Error("Memory was saved but the response did not contain its ID.");
+    return result.memory;
+  },
+  updateMemory: async (businessId, id, item) => {
+    const result = await apiRequest("/api/business-intelligence/memory/" + encodeURIComponent(id), {
+      method: "PATCH", body: JSON.stringify({ business_id: businessId, category: item.category,
+        content: item.content })
+    });
+    return result.memory;
+  },
+  deleteMemory: async (businessId, id) => apiRequest(
+    "/api/business-intelligence/memory/" + encodeURIComponent(id) + "?business_id=" + encodeURIComponent(businessId),
     { method: "DELETE" }
   )
 });

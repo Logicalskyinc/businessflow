@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=24">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -63,14 +63,14 @@
         <section class="page active" id="overview">
           <div class="notice">
             <strong>DATA STATUS</strong>
-            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
+            <span>Imported CSV and Excel datasets power evidence-based summaries. Metrics are labelled as imported data, not live integrations. Conversion analytics require funnel or lead-stage data.</span>
           </div>
 
           <div class="welcome-row">
             <div>
               <p class="eyebrow">BUSINESS INTELLIGENCE</p>
               <h1 id="overview-greeting">Good morning.</h1>
-              <p class="subtitle">Your business, clearly understood. Make confident decisions with reliable information.</p>
+              <p class="subtitle">One workspace for performance, decisions and business intelligence.</p>
             </div>
             <div class="welcome-actions">
               <button type="button" class="secondary-button" data-go-to="account" id="manage-workspace-button">Manage workspace</button>
@@ -91,7 +91,7 @@
           </article>
 
           <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey uses your selected business workspace, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
+            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey can use your imported dataset summaries, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
             <div class="bf-chat-layout">
               <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Grey conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
               <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
@@ -105,7 +105,7 @@
           <div class="section-heading">
             <div>
               <h2>Business overview</h2>
-              <p class="muted">Live indicators appear when you connect business data.</p>
+              <p class="muted">Imported dataset indicators. Live integrations are labelled separately when connected.</p>
             </div>
             <label class="period-control">Period
               <select id="period-select">
@@ -139,14 +139,18 @@
             </article>
           </div>
 
+          <article class="dataset-overview-strip">
+            <div><p class="eyebrow">DATA FOUNDATION</p><strong id="overview-dataset-summary">Dataset portfolio is loading…</strong><span id="overview-dataset-detail">Saved records and field coverage will appear here.</span></div>
+            <button type="button" class="secondary-button" data-go-to="data-import">Manage datasets</button>
+          </article>
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue performance</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
+              <p class="muted">Imported revenue is summarised below. A time trend appears when valid transaction dates are mapped.</p>
               <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
+                <p class="empty-state">Revenue trend unavailable until transaction dates are mapped. Review the imported dataset analysis above.</p>
               </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
+              <p class="chart-disclaimer">Source: imported workspace datasets. Not a live accounting integration.</p>
             </article>
 
             <article class="panel">
@@ -187,13 +191,28 @@
               <h2>Performance overview</h2>
               <p class="muted">Connect a real source to populate business indicators</p>
             </div>
-            <label class="period-control">Period
-              <select id="analytics-period">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
+            <div class="analytics-filter-bar" aria-label="Analytics filters">
+              <label class="period-control">Period
+                <select id="analytics-period">
+                  <option value="all">All available dates</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </label>
+              <label class="period-control">Dataset
+                <select id="analytics-dataset"><option value="">All datasets</option></select>
+              </label>
+              <label class="period-control">From
+                <input type="date" id="analytics-from" disabled>
+              </label>
+              <label class="period-control">To
+                <input type="date" id="analytics-to" disabled>
+              </label>
+              <button type="button" class="secondary-button" id="analytics-reset">Reset filters</button>
+            </div>
+            <p id="analytics-filter-status" class="muted" role="status" aria-live="polite">Showing all available workspace data.</p>
           </div>
 
           <div class="metrics-grid">
@@ -238,6 +257,18 @@
             </article>
           </div>
 
+          <section class="data-explorer-section">
+            <div class="section-heading"><div><p class="eyebrow">DATA EXPLORER</p><h2>Understand the shape of your business</h2><p class="muted">Customer behaviour, product activity and data reliability from mapped records.</p></div></div>
+            <div class="data-explorer-grid">
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Customer segments</h3><p class="muted">Repeat versus one-time customers</p></div></div><div id="explorer-customer-segments" class="explorer-content"><p class="empty-state">Customer identity mapping is required.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Product / service performance</h3><p class="muted">Most frequently recorded mapped item</p></div></div><div id="explorer-product-performance" class="explorer-content"><p class="empty-state">Map a product or service column to explore activity.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Period comparison</h3><p class="muted">Monthly revenue and change from the previous recorded month</p></div></div><div id="explorer-period-comparison" class="explorer-content"><p class="empty-state">Map transaction dates and revenue to compare periods.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Product profitability</h3><p class="muted">Gross profit and gross margin, where cost data exists</p></div></div><div id="explorer-profitability" class="explorer-content"><p class="empty-state">Map transaction revenue and cost to calculate profitability.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Customer retention</h3><p class="muted">Monthly repeat customer activity</p></div></div><div id="explorer-customer-retention" class="explorer-content"><p class="empty-state">Map customer identity and transaction date to analyse repeat activity.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Data quality</h3><p class="muted">Coverage and validation signals</p></div></div><div id="explorer-data-quality" class="explorer-content"><p class="empty-state">Import a dataset to inspect its quality.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Value and date coverage</h3><p class="muted">Transaction value and reporting period</p></div></div><div id="explorer-value-coverage" class="explorer-content"><p class="empty-state">Map revenue and transaction date fields.</p></div></article>
+            </div>
+          </section>
           <article class="panel">
             <h2>Business insights</h2>
             <p class="muted">Insights should be based on reliable data, not assumptions.</p>
@@ -267,6 +298,7 @@
               <p class="empty-state">Loading experiments…</p>
             </div>
             <p class="muted" data-storage-status role="status"></p>
+            <button class="secondary-button" type="button" data-import-legacy="experiments" hidden>Import this browser’s existing experiments</button>
           </article>
 
           <article class="panel">
@@ -367,6 +399,7 @@
               <p class="empty-state">Loading business memory…</p>
             </div>
             <p class="muted" data-storage-status role="status"></p>
+            <button class="secondary-button" type="button" data-import-legacy="memory" hidden>Import this browser’s existing business memory</button>
           </article>
 
           <article class="panel">
@@ -481,8 +514,9 @@
             <label class="import-dropzone" for="import-file"><span class="import-upload-icon" aria-hidden="true">⇧</span><strong>Choose a CSV or Excel file</strong><span>Tap to select a file from your device</span><small>CSV, XLSX or XLS · file contents are not uploaded automatically</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
             <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p></article>
           <section id="import-review" hidden><article class="panel"><div class="panel-heading"><div><h2>Review and map columns</h2><p class="muted">Choose the business meaning for each source column. Keep as source field preserves its original name.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
-            <div id="import-column-mapping" class="import-mapping-grid"></div><h3 class="import-preview-heading">Sample preview <span>first 10 rows</span></h3><div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
+            <div id="import-column-mapping" class="import-mapping-grid"></div><div id="import-quality-summary" class="import-quality-summary" aria-live="polite"></div><h3 class="import-preview-heading">Sample preview <span>first 10 rows</span></h3><div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
             <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Add to BusinessFlow</button></div></article></section>
+          <article class="panel dataset-portfolio-panel"><div class="panel-heading"><div><p class="eyebrow">DATASET PORTFOLIO</p><h2>Your workspace data at a glance</h2><p class="muted">Coverage is calculated from saved dataset metadata and mapped business fields.</p></div><span class="count-pill" id="dataset-portfolio-status">Waiting for workspace</span></div><div id="dataset-portfolio-metrics" class="dataset-portfolio-grid"><p class="empty-state">Select a connected workspace to inspect its datasets.</p></div><div id="dataset-portfolio-coverage" class="dataset-coverage-list"></div></article>
           <article class="panel"><div class="panel-heading"><div><h2>Saved datasets</h2><p class="muted">Datasets already imported into the selected workspace.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
             <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div><div id="saved-import-detail" class="saved-import-detail" hidden></div><p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p></article>
           <footer class="app-footer">BusinessFlow · Data import</footer></section>
@@ -592,7 +626,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=16" defer></script>
+  <script src="script.js?v=27" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>

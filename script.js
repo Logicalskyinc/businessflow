@@ -26,6 +26,84 @@ const EXPERIMENT_STATUSES = [
   "review",
   "completed"
 ];
+const MEMORY_CATEGORY_MAP = {
+  "Decision": "decision",
+  "Customer insight": "observation",
+  "Lesson learned": "lesson",
+  "Process": "business_context",
+  "Follow-up": "observation",
+  "Other": "business_context"
+};
+const MEMORY_LABEL_MAP = Object.fromEntries(
+  Object.entries(MEMORY_CATEGORY_MAP).map(([label, value]) => [value, label])
+);
+let cloudCollectionWorkspaceId = null;
+let cloudCollectionsBusy = false;
+let cloudCollectionsRequest = 0;
+let cloudExperiments = false;
+let cloudMemories = false;
+
+function getCloudCollectionMode(type) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn) return false;
+  const ready = Boolean(cloud.apiConnected && cloud.businessId &&
+    cloudCollectionWorkspaceId === cloud.businessId &&
+    (type === "experiments" ? cloudExperiments : cloudMemories));
+  if (!ready) {
+    showToast("Cloud workspace data is still loading or unavailable. Try again before saving changes.");
+    return null;
+  }
+  return true;
+}
+
+function experimentToCloud(item) {
+  return {
+    title: item.title,
+    hypothesis: item.hypothesis,
+    successMetric: item.baseline === null ? null : "Baseline: " + item.baseline,
+    status: item.status === "review" ? "draft" : item.status,
+    resultSummary: [item.result === null ? "" : "Result: " + item.result, item.notes].filter(Boolean).join("\\n") || null
+  };
+}
+function experimentFromCloud(item) {
+  const summary = String(item.result_summary || "");
+  const resultMatch = summary.match(/(?:^|\\n)Result:\\s*([0-9.]+)/);
+  const baselineMatch = String(item.success_metric || "").match(/Baseline:\\s*([0-9.]+)/);
+  return {
+    id: item.id, title: item.title || "", hypothesis: item.hypothesis || "",
+    baseline: baselineMatch ? Number(baselineMatch[1]) : null,
+    result: resultMatch ? Number(resultMatch[1]) : null,
+    status: item.status === "draft" ? "review" : item.status,
+    notes: summary.replace(/(?:^|\\n)Result:\\s*[0-9.]+/, "").trim(),
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString()
+  };
+}
+function memoryToCloud(item) {
+  return {
+    category: MEMORY_CATEGORY_MAP[item.category] || "business_context",
+    content: { title: item.title, date: item.date, text: item.content }
+  };
+}
+function memoryFromCloud(item) {
+  let content = {};
+  if (item.content && typeof item.content === "object") content = item.content;
+  else if (typeof item.content === "string") {
+    try {
+      const parsed = JSON.parse(item.content);
+      if (parsed && typeof parsed === "object") content = parsed;
+      else content = { text: item.content };
+    } catch { content = { text: item.content }; }
+  }
+  return {
+    id: item.id, title: String(content.title || "Business note"),
+    category: MEMORY_LABEL_MAP[item.category] || "Other",
+    date: String(content.date || (item.created_at || "").slice(0, 10)),
+    content: String(content.text || ""),
+    createdAt: item.created_at || new Date().toISOString(),
+    updatedAt: item.updated_at || item.created_at || new Date().toISOString()
+  };
+}
 
 let goals = [];
 let experiments = [];
@@ -83,8 +161,12 @@ function createId() {
 function updateStorageStatus() {
   document.querySelectorAll("[data-storage-status]").forEach(element => {
     const cloud = window.BusinessFlowCloud?.getState?.();
-    element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
-      ? "Business goals saved to the selected cloud workspace"
+    const fullySynced = cloud?.signedIn && cloud.apiConnected &&
+      cloud.businessId === cloudGoalWorkspaceId &&
+      cloud.businessId === cloudCollectionWorkspaceId &&
+      cloudExperiments && cloudMemories;
+    element.textContent = fullySynced
+      ? "Goals, experiments, and business memory use the selected cloud workspace"
       : storageAvailable
         ? "Saved locally in this browser · Not synced across devices"
         : "Browser storage unavailable · Changes may not persist";
@@ -719,172 +801,78 @@ function cancelExperimentEdit() {
 function setupExperimentForm() {
   const form = document.querySelector("#experiment-form");
   if (!form) return;
-
-  const cancelButton = document.querySelector("#experiment-cancel-edit");
-  cancelButton?.addEventListener("click", cancelExperimentEdit);
-
-  form.addEventListener("submit", event => {
+  document.querySelector("#experiment-cancel-edit")?.addEventListener("click", cancelExperimentEdit);
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-
     const title = document.querySelector("#experiment-title").value.trim();
-    const hypothesis = document.querySelector(
-      "#experiment-hypothesis"
-    ).value.trim();
-    const baselineInput = document.querySelector(
-      "#experiment-baseline"
-    ).value.trim();
-    const resultInput = document.querySelector(
-      "#experiment-result"
-    ).value.trim();
+    const hypothesis = document.querySelector("#experiment-hypothesis").value.trim();
+    const baselineInput = document.querySelector("#experiment-baseline").value.trim();
+    const resultInput = document.querySelector("#experiment-result").value.trim();
     const status = document.querySelector("#experiment-status").value;
     const notes = document.querySelector("#experiment-notes").value.trim();
-
     const baseline = baselineInput === "" ? null : Number(baselineInput);
     const result = resultInput === "" ? null : Number(resultInput);
-
-    if (!title || title.length > 120) {
-      showToast("Experiment name must contain 1–120 characters.");
-      return;
+    if (!title || title.length > 120 || !hypothesis || hypothesis.length > 1000 ||
+      (baselineInput !== "" && (!Number.isFinite(baseline) || baseline < 0)) ||
+      (resultInput !== "" && (!Number.isFinite(result) || result < 0)) ||
+      !EXPERIMENT_STATUSES.includes(status) || notes.length > 2000) {
+      showToast("Check the experiment fields and try again."); return;
     }
-
-    if (!hypothesis || hypothesis.length > 1000) {
-      showToast("Enter a hypothesis of up to 1,000 characters.");
-      return;
-    }
-
-    if (
-      baselineInput !== "" &&
-      (!Number.isFinite(baseline) || baseline < 0)
-    ) {
-      showToast("Baseline must be zero or greater, or left blank until measured.");
-      return;
-    }
-
-    if (
-      resultInput !== "" &&
-      (!Number.isFinite(result) || result < 0)
-    ) {
-      showToast("Test result must be zero or greater.");
-      return;
-    }
-
-    if (!EXPERIMENT_STATUSES.includes(status)) {
-      showToast("Choose a valid experiment status.");
-      return;
-    }
-
-    if (notes.length > 2000) {
-      showToast("Learning notes must be 2,000 characters or fewer.");
-      return;
-    }
-
+    const cloudMode = getCloudCollectionMode("experiments");
+    if (cloudMode === null) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
     const now = new Date().toISOString();
-
-    if (editingExperimentId !== null) {
-      const item = experiments.find(entry => entry.id === editingExperimentId);
-
-      if (!item) {
-        cancelExperimentEdit();
-        showToast("Experiment not found. Please try editing it again.");
-        return;
+    const draft = { title, hypothesis, baseline, result, status, notes, updatedAt: now };
+    try {
+      if (editingExperimentId !== null) {
+        const item = experiments.find(entry => entry.id === editingExperimentId);
+        if (!item) { cancelExperimentEdit(); showToast("Experiment not found."); return; }
+        if (cloudMode) {
+          const saved = await window.BusinessFlowCloud.updateExperiment(cloud.businessId, item.id, experimentToCloud(draft));
+          Object.assign(item, experimentFromCloud(saved));
+        } else Object.assign(item, draft);
+        if (!cloudMode && !saveExperiments()) return;
+        renderExperiments(); cancelExperimentEdit(); showToast(cloudMode ? "Experiment updated in cloud." : "Experiment updated in this browser."); return;
       }
-
-      const previous = { ...item };
-      Object.assign(item, {
-        title,
-        hypothesis,
-        baseline,
-        result,
-        status,
-        notes,
-        updatedAt: now
-      });
-
-      if (!saveExperiments()) {
-        Object.assign(item, previous);
-        return;
-      }
-
-      renderExperiments();
-      cancelExperimentEdit();
-      showToast("Experiment updated in this browser.");
-      return;
-    }
-
-    experiments.unshift({
-      id: createId(),
-      title,
-      hypothesis,
-      baseline,
-      result,
-      status,
-      notes,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveExperiments()) {
-      experiments.shift();
-      return;
-    }
-
-    renderExperiments();
-    form.reset();
-    showToast("Experiment saved in this browser.");
+      const created = { id: createId(), ...draft, createdAt: now };
+      if (cloudMode) Object.assign(created, experimentFromCloud(await window.BusinessFlowCloud.createExperiment(cloud.businessId, experimentToCloud(created))));
+      experiments.unshift(created);
+      if (!cloudMode && !saveExperiments()) { experiments.shift(); return; }
+      renderExperiments(); form.reset(); showToast(cloudMode ? "Experiment saved to cloud." : "Experiment saved in this browser.");
+    } catch (error) { showToast("Experiment was not saved: " + error.message); }
   });
 }
 
-function handleExperimentAction(action, id) {
+async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
-  if (index < 0) {
-    showToast("Experiment not found.");
-    return;
-  }
-
+  if (index < 0) { showToast("Experiment not found."); return; }
   const item = experiments[index];
-
   if (action === "delete") {
-    if (!confirm(
-      'Delete "' + item.title +
-      '"? This removes it from this browser only.'
-    )) return;
-
-    const removed = experiments.splice(index, 1)[0];
-
-    if (!saveExperiments()) {
-      experiments.splice(index, 0, removed);
-      renderExperiments();
-      return;
-    }
-
-    if (editingExperimentId === id) cancelExperimentEdit();
-    renderExperiments();
-    showToast("Experiment deleted.");
+    if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloudMode = getCloudCollectionMode("experiments");
+    if (cloudMode === null) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    try {
+      if (cloudMode) await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id);
+      experiments.splice(index,1);
+      if (!cloudMode && !saveExperiments()) return;
+      if (editingExperimentId === id) cancelExperimentEdit();
+      renderExperiments(); showToast(cloudMode ? "Experiment deleted from cloud." : "Experiment deleted.");
+    } catch(error) { showToast("Could not delete experiment: " + error.message); }
     return;
   }
-
   if (action !== "edit") return;
-
   const form = document.querySelector("#experiment-form");
-  if (!form) {
-    showToast("The experiment form is unavailable.");
-    return;
-  }
-
-  editingExperimentId = id;
-  document.querySelector("#experiment-title").value = item.title;
-  document.querySelector("#experiment-hypothesis").value = item.hypothesis;
-  document.querySelector("#experiment-baseline").value =
-    item.baseline === null ? "" : String(item.baseline);
-  document.querySelector("#experiment-result").value =
-    item.result === null ? "" : String(item.result);
-  document.querySelector("#experiment-status").value = item.status;
-  document.querySelector("#experiment-notes").value = item.notes;
-
-  setExperimentFormMode(true);
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.querySelector("#experiment-title").focus({ preventScroll: true });
+  if (!form) return;
+  editingExperimentId=id;
+  document.querySelector("#experiment-title").value=item.title;
+  document.querySelector("#experiment-hypothesis").value=item.hypothesis;
+  document.querySelector("#experiment-baseline").value=item.baseline ?? "";
+  document.querySelector("#experiment-result").value=item.result ?? "";
+  document.querySelector("#experiment-status").value=item.status;
+  document.querySelector("#experiment-notes").value=item.notes;
+  setExperimentFormMode(true); form.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function setupExperimentActions() {
@@ -995,172 +983,68 @@ function renderMemories() {
 function setupMemoryForm() {
   const form = document.querySelector("#memory-form");
   if (!form) return;
-
   const dateInput = document.querySelector("#memory-date");
-
-  if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().slice(0, 10);
-  }
-
-  form.addEventListener("submit", event => {
+  if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-
     const title = document.querySelector("#memory-title").value.trim();
     const category = document.querySelector("#memory-category").value;
     const date = document.querySelector("#memory-date").value;
     const content = document.querySelector("#memory-content").value.trim();
-
-    if (!title || title.length > 120) {
-      showToast("Title must contain 1–120 characters.");
-      return;
-    }
-
-    if (!MEMORY_CATEGORIES.includes(category)) {
-      showToast("Choose a valid memory category.");
-      return;
-    }
-
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      showToast("Choose a valid date.");
-      return;
-    }
-
     const parsedDate = new Date(date + "T00:00:00");
-    if (
-      Number.isNaN(parsedDate.getTime()) ||
-      parsedDate.toISOString().slice(0, 10) !== date
-    ) {
-      showToast("Choose a valid calendar date.");
-      return;
-    }
-
-    if (!content || content.length > 4000) {
-      showToast("Details must contain 1–4,000 characters.");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    memories.unshift({
-      id: createId(),
-      title,
-      category,
-      date,
-      content,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveMemories()) {
-      memories.shift();
-      return;
-    }
-
-    renderMemories();
-    form.reset();
-
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
-
-    showToast("Business memory saved in this browser.");
+    if (!title || title.length > 120 || !MEMORY_CATEGORIES.includes(category) || !date ||
+      Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10) !== date ||
+      !content || content.length > 4000) { showToast("Check the business memory fields and try again."); return; }
+    const cloudMode = getCloudCollectionMode("memory");
+    if (cloudMode === null) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const item = { id:createId(), title, category, date, content, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+    try {
+      if (cloudMode) Object.assign(item, memoryFromCloud(await window.BusinessFlowCloud.createMemory(cloud.businessId, memoryToCloud(item))));
+      memories.unshift(item);
+      if (!cloudMode && !saveMemories()) { memories.shift(); return; }
+      renderMemories(); form.reset(); if (dateInput) dateInput.value = new Date().toISOString().slice(0,10);
+      showToast(cloudMode ? "Business memory saved to cloud." : "Business memory saved in this browser.");
+    } catch (error) { showToast("Memory was not saved: " + error.message); }
   });
 }
 
-function handleMemoryAction(action, id) {
+async function handleMemoryAction(action, id) {
   const index = memories.findIndex(item => item.id === id);
-  if (index < 0) {
-    showToast("Memory entry not found.");
-    return;
-  }
-
+  if (index < 0) { showToast("Memory entry not found."); return; }
   const item = memories[index];
-
   if (action === "delete") {
-    if (!confirm(
-      'Delete "' + item.title +
-      '"? This removes it from this browser only.'
-    )) return;
-
-    const removed = memories.splice(index, 1)[0];
-
-    if (!saveMemories()) {
-      memories.splice(index, 0, removed);
-      renderMemories();
-      return;
-    }
-
-    renderMemories();
-    showToast("Memory entry deleted.");
+    if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloudMode = getCloudCollectionMode("memory");
+    if (cloudMode === null) return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    try {
+      if (cloudMode) await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);
+      memories.splice(index,1);
+      if (!cloudMode && !saveMemories()) return;
+      renderMemories(); showToast(cloudMode ? "Memory deleted from cloud." : "Memory deleted.");
+    } catch(error) { showToast("Could not delete memory: " + error.message); }
     return;
   }
-
   if (action !== "edit") return;
-
-  const title = prompt("Memory title:", item.title);
-  if (title === null) return;
-
-  const category = prompt(
-    "Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",
-    item.category
-  );
-  if (category === null) return;
-
-  const date = prompt("Date (YYYY-MM-DD):", item.date);
-  if (date === null) return;
-
-  const content = prompt("Details:", item.content);
-  if (content === null) return;
-
-  const cleanCategory = category.trim();
-
-  if (!title.trim() || title.trim().length > 120) {
-    showToast("Title must contain 1–120 characters.");
-    return;
-  }
-
-  if (!MEMORY_CATEGORIES.includes(cleanCategory)) {
-    showToast("Use one of the listed memory categories.");
-    return;
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-    showToast("Date must use YYYY-MM-DD.");
-    return;
-  }
-
-  const parsedDate = new Date(date.trim() + "T00:00:00");
-  if (
-    Number.isNaN(parsedDate.getTime()) ||
-    parsedDate.toISOString().slice(0, 10) !== date.trim()
-  ) {
-    showToast("Choose a valid calendar date.");
-    return;
-  }
-
-  if (!content.trim() || content.trim().length > 4000) {
-    showToast("Details must contain 1–4,000 characters.");
-    return;
-  }
-
-  const previous = { ...item };
-
-  Object.assign(item, {
-    title: title.trim(),
-    category: cleanCategory,
-    date: date.trim(),
-    content: content.trim(),
-    updatedAt: new Date().toISOString()
-  });
-
-  if (!saveMemories()) {
-    Object.assign(item, previous);
-    return;
-  }
-
-  renderMemories();
-  showToast("Memory entry updated.");
+  const title=prompt("Memory title:",item.title); if(title===null)return;
+  const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category); if(category===null)return;
+  const date=prompt("Date (YYYY-MM-DD):",item.date); if(date===null)return;
+  const content=prompt("Details:",item.content); if(content===null)return;
+  const cleanCategory=category.trim(), cleanDate=date.trim();
+  const parsedDate=new Date(cleanDate+"T00:00:00");
+  if(!title.trim()||title.trim().length>120||!MEMORY_CATEGORIES.includes(cleanCategory)||Number.isNaN(parsedDate.getTime())||parsedDate.toISOString().slice(0,10)!==cleanDate||!content.trim()||content.trim().length>4000){showToast("Check the memory fields and try again.");return;}
+  const cloudMode=getCloudCollectionMode("memory");
+  if(cloudMode===null)return;
+  const cloud=window.BusinessFlowCloud?.getState?.();
+  const next={...item,title:title.trim(),category:cleanCategory,date:cleanDate,content:content.trim(),updatedAt:new Date().toISOString()};
+  try {
+    if(cloudMode) Object.assign(next,memoryFromCloud(await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryToCloud(next))));
+    Object.assign(item,next);
+    if(!cloudMode&&!saveMemories())return;
+    renderMemories();showToast(cloudMode?"Memory updated in cloud.":"Memory updated.");
+  } catch(error){showToast("Memory was not updated: "+error.message);}
 }
 
 function setupMemoryActions() {
@@ -1174,6 +1058,129 @@ function setupMemoryActions() {
       button.dataset.memoryAction,
       button.dataset.id
     );
+  });
+}
+
+const LEGACY_IMPORT_KEY = "businessflow_legacy_import_v1";
+
+function legacyImportKey(businessId, type) {
+  return LEGACY_IMPORT_KEY + ":" + businessId + ":" + type;
+}
+function getLegacyImportState(businessId, type) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(legacyImportKey(businessId, type)) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter(value => typeof value === "string") : []);
+  } catch { return new Set(); }
+}
+function saveLegacyImportState(businessId, type, ids) {
+  try {
+    localStorage.setItem(legacyImportKey(businessId, type), JSON.stringify([...ids]));
+    return true;
+  } catch {
+    showToast("Import progress could not be saved. No local records were removed.");
+    return false;
+  }
+}
+function setLegacyImportButtons() {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  document.querySelectorAll("[data-import-legacy]").forEach(button => {
+    const type = button.dataset.importLegacy;
+    const ready = cloud?.signedIn && cloud.apiConnected && cloud.businessId &&
+      cloudCollectionWorkspaceId === cloud.businessId &&
+      (type === "experiments" ? cloudExperiments : cloudMemories);
+    button.hidden = !ready;
+    button.disabled = !ready;
+  });
+}
+function normalizeLegacyMemoryContent(value) {
+  if (value && typeof value === "object") return JSON.stringify(value);
+  if (typeof value !== "string") return "";
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? JSON.stringify(parsed) : JSON.stringify({ text: value });
+  } catch { return JSON.stringify({ text: value }); }
+}
+function sameLegacyRecord(local, remote, type) {
+  if (type === "experiments") {
+    const expected = experimentToCloud(local);
+    return String(remote.title || "").trim() === expected.title &&
+      String(remote.hypothesis || "").trim() === expected.hypothesis &&
+      String(remote.success_metric || "").trim() === String(expected.successMetric || "").trim() &&
+      String(remote.result_summary || "").trim() === String(expected.resultSummary || "").trim();
+  }
+  const expected = memoryToCloud(local);
+  return remote.category === expected.category &&
+    normalizeLegacyMemoryContent(remote.content) === normalizeLegacyMemoryContent(expected.content);
+}
+async function importLegacyCollection(type) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId ||
+      cloud.businessId !== cloudCollectionWorkspaceId) {
+    showToast("Select a cloud-connected business workspace first.");
+    return;
+  }
+  if (type !== "experiments" && type !== "memory") return;
+  const isExperiment = type === "experiments";
+  const localItems = loadCollection(isExperiment ? EXPERIMENTS_KEY : MEMORY_KEY)
+    .filter(isExperiment ? isValidExperiment : isValidMemory);
+  const imported = getLegacyImportState(cloud.businessId, type);
+  const pending = localItems.filter(item => !imported.has(String(item.id)));
+  if (!pending.length) {
+    showToast("No new local records need importing. Your browser copy is preserved.");
+    return;
+  }
+  const label = isExperiment ? "experiments" : "business memory entries";
+  if (!confirm("Check and import " + pending.length + " local " + label + "? Matching cloud records will be skipped. Your browser copy will remain unchanged.")) return;
+
+  const button = document.querySelector('[data-import-legacy="' + type + '"]');
+  if (button) button.disabled = true;
+  let createdCount = 0;
+  let skippedCount = 0;
+  const failed = [];
+  try {
+    const remoteItems = isExperiment
+      ? await window.BusinessFlowCloud.loadExperiments(cloud.businessId)
+      : await window.BusinessFlowCloud.loadMemory(cloud.businessId);
+    if (window.BusinessFlowCloud.getState()?.businessId !== cloud.businessId) {
+      throw new Error("The selected workspace changed during import. No further records were submitted.");
+    }
+    for (const item of pending) {
+      try {
+        const duplicate = remoteItems.find(remote => sameLegacyRecord(item, remote, type));
+        if (duplicate) {
+          imported.add(String(item.id));
+          skippedCount += 1;
+        } else {
+          const created = isExperiment
+            ? await window.BusinessFlowCloud.createExperiment(cloud.businessId, experimentToCloud(item))
+            : await window.BusinessFlowCloud.createMemory(cloud.businessId, memoryToCloud(item));
+          if (!created?.id) throw new Error("API did not confirm a saved record ID.");
+          remoteItems.push(created);
+          imported.add(String(item.id));
+          createdCount += 1;
+        }
+        if (!saveLegacyImportState(cloud.businessId, type, imported)) {
+          failed.push(item.title + ": import progress could not be recorded");
+          break;
+        }
+      } catch (error) {
+        failed.push(item.title + ": " + error.message);
+      }
+    }
+    await loadCloudCollections(cloud.businessId);
+    if (failed.length) {
+      console.error("Legacy import failures:", failed);
+      showToast(createdCount + " imported, " + skippedCount + " matching cloud records skipped, " + failed.length + " failed. Browser data remains intact.");
+    } else {
+      showToast(createdCount + " imported, " + skippedCount + " already-existing records skipped. Browser data remains intact.");
+    }
+  } finally {
+    setLegacyImportButtons();
+  }
+}
+function setupLegacyImportActions() {
+  document.querySelectorAll("[data-import-legacy]").forEach(button => {
+    button.addEventListener("click", () => void importLegacyCollection(button.dataset.importLegacy));
   });
 }
 
@@ -1371,9 +1378,62 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
   navigateTo("overview");
 });
 
+async async function loadCloudCollections(businessId) {
+  const requestId = ++cloudCollectionsRequest;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  cloudCollectionWorkspaceId = null;
+  cloudExperiments = false;
+  cloudMemories = false;
+  updateStorageStatus();
+  setLegacyImportButtons();
+
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    loadExperiments();
+    loadMemories();
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
+    setLegacyImportButtons();
+    return;
+  }
+
+  cloudCollectionsBusy = true;
+  try {
+    const [remoteExperiments, remoteMemory] = await Promise.all([
+      window.BusinessFlowCloud.loadExperiments(businessId),
+      window.BusinessFlowCloud.loadMemory(businessId)
+    ]);
+    if (requestId !== cloudCollectionsRequest ||
+        window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
+
+    experiments = remoteExperiments.map(experimentFromCloud);
+    memories = remoteMemory.map(memoryFromCloud).filter(isValidMemory);
+    cloudCollectionWorkspaceId = businessId;
+    cloudExperiments = true;
+    cloudMemories = true;
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
+    setLegacyImportButtons();
+  } catch (error) {
+    if (requestId === cloudCollectionsRequest) {
+      console.error("Cloud workspace records could not load:", error);
+      showToast("Could not load cloud experiments and memory: " + error.message);
+      experiments = [];
+      memories = [];
+      renderExperiments();
+      renderMemories();
+      setLegacyImportButtons();
+    }
+  } finally {
+    if (requestId === cloudCollectionsRequest) cloudCollectionsBusy = false;
+  }
+}
+
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
+  void loadCloudCollections(businessId);
   void loadBusinessInsights(businessId);
 });
 
@@ -1386,13 +1446,252 @@ function renderBusinessInsights() {
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
+    ["#explorer-customer-segments", "#explorer-product-performance", "#explorer-data-quality", "#explorer-value-coverage"].forEach(selector => {
+      const host = document.querySelector(selector);
+      if (host) host.textContent = "Select a connected business workspace to load verified analytics.";
+    });
     if (status) status.textContent = "Waiting for a selected workspace.";
     return;
   }
   const coverage = result.coverage || {};
+  const metrics = result.metrics || {};
+  const currency = String(metrics.revenueCurrency || result.business?.currencyCode || "XOF").toUpperCase();
+  const money = value => value == null ? "—" : new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value) + " " + currency;
+  const metricCards = document.querySelectorAll("#overview .metrics-grid .metric-card, #analytics .metrics-grid .metric-card");
+  for (let offset = 0; offset < metricCards.length; offset += 4) {
+    const values = [
+      { value: money(metrics.revenueTotal), note: metrics.revenueTotal == null ? "No mapped revenue field" : "Imported dataset total · " + (coverage.recordsAnalysed || 0) + " records" },
+      { value: metrics.customers == null ? "—" : new Intl.NumberFormat().format(metrics.customers), note: metrics.customers == null ? "No customer identifier mapped" : "Distinct customers in imported records" },
+      { value: "—", note: "Unavailable · no funnel or lead-stage data" },
+      { value: String(coverage.activeExperimentsCount ?? 0), note: "Planned or running workspace experiments" }
+    ];
+    values.forEach((item, index) => {
+      const card = metricCards[offset + index];
+      if (!card) return;
+      const value = card.querySelector(".metric-value");
+      const note = card.querySelector(".metric-note");
+      if (value) value.textContent = item.value;
+      if (note) note.textContent = item.note;
+    });
+  }
+  const monthly = Array.isArray(metrics.monthlyRevenue)
+    ? metrics.monthlyRevenue.filter(item => item && /^\d{4}-\d{2}$/.test(String(item.month)) && Number.isFinite(Number(item.total)))
+    : [];
+  const chartMarkup = monthly.length
+    ? (() => {
+        const max = Math.max(...monthly.map(item => Number(item.total)), 1);
+        const bars = monthly.slice(-12).map(item => {
+          const amount = Number(item.total);
+          const height = Math.max(3, Math.round((amount / max) * 100));
+          const date = new Date(item.month + "-01T00:00:00Z");
+          const label = Number.isNaN(date.getTime()) ? item.month : new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit", timeZone: "UTC" }).format(date);
+          return '<div class="revenue-bar-column" role="group" aria-label="' + escapeHTML(label + ": " + money(amount)) + '"><span class="revenue-bar-value">' + escapeHTML(money(amount)) + '</span><div class="revenue-bar-track"><div class="revenue-bar-fill" style="height:' + height + '%"></div></div><span class="revenue-bar-label">' + escapeHTML(label) + '</span></div>';
+        }).join("");
+        return '<div class="revenue-chart" role="img" aria-label="Monthly imported revenue for ' + monthly.length + ' months"><div class="revenue-chart-bars">' + bars + '</div><p class="revenue-chart-caption">Monthly revenue · imported dataset · ' + currency + '</p></div>';
+      })()
+    : '<p class="empty-state">Monthly revenue trend is unavailable. Map a valid transaction date and revenue field in Data Management.</p>';
+  document.querySelectorAll("#overview .chart, #analytics .chart").forEach(chart => {
+    chart.classList.toggle("chart-empty", monthly.length === 0);
+    chart.innerHTML = chartMarkup;
+  });
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
+  const renderExplorerBar = (host, label, value, maximum, detail) => {
+    if (!host) return;
+    const row = document.createElement("div"); row.className = "explorer-bar-row";
+    const top = document.createElement("div"); top.className = "explorer-bar-top";
+    const name = document.createElement("span"); name.textContent = label;
+    const amount = document.createElement("strong"); amount.textContent = value;
+    top.append(name, amount);
+    const track = document.createElement("div"); track.className = "explorer-bar-track";
+    const fill = document.createElement("div"); fill.className = "explorer-bar-fill";
+    fill.style.width = Math.max(0, Math.min(100, maximum > 0 ? Number(detail) / maximum * 100 : 0)) + "%";
+    track.append(fill); row.append(top, track); host.append(row);
+  };
+  const customersHost = document.querySelector("#explorer-customer-segments");
+  if (customersHost) {
+    customersHost.replaceChildren();
+    if (!result.dataQuality?.customerMapped || metrics.customers == null) {
+      customersHost.textContent = "Customer identity is not mapped. Map customer ID, email or customer name to calculate segments.";
+    } else {
+      const repeat = Number(metrics.repeatCustomers || 0);
+      const total = Number(metrics.customers || 0);
+      const once = Math.max(0, total - repeat);
+      const repeatPct = total ? Math.round(repeat / total * 100) : 0;
+      const headline = document.createElement("div"); headline.className = "explorer-highlight";
+      const strong = document.createElement("strong"); strong.textContent = repeatPct + "%";
+      const caption = document.createElement("span"); caption.textContent = "of identified customers appear more than once";
+      headline.append(strong, caption); customersHost.append(headline);
+      renderExplorerBar(customersHost, "Repeat customers", repeat.toLocaleString(), total, repeat);
+      renderExplorerBar(customersHost, "One-time customers", once.toLocaleString(), total, once);
+      const foot = document.createElement("small"); foot.className = "explorer-footnote";
+      foot.textContent = total.toLocaleString() + " distinct customers identified from mapped records.";
+      customersHost.append(foot);
+      const valueBands = Array.isArray(metrics.customerValueDistribution) ? metrics.customerValueDistribution : [];
+      if (valueBands.some(band => band.customers > 0)) {
+        const heading = document.createElement("strong"); heading.className = "explorer-subheading";
+        heading.textContent = "Customer value distribution"; customersHost.append(heading);
+        const known = Number(metrics.customerValueRecords || 0);
+        valueBands.forEach(band => {
+          if (!band.customers) return;
+          renderExplorerBar(customersHost, band.label, band.customers.toLocaleString() + " · " + money(band.revenue), known, band.customers);
+        });
+        const note = document.createElement("small"); note.className = "explorer-footnote";
+        note.textContent = "Customers are grouped by their recorded revenue, split into three value bands. This is not a lifetime-value forecast.";
+        customersHost.append(note);
+      }
+    }
+  }
+  const productHost = document.querySelector("#explorer-product-performance");
+  if (productHost) {
+    productHost.replaceChildren();
+    if (!result.dataQuality?.productMapped || !metrics.topProduct) {
+      productHost.textContent = "No mapped product or service values are available yet.";
+    } else {
+      const top = document.createElement("div"); top.className = "explorer-highlight";
+      const name = document.createElement("strong"); name.textContent = metrics.topProduct.name;
+      const caption = document.createElement("span"); caption.textContent = "Most frequently recorded product or service";
+      top.append(name, caption); productHost.append(top);
+      const count = document.createElement("p"); count.className = "explorer-footnote";
+      count.textContent = Number(metrics.topProduct.records).toLocaleString() + " records. This ranks frequency, not revenue or profitability.";
+      productHost.append(count);
+      const products = Array.isArray(metrics.productPerformance) ? metrics.productPerformance : [];
+      const revenueAvailable = products.some(item => item.revenue !== null && item.revenueRecords > 0);
+      products.forEach(item => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span");
+        label.textContent = item.name + " · " + Number(item.records).toLocaleString() + " records";
+        const value = document.createElement("strong");
+        const revenueText = revenueAvailable && item.revenue !== null ? money(item.revenue) : "Revenue unavailable";
+        const marginText = item.grossMarginPercent == null ? "" : " · " + item.grossMarginPercent.toFixed(1) + "% gross margin";
+        value.textContent = revenueText + marginText;
+        line.append(label, value); productHost.append(line);
+      });
+      const revenueNote = document.createElement("small"); revenueNote.className = "explorer-footnote";
+      revenueNote.textContent = revenueAvailable
+        ? "Revenue is summed only from readable mapped amounts for each product. It is not profit."
+        : "Map a revenue field to compare product revenue. Frequency alone does not indicate financial contribution.";
+      productHost.append(revenueNote);
+    }
+  }
+  const retentionHost = document.querySelector("#explorer-customer-retention");
+  if (retentionHost) {
+    retentionHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyRetention) ? metrics.monthlyRetention : [];
+    if (!result.dataQuality?.customerMapped || !result.dataQuality?.dateMapped) {
+      retentionHost.textContent = "Map both a stable customer identifier and transaction date to analyse monthly repeat activity.";
+    } else if (!periods.length) {
+      retentionHost.textContent = "No valid monthly customer activity is available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        value.textContent = Number(period.returningCustomers).toLocaleString() + " returning · " + Number(period.returningRate).toFixed(1) + "%";
+        line.append(label, value); retentionHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Returning means present in the immediately preceding calendar month. This is monthly repeat activity, not cohort retention or customer lifetime retention.";
+      retentionHost.append(note);
+    }
+  }
+  const comparisonHost = document.querySelector("#explorer-period-comparison");
+  if (comparisonHost) {
+    comparisonHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyPerformance) ? metrics.monthlyPerformance : [];
+    if (!result.dataQuality?.revenueMapped) {
+      comparisonHost.textContent = "Map a revenue column to compare monthly business performance.";
+    } else if (!periods.length) {
+      comparisonHost.textContent = "No dated revenue records are available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        const change = period.revenueChangePercent == null ? "No comparable prior month" :
+          (period.revenueChangePercent > 0 ? "+" : "") + period.revenueChangePercent.toFixed(1) + "% vs prior month";
+        value.textContent = (period.revenue == null ? "No revenue" : money(period.revenue)) + " · " + change;
+        line.append(label, value); comparisonHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Each month is compared with the previous month present in the filtered dataset. A missing month is not treated as zero revenue.";
+      comparisonHost.append(note);
+    }
+  }
+  const profitabilityHost = document.querySelector("#explorer-profitability");
+  if (profitabilityHost) {
+    profitabilityHost.replaceChildren();
+    if (!result.dataQuality?.revenueMapped || !result.dataQuality?.costMapped) {
+      profitabilityHost.textContent = "Map both transaction revenue and transaction cost to calculate gross profit and gross margin.";
+    } else if (metrics.grossProfit == null || metrics.grossMarginPercent == null) {
+      profitabilityHost.textContent = "There are not enough valid revenue and cost values to calculate a reliable gross margin.";
+    } else {
+      const items = [
+        ["Comparable revenue", money(metrics.profitabilityRevenue)],
+        ["Comparable cost", money(metrics.profitabilityCost)],
+        ["Gross profit", money(metrics.grossProfit)],
+        ["Gross margin", Number(metrics.grossMarginPercent).toFixed(1) + "%"],
+        ["Comparable transactions", Number(metrics.profitabilityRecords || 0).toLocaleString()]
+      ];
+      items.forEach(([label, value]) => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const name = document.createElement("span"); name.textContent = label;
+        const amount = document.createElement("strong"); amount.textContent = value;
+        line.append(name, amount); profitabilityHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Gross profit uses only rows with both readable revenue and cost values. Ensure both columns use the same currency and accounting basis. This is not net profit.";
+      profitabilityHost.append(note);
+    }
+  }
+  const qualityHost = document.querySelector("#explorer-data-quality");
+  if (qualityHost) {
+    qualityHost.replaceChildren();
+    const quality = result.dataQuality || {};
+    const checks = [
+      ["Revenue mapping", Boolean(quality.revenueMapped)],
+      ["Customer identity", Boolean(quality.customerMapped)],
+      ["Product / service", Boolean(quality.productMapped)],
+      ["Transaction date", Boolean(quality.dateMapped)]
+    ];
+    const mappedCount = checks.filter(item => item[1]).length;
+    const qualityHead = document.createElement("div"); qualityHead.className = "explorer-highlight";
+    const qualityValue = document.createElement("strong"); qualityValue.textContent = Math.round(mappedCount / checks.length * 100) + "%";
+    const qualityCaption = document.createElement("span"); qualityCaption.textContent = "of core analytics fields mapped";
+    qualityHead.append(qualityValue, qualityCaption); qualityHost.append(qualityHead);
+    checks.forEach(([label, ok]) => {
+      const line = document.createElement("div"); line.className = "explorer-quality-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const state = document.createElement("strong"); state.textContent = ok ? "Mapped" : "Missing";
+      state.className = ok ? "is-mapped" : "is-unmapped";
+      line.append(name, state); qualityHost.append(line);
+    });
+    const invalid = Number(quality.invalidRevenueValues || 0);
+    const invalidLine = document.createElement("small"); invalidLine.className = "explorer-footnote";
+    invalidLine.textContent = invalid + " blank or non-numeric revenue cells reported by the analytics engine.";
+    qualityHost.append(invalidLine);
+  }
+  const valueHost = document.querySelector("#explorer-value-coverage");
+  if (valueHost) {
+    valueHost.replaceChildren();
+    const valueCards = [
+      ["Revenue records", Number(metrics.revenueRecords || 0).toLocaleString()],
+      ["Average mapped amount", metrics.averageOrderValue == null ? "Unavailable" : money(metrics.averageOrderValue)],
+      ["Reporting period", metrics.dateRange?.from && metrics.dateRange?.to
+        ? new Date(metrics.dateRange.from).toLocaleDateString() + " – " + new Date(metrics.dateRange.to).toLocaleDateString()
+        : "No valid date range"]
+    ];
+    valueCards.forEach(([label, value]) => {
+      const line = document.createElement("div"); line.className = "explorer-value-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const amount = document.createElement("strong"); amount.textContent = value;
+      line.append(name, amount); valueHost.append(line);
+    });
+    const note = document.createElement("small"); note.className = "explorer-footnote";
+    note.textContent = "Average amount is calculated across readable mapped revenue values. It is not a profit or margin measure.";
+    valueHost.append(note);
+  }
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
@@ -1401,7 +1700,8 @@ function renderBusinessInsights() {
   if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
 }
-async function loadBusinessInsights(businessId) {
+async function loadBusinessInsights(businessId, filters = getAnalyticsFilters()) {
+  const requestId = ++analyticsRequestId;
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
@@ -1410,16 +1710,90 @@ async function loadBusinessInsights(businessId) {
   }
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
+  updateAnalyticsFilterStatus(filters, "Updating analysis…");
   try {
-    const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    const result = await cloud.loadInsights(businessId, filters);
+    if (requestId !== analyticsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
+    updateAnalyticsFilterStatus(filters, "Showing");
     renderBusinessInsights();
   } catch (error) {
+    if (requestId !== analyticsRequestId) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
+    updateAnalyticsFilterStatus(filters, "Analysis could not be refreshed.");
     renderBusinessInsights();
   }
+}
+let analyticsRequestId = 0;
+function getAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period")?.value || "all";
+  const datasetId = document.querySelector("#analytics-dataset")?.value || "";
+  let from = "", to = "";
+  if (period === "custom") {
+    from = document.querySelector("#analytics-from")?.value || "";
+    to = document.querySelector("#analytics-to")?.value || "";
+  } else if (["7", "30", "90"].includes(period)) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (Number(period) - 1));
+    from = start.toISOString().slice(0, 10);
+    to = end.toISOString().slice(0, 10);
+  }
+  return { datasetId, from, to };
+}
+function updateAnalyticsFilterStatus(filters = {}, message = "") {
+  const status = document.querySelector("#analytics-filter-status");
+  if (!status) return;
+  const dataset = importedDatasets.find(item => item.id === filters.datasetId);
+  const parts = [];
+  parts.push(dataset ? dataset.name : "All datasets");
+  if (filters.from || filters.to) parts.push((filters.from || "Beginning") + " to " + (filters.to || "Today"));
+  else parts.push("All available dates");
+  status.textContent = (message ? message + " " : "Showing ") + parts.join(" · ");
+}
+function syncAnalyticsDatasetOptions() {
+  const select = document.querySelector("#analytics-dataset");
+  if (!select) return;
+  const selected = select.value;
+  select.replaceChildren();
+  const all = document.createElement("option"); all.value = ""; all.textContent = "All datasets"; select.append(all);
+  importedDatasets.forEach(dataset => {
+    const option = document.createElement("option"); option.value = dataset.id;
+    option.textContent = dataset.name + " · " + Number(dataset.row_count || 0).toLocaleString() + " rows";
+    select.append(option);
+  });
+  select.value = importedDatasets.some(item => item.id === selected) ? selected : "";
+}
+function setupAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period");
+  const dataset = document.querySelector("#analytics-dataset");
+  const from = document.querySelector("#analytics-from");
+  const to = document.querySelector("#analytics-to");
+  const reset = document.querySelector("#analytics-reset");
+  if (!period || period.dataset.bound) return;
+  period.dataset.bound = "true";
+  const update = () => {
+    const custom = period.value === "custom";
+    if (from) from.disabled = !custom;
+    if (to) to.disabled = !custom;
+    const filters = getAnalyticsFilters();
+    if (filters.from && filters.to && filters.from > filters.to) {
+      updateAnalyticsFilterStatus(filters, "The start date must be before the end date.");
+      return;
+    }
+    const businessId = window.BusinessFlowCloud?.getBusinessId?.();
+    if (businessId) void loadBusinessInsights(businessId, filters);
+  };
+  [period, dataset, from, to].forEach(control => control?.addEventListener("change", update));
+  reset?.addEventListener("click", () => {
+    period.value = "all";
+    if (dataset) dataset.value = "";
+    if (from) from.value = "";
+    if (to) to.value = "";
+    update();
+  });
+  update();
 }
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
@@ -1465,6 +1839,7 @@ function initializeBusinessFlow() {
   loadMemories();
 
   setupNavigation();
+  setupAnalyticsFilters();
   setupConnections();
   setupDataImport();
 
@@ -1477,6 +1852,7 @@ function initializeBusinessFlow() {
   setupMemoryForm();
   setupMemoryActions();
   setupMemorySearch();
+  setupLegacyImportActions();
 
   renderGoals();
   renderExperiments();
@@ -1576,7 +1952,7 @@ function setupConnections() {
 }
 
 /* CSV / Excel dataset import */
-const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
+const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["cost","Transaction cost"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
 let pendingImport = null;
 let importedDatasets = [];
 
@@ -1628,13 +2004,95 @@ function inferImportBusinessField(column, rows) {
   if (/customer.?name|client.?name|buyer.?name|full.?name/.test(name)) return "customer_name";
   if (/customer.?id|client.?id|buyer.?id|account.?id/.test(name)) return "customer_id";
   if (/date|day|created|transaction.?time|timestamp/.test(name) || samples.filter(value => /^\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}/.test(value) || /^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "order_date";
-  if (/revenue|amount|price|cost|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
+  if (/cost|expense|cogs|purchase.?cost|unit.?cost/.test(name)) return "cost";
+  if (/revenue|amount|price|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
   if (/quantity|qty|units|items.?count/.test(name)) return "quantity";
   if (/product|item|service|job|package|offering/.test(name)) return "product";
   if (/status|progress|state/.test(name)) return "status";
   if (/location|address|area|zone|city|region|branch/.test(name)) return "location";
   if (/note|description|comment|detail|remark/.test(name)) return "notes";
   return "";
+}
+function renderImportQualitySummary() {
+  const host = document.querySelector("#import-quality-summary");
+  if (!host || !pendingImport) return;
+  const columns = pendingImport.columns || [];
+  const rows = pendingImport.rows || [];
+  const mapped = [...document.querySelectorAll("[data-import-column]")].filter(select => select.value);
+  const mappedFields = new Set(mapped.map(select => select.value));
+  const required = ["revenue", "order_date", "customer_id"];
+  const numericFields = new Set(["revenue", "quantity"]);
+  const cards = [
+    { label: "Rows to import", value: String(rows.length), note: "Within the 250-row limit" },
+    { label: "Source columns", value: String(columns.length), note: "All source columns are retained" },
+    { label: "Mapped fields", value: mapped.length + " / " + columns.length, note: "Business meaning assigned" }
+  ];
+  const issues = [];
+  const duplicateNames = columns.filter((name, index) => columns.indexOf(name) !== index);
+  if (duplicateNames.length) issues.push(duplicateNames.length + " duplicate source column labels were renamed to keep them distinct.");
+  ["revenue", "order_date"].forEach(field => {
+    const select = [...document.querySelectorAll("[data-import-column]")].find(item => item.value === field);
+    if (!select) issues.push("No " + field.replace("_", " ") + " column mapped. Related analytics will remain unavailable.");
+  });
+  const hasCustomerIdentity = ["customer_id", "customer_name", "email", "phone"].some(field =>
+    [...document.querySelectorAll("[data-import-column]")].some(item => item.value === field)
+  );
+  if (!hasCustomerIdentity) issues.push("No customer identifier mapped. Customer counts will remain unavailable.");
+  for (const select of mapped) {
+    const field = select.value;
+    if (numericFields.has(field)) {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const numeric = nonEmpty.filter(value => {
+        const normalized = value.replace(/,/g, "").replace(/[^0-9.\-]/g, "");
+        return normalized && normalized !== "-" && normalized !== "." && normalized !== "-." && Number.isFinite(Number(normalized));
+      });
+      const invalid = nonEmpty.length - numeric.length;
+      if (invalid) issues.push(column + ": " + invalid + " of " + nonEmpty.length + " non-empty values are not numeric.");
+      if (!nonEmpty.length) issues.push(column + ": no non-empty values found.");
+    }
+    if (field === "order_date") {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const valid = nonEmpty.filter(value => !Number.isNaN(new Date(value).getTime()));
+      if (nonEmpty.length && valid.length !== nonEmpty.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " date values could not be parsed.");
+      if (!valid.length) issues.push(column + ": no valid dates found.");
+    }
+  }
+  host.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "import-quality-heading";
+  heading.innerHTML = "<strong>Pre-import data quality</strong><span>Checks run on this file before saving</span>";
+  host.append(heading);
+  const grid = document.createElement("div");
+  grid.className = "import-quality-grid";
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "import-quality-card";
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.textContent = item.value;
+    const note = document.createElement("small");
+    note.textContent = item.note;
+    card.append(label, value, note);
+    grid.append(card);
+  });
+  host.append(grid);
+  const message = document.createElement("p");
+  message.className = "import-quality-message " + (issues.length ? "has-warnings" : "is-ready");
+  message.textContent = issues.length ? issues.length + " item(s) to review. You can still import, but unmapped or invalid fields will limit related analytics." : "No mapping or value-format warnings detected in the checked fields.";
+  host.append(message);
+  if (issues.length) {
+    const list = document.createElement("ul");
+    list.className = "import-quality-issues";
+    issues.slice(0, 8).forEach(issue => {
+      const item = document.createElement("li");
+      item.textContent = issue;
+      list.append(item);
+    });
+    host.append(list);
+  }
 }
 function renderImportReview(){
   if(!pendingImport)return;
@@ -1654,15 +2112,17 @@ function renderImportReview(){
     select.value=guess;
     select.addEventListener("change",()=>{
       const selected=select.value;
-      if(!selected)return;
+      if(!selected){renderImportQualitySummary();return;}
       const duplicate=[...mappings.querySelectorAll("[data-import-column]")].find(other=>other!==select&&other.value===selected);
       if(duplicate){
         duplicate.value="";
         document.querySelector("#import-review-status").textContent="BusinessFlow kept both source columns. Only one is mapped to each standard field; the other remains available for Intelligence analysis.";
       }
+      renderImportQualitySummary();
     });
     label.append(title,select);mappings.append(label);
   });
+  renderImportQualitySummary();
   head.replaceChildren();body.replaceChildren();
   const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
   pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
@@ -1679,17 +2139,83 @@ function currentImportMapping(){
   });
   return mapping;
 }
-async function loadSavedImports(){
+function renderDatasetPortfolio() {
+  const metrics = document.querySelector("#dataset-portfolio-metrics");
+  const coverage = document.querySelector("#dataset-portfolio-coverage");
+  const status = document.querySelector("#dataset-portfolio-status");
+  if (!metrics || !coverage || !status) return;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud?.apiConnected || !cloud?.businessId) {
+    status.textContent = "Workspace not connected";
+    metrics.innerHTML = '<p class="empty-state">Connect and select a workspace to view dataset coverage.</p>';
+    coverage.replaceChildren();
+    const summary = document.querySelector("#overview-dataset-summary");
+    const detail = document.querySelector("#overview-dataset-detail");
+    if (summary) summary.textContent = "No connected dataset portfolio";
+    if (detail) detail.textContent = "Connect a business workspace to view imported records.";
+    return;
+  }
+  const datasets = Array.isArray(importedDatasets) ? importedDatasets : [];
+  const rows = datasets.reduce((sum, item) => sum + Math.max(0, Number(item.row_count) || 0), 0);
+  const fields = new Set();
+  datasets.forEach(item => {
+    const mapping = item.column_mapping && typeof item.column_mapping === "object" ? item.column_mapping : {};
+    Object.values(mapping).forEach(field => { if (typeof field === "string" && field) fields.add(field); });
+  });
+  const cards = [
+    { label: "Saved datasets", value: String(datasets.length), note: "In this workspace" },
+    { label: "Imported records", value: rows.toLocaleString(), note: "Across saved datasets" },
+    { label: "Business fields mapped", value: String(fields.size), note: "Unique standard fields covered" }
+  ];
+  metrics.replaceChildren();
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "dataset-portfolio-card";
+    const label = document.createElement("span"); label.textContent = item.label;
+    const value = document.createElement("strong"); value.textContent = item.value;
+    const note = document.createElement("small"); note.textContent = item.note;
+    card.append(label, value, note); metrics.append(card);
+  });
+  const standards = [
+    ["Revenue", "revenue"], ["Customer identity", "customer_id"],
+    ["Transaction date", "order_date"], ["Product / service", "product"], ["Status", "status"]
+  ];
+  coverage.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "dataset-coverage-heading";
+  const title = document.createElement("strong"); title.textContent = "Analytics field coverage";
+  const note = document.createElement("span"); note.textContent = "Based on saved column mappings";
+  heading.append(title, note); coverage.append(heading);
+  standards.forEach(([label, field]) => {
+    const count = datasets.filter(item => Object.values(item.column_mapping || {}).includes(field)).length;
+    const row = document.createElement("div"); row.className = "dataset-coverage-row";
+    const name = document.createElement("span"); name.textContent = label;
+    const track = document.createElement("div"); track.className = "dataset-coverage-track";
+    const fill = document.createElement("div"); fill.className = "dataset-coverage-fill";
+    fill.style.width = datasets.length ? Math.round(count / datasets.length * 100) + "%" : "0%";
+    track.append(fill);
+    const value = document.createElement("small"); value.textContent = count + " / " + datasets.length;
+    row.append(name, track, value); coverage.append(row);
+  });
+  status.textContent = datasets.length ? "Workspace portfolio" : "No datasets yet";
+  const summary = document.querySelector("#overview-dataset-summary");
+  const detail = document.querySelector("#overview-dataset-detail");
+  if (summary) summary.textContent = datasets.length
+    ? datasets.length + " dataset" + (datasets.length === 1 ? "" : "s") + " · " + rows.toLocaleString() + " imported records"
+    : "No datasets imported yet";
+  if (detail) detail.textContent = fields.size + " standard business fields mapped across this workspace.";
+}
+async async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
+    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();void loadBusinessInsights(cloud.businessId,getAnalyticsFilters());list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
-  }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
+  }catch(error){status.textContent=error.message||"Could not load saved datasets.";renderDatasetPortfolio();}
 }
 function buildDatasetReadout(dataset){
   const mapping=dataset.column_mapping&&typeof dataset.column_mapping==="object"?dataset.column_mapping:{};
@@ -1813,6 +2339,7 @@ function setupDataImport(){
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
   window.addEventListener("businessflow:cloud-state",loadSavedImports);
+  window.addEventListener("businessflow:workspace-changed",loadSavedImports);
   renderImportReview();
   loadSavedImports();
 }
