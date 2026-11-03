@@ -107,17 +107,77 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
         throw new GreyIntegrationError("Business workspace context could not be saved.", 503, true);
       }
       let greyConversationId = conversation.grey_conversation_id;
-      let initializationToken = null;
+      let grey;
+
       if (!greyConversationId) {
         const { data: claim, error: claimError } = await req.supabase.rpc("businessflow_claim_grey_initialization", {
-          p_conversation_id: conversationId
+          p_conversation_id: conversationId,
+          p_message_id: userMessage.id
         });
         if (claimError) throw claimError;
         if (claim?.status === "busy") {
           throw new GreyIntegrationError("Another request is initializing Grey for this conversation. Retry shortly.", 503, true);
         }
-        if (claim?.status === "claimed" && isUuid(claim.token)) {
-          initializationToken = claim.token;
+
+        if (claim?.status === "claimed") {
+          if (!isUuid(claim.token) || !isUuid(claim.message_id)) {
+            throw new GreyIntegrationError("Grey initialization state is invalid.", 502);
+          }
+
+          // If an earlier first-turn request timed out, recover that exact
+          // message and request ID before processing the current turn.
+          if (claim.message_id !== userMessage.id) {
+            const { data: firstMessage, error: firstMessageError } = await req.supabase
+              .from("businessflow_messages")
+              .select("id,content,client_message_id,workspace_context")
+              .eq("id", claim.message_id)
+              .eq("conversation_id", conversationId)
+              .eq("role", "user")
+              .maybeSingle();
+            if (firstMessageError) throw firstMessageError;
+            if (!firstMessage || !isUuid(firstMessage.client_message_id) ||
+                !firstMessage.workspace_context || typeof firstMessage.workspace_context !== "object") {
+              throw new GreyIntegrationError("The original Grey initialization message cannot be recovered.", 503, true);
+            }
+
+            const recovered = await sendMessageToGrey({
+              userId: req.user.id,
+              businessId: conversation.business_id,
+              message: firstMessage.content,
+              requestId: firstMessage.client_message_id,
+              conversationId: undefined,
+              workspaceContext: firstMessage.workspace_context
+            });
+            const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
+              p_conversation_id: conversationId,
+              p_token: claim.token,
+              p_grey_conversation_id: recovered.conversationId
+            });
+            if (completeError) throw completeError;
+            if (completed !== true) {
+              throw new GreyIntegrationError("Grey conversation recovery could not be committed. Retry shortly.", 503, true);
+            }
+            greyConversationId = recovered.conversationId;
+          } else {
+            grey = await sendMessageToGrey({
+              userId: req.user.id,
+              businessId: conversation.business_id,
+              message: userMessage.content,
+              requestId: clientMessageId,
+              conversationId: undefined,
+              workspaceContext
+            });
+            const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
+              p_conversation_id: conversationId,
+              p_token: claim.token,
+              p_grey_conversation_id: grey.conversationId
+            });
+            if (completeError) throw completeError;
+            if (completed !== true) {
+              throw new GreyIntegrationError("Grey conversation initialization could not be committed. Retry shortly.", 503, true);
+            }
+            greyConversationId = grey.conversationId;
+          }
         } else if (claim?.status === "ready" && isUuid(claim.conversation_id)) {
           greyConversationId = claim.conversation_id;
         } else {
@@ -125,8 +185,9 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
         }
       }
 
-      let grey;
-      try {
+      // If we recovered a previous first turn, now process this turn against
+      // the recovered Grey conversation using this turn's own idempotency key.
+      if (!grey) {
         grey = await sendMessageToGrey({
           userId: req.user.id,
           businessId: conversation.business_id,
@@ -135,27 +196,6 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
           conversationId: greyConversationId,
           workspaceContext
         });
-        if (initializationToken) {
-          const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
-            p_conversation_id: conversationId,
-            p_token: initializationToken,
-            p_grey_conversation_id: grey.conversationId
-          });
-          if (completeError) throw completeError;
-          if (completed !== true) {
-            throw new GreyIntegrationError("Grey conversation ownership changed during initialization. Retry the message.", 503, true);
-          }
-        } else if (greyConversationId && grey.conversationId !== greyConversationId) {
-          throw new GreyIntegrationError("Grey returned a different conversation than expected.", 502);
-        }
-      } catch (error) {
-        if (initializationToken) {
-          await req.supabase.rpc("businessflow_release_grey_initialization", {
-            p_conversation_id: conversationId,
-            p_token: initializationToken
-          });
-        }
-        throw error;
       }
 
       const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
