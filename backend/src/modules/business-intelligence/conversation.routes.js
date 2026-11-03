@@ -82,6 +82,13 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     } else if (insertError) return next(insertError);
     else userMessage = inserted;
     if (!userMessage) return res.status(409).json({ error: "message_retry_conflict", retryable: true });
+    if (userMessage.content !== content.trim()) {
+      return res.status(409).json({
+        error: "client_message_id_conflict",
+        message: "This client_message_id was already used for different message content.",
+        retryable: false
+      });
+    }
 
     const { data: existingReply, error: replyLookupError } = await req.supabase.from("businessflow_messages")
       .select("id,conversation_id,role,content,created_at")
