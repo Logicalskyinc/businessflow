@@ -109,6 +109,11 @@ billingRouter.post("/checkout", async (request, response, next) => {
       return response.status(409).json({ error: "subscription_exists", message: "Manage the current subscription in the billing portal." });
     }
 
+    const idempotencyKey = request.get("idempotency-key");
+    if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      return response.status(400).json({ error: "idempotency_key_required", message: "Send a unique UUID in the Idempotency-Key header." });
+    }
+
     const customerId = await getOrCreateCustomer(business, request.user);
     const successUrl = process.env.BILLING_CHECKOUT_SUCCESS_URL;
     const cancelUrl = process.env.BILLING_CHECKOUT_CANCEL_URL;
@@ -126,7 +131,7 @@ billingRouter.post("/checkout", async (request, response, next) => {
       metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey },
       subscription_data: { metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey } },
       allow_promotion_codes: true
-    }, { idempotencyKey: "businessflow_checkout_" + business.id + "_" + planKey + "_" + request.get("idempotency-key")?.slice(0, 80) });
+    }, { idempotencyKey: "businessflow_checkout_" + business.id + "_" + idempotencyKey });
 
     return response.status(201).json({ status: "created", checkout_url: session.url, session_id: session.id });
   } catch (error) { return respondError(error, response, next); }
@@ -177,9 +182,9 @@ export async function handleStripeWebhook(request, response) {
     return response.status(400).json({ error: "invalid_webhook_signature" });
   }
 
-  const db = getBillingClient();
   const object = event.data?.object;
   try {
+    const db = getBillingClient();
     let subscription = null;
     if (event.type === "checkout.session.completed" && object.subscription) {
       subscription = await getStripe().subscriptions.retrieve(object.subscription);
