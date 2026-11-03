@@ -80,6 +80,14 @@ function respondError(error, response, next) {
 
 billingRouter.use(requireAuthenticatedUser);
 
+billingRouter.get("/plans", async (_request, response, next) => {
+  try {
+    const { data, error } = await getBillingClient().rpc("billing_list_plans");
+    if (error) throw error;
+    return response.json({ status: "ok", plans: Array.isArray(data) ? data : [] });
+  } catch (error) { return respondError(error, response, next); }
+});
+
 billingRouter.post("/customer", async (request, response, next) => {
   try {
     const business = await getOwnedBusiness(request, request.body?.business_id);
