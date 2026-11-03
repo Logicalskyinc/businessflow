@@ -435,7 +435,7 @@ window.BusinessFlowCloud = Object.freeze({
   createMemory: async (businessId, item) => {
     const result = await apiRequest("/api/business-intelligence/memory", {
       method: "POST", body: JSON.stringify({ business_id: businessId, category: item.category,
-        content: { title: item.title, date: item.date, text: item.content }, source: "user" })
+        content: item.content, source: "user" })
     });
     if (!result.memory?.id) throw new Error("Memory was saved but the response did not contain its ID.");
     return result.memory;
@@ -443,7 +443,7 @@ window.BusinessFlowCloud = Object.freeze({
   updateMemory: async (businessId, id, item) => {
     const result = await apiRequest("/api/business-intelligence/memory/" + encodeURIComponent(id), {
       method: "PATCH", body: JSON.stringify({ business_id: businessId, category: item.category,
-        content: { title: item.title, date: item.date, text: item.content } })
+        content: item.content })
     });
     return result.memory;
   },
