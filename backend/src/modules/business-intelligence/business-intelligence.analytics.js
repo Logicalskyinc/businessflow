@@ -11,7 +11,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
   let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0;
-  const customerIds = new Set(), customerFrequency = new Map(), productFrequency = new Map(), monthlyRevenue = new Map(), dateValues = [];
+  const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), dateValues = [];
   for (const dataset of imports) {
     const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
     const fields = {};
@@ -62,13 +62,27 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         if (amount === null) invalidRevenueValues++;
         else { revenueTotal += amount; revenueValueCount++; }
       }
+      const amountForBreakdown = fields.revenue ? numericValue(row[fields.revenue]) : null;
+      let customer = "";
       if (fields.customer_id || fields.email || fields.customer_name) {
-        const customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
-        if (customer) { customerIds.add(customer); customerFrequency.set(customer, (customerFrequency.get(customer) || 0) + 1); }
+        customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
+        if (customer) {
+          customerIds.add(customer);
+          customerFrequency.set(customer, (customerFrequency.get(customer) || 0) + 1);
+          if (amountForBreakdown !== null) customerSpend.set(customer, (customerSpend.get(customer) || 0) + amountForBreakdown);
+        }
       }
       if (fields.product) {
         const product = String(row[fields.product] ?? "").trim();
-        if (product) productFrequency.set(product, (productFrequency.get(product) || 0) + 1);
+        if (product) {
+          productFrequency.set(product, (productFrequency.get(product) || 0) + 1);
+          if (amountForBreakdown !== null) {
+            const current = productRevenue.get(product) || { revenue: 0, records: 0 };
+            current.revenue += amountForBreakdown;
+            current.records++;
+            productRevenue.set(product, current);
+          }
+        }
       }
       if (fields.order_date) {
         const parsed = new Date(String(row[fields.order_date] ?? "").trim());
@@ -86,6 +100,25 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const activeExperiments = experiments.filter(experiment => ["planned", "running"].includes(experiment.status));
   const repeatCustomers = [...customerFrequency.values()].filter(count => count > 1).length;
   const topProduct = [...productFrequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+  const productPerformance = [...productFrequency.entries()].map(([name, records]) => {
+    const financial = productRevenue.get(name);
+    return { name, records, revenue: financial ? Number(financial.revenue.toFixed(2)) : null,
+      revenueRecords: financial?.records || 0 };
+  }).sort((a, b) => b.records - a.records).slice(0, 8);
+  const customerValueDistribution = (() => {
+    const values = [...customerSpend.values()].filter(Number.isFinite).sort((a, b) => a - b);
+    if (!values.length) return null;
+    const bands = [
+      { label: "Lower value", min: 0, max: Math.floor((values.length - 1) / 3) },
+      { label: "Mid value", min: Math.floor(values.length / 3), max: Math.floor((2 * values.length - 1) / 3) },
+      { label: "Higher value", min: Math.floor(2 * values.length / 3), max: values.length - 1 }
+    ];
+    return bands.map(band => {
+      const slice = values.slice(band.min, band.max + 1);
+      return { label: band.label, customers: slice.length,
+        revenue: Number(slice.reduce((sum, value) => sum + value, 0).toFixed(2)) };
+    });
+  })();
   const progressGoals = activeGoals.map(goal => {
     const target = Number(goal.target_value), current = Number(goal.current_value);
     return { id: goal.id, title: goal.title, status: goal.status, metric: goal.metric_name,
@@ -175,7 +208,10 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       averageOrderValue: revenueValueCount ? Number((revenueTotal / revenueValueCount).toFixed(2)) : null,
       topProduct: topProduct ? { name: topProduct[0], records: topProduct[1] } : null,
       dateRange: sortedDates.length ? { from: sortedDates[0], to: sortedDates.at(-1) } : null,
-      monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) }))
+      monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) })),
+      productPerformance,
+      customerValueDistribution,
+      customerValueRecords: customerSpend.size
     },
     dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, invalidRevenueValues,
       notes: !rows.length ? ["No imported records are available."] : [
