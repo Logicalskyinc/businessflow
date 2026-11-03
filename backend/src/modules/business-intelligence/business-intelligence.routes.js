@@ -137,7 +137,7 @@ businessIntelligenceRouter.post("/imports", requireAuthenticatedUser, async (req
     if (new Set(columns.map(c => c.trim().toLowerCase())).size !== columns.length) return bad(res, ["Column names must be unique."]);
     if (!object(req.body.column_mapping)) return bad(res, ["column_mapping must be a JSON object."]);
     const mappingValues = Object.values(req.body.column_mapping).filter(Boolean);
-    const allowedMappings = new Set(["customer_name","email","phone","revenue","order_date","product","quantity","status","customer_id","location","notes"]);
+    const allowedMappings = new Set(["customer_name","email","phone","revenue","cost","order_date","product","quantity","status","customer_id","location","notes"]);
     if (Object.keys(req.body.column_mapping).some(key => !columns.includes(key)) || mappingValues.some(value => typeof value !== "string" || !allowedMappings.has(value)) || new Set(mappingValues).size !== mappingValues.length) return bad(res, ["Column mapping contains unknown columns or duplicate/unsupported business fields."]);
     if (!Array.isArray(rows) || rows.length < 1 || rows.length > 250) return bad(res, ["Import must contain 1 to 250 data rows."]);
     const normalizedRows = [];
