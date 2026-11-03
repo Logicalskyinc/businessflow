@@ -1573,6 +1573,27 @@ function renderBusinessInsights() {
       productHost.append(revenueNote);
     }
   }
+  const retentionHost = document.querySelector("#explorer-customer-retention");
+  if (retentionHost) {
+    retentionHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyRetention) ? metrics.monthlyRetention : [];
+    if (!result.dataQuality?.customerMapped || !result.dataQuality?.dateMapped) {
+      retentionHost.textContent = "Map both a stable customer identifier and transaction date to analyse monthly repeat activity.";
+    } else if (!periods.length) {
+      retentionHost.textContent = "No valid monthly customer activity is available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        value.textContent = Number(period.returningCustomers).toLocaleString() + " returning · " + Number(period.returningRate).toFixed(1) + "%";
+        line.append(label, value); retentionHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Returning means present in the immediately preceding calendar month. This is monthly repeat activity, not cohort retention or customer lifetime retention.";
+      retentionHost.append(note);
+    }
+  }
   const qualityHost = document.querySelector("#explorer-data-quality");
   if (qualityHost) {
     qualityHost.replaceChildren();
