@@ -61,3 +61,8 @@ Example entitlements:
 ```
 
 No live Stripe products, prices, subscriptions or charges are created by this implementation.
+
+
+## Currency-specific prices
+
+The plan catalogue is split into `billing.plans` (feature entitlements) and `billing.plan_prices` (Stripe Price IDs by currency and recurring interval). A plan can have XOF and NGN prices, with monthly and yearly variants. Checkout requires `business_id`, `plan_key`, `currency`, and `billing_interval` (`month` or `year`). Keep the plan and its price inactive until the price and entitlements have been reviewed.
