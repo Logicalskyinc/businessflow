@@ -20,7 +20,7 @@ begin
     raise exception 'authentication_required' using errcode = '42501';
   end if;
 
-  if p_content is null or char_length(p_content) not between 1 and 8000 then
+  if p_content is null or char_length(btrim(p_content)) not between 1 and 8000 then
     raise exception 'invalid_message_content' using errcode = '22023';
   end if;
 
@@ -68,7 +68,9 @@ begin
     select *
       into v_message
     from public.businessflow_messages
-    where reply_to_message_id = p_reply_to_message_id;
+    where reply_to_message_id = p_reply_to_message_id
+      and conversation_id = p_conversation_id
+      and created_by = v_user_id;
   end if;
 
   return v_message;
