@@ -1594,6 +1594,31 @@ function renderBusinessInsights() {
       retentionHost.append(note);
     }
   }
+  const profitabilityHost = document.querySelector("#explorer-profitability");
+  if (profitabilityHost) {
+    profitabilityHost.replaceChildren();
+    if (!result.dataQuality?.revenueMapped || !result.dataQuality?.costMapped) {
+      profitabilityHost.textContent = "Map both transaction revenue and transaction cost to calculate gross profit and gross margin.";
+    } else if (metrics.grossProfit == null || metrics.grossMarginPercent == null) {
+      profitabilityHost.textContent = "There are not enough valid revenue and cost values to calculate a reliable gross margin.";
+    } else {
+      const items = [
+        ["Mapped revenue", money(metrics.revenueTotal)],
+        ["Mapped cost", money(metrics.costTotal)],
+        ["Gross profit", money(metrics.grossProfit)],
+        ["Gross margin", Number(metrics.grossMarginPercent).toFixed(1) + "%"]
+      ];
+      items.forEach(([label, value]) => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const name = document.createElement("span"); name.textContent = label;
+        const amount = document.createElement("strong"); amount.textContent = value;
+        line.append(name, amount); profitabilityHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Gross profit is mapped revenue minus mapped cost. Ensure both columns use the same currency, transaction scope and accounting basis. This is not net profit.";
+      profitabilityHost.append(note);
+    }
+  }
   const qualityHost = document.querySelector("#explorer-data-quality");
   if (qualityHost) {
     qualityHost.replaceChildren();
