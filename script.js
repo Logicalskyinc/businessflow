@@ -1470,6 +1470,26 @@ function renderBusinessInsights() {
       if (note) note.textContent = item.note;
     });
   }
+  const monthly = Array.isArray(metrics.monthlyRevenue)
+    ? metrics.monthlyRevenue.filter(item => item && /^\\d{4}-\\d{2}$/.test(String(item.month)) && Number.isFinite(Number(item.total)))
+    : [];
+  const chartMarkup = monthly.length
+    ? (() => {
+        const max = Math.max(...monthly.map(item => Number(item.total)), 1);
+        const bars = monthly.slice(-12).map(item => {
+          const amount = Number(item.total);
+          const height = Math.max(3, Math.round((amount / max) * 100));
+          const date = new Date(item.month + "-01T00:00:00Z");
+          const label = Number.isNaN(date.getTime()) ? item.month : new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit", timeZone: "UTC" }).format(date);
+          return '<div class="revenue-bar-column" role="group" aria-label="' + escapeHTML(label + ": " + money(amount)) + '"><span class="revenue-bar-value">' + escapeHTML(money(amount)) + '</span><div class="revenue-bar-track"><div class="revenue-bar-fill" style="height:' + height + '%"></div></div><span class="revenue-bar-label">' + escapeHTML(label) + '</span></div>';
+        }).join("");
+        return '<div class="revenue-chart" role="img" aria-label="Monthly imported revenue for ' + monthly.length + ' months"><div class="revenue-chart-bars">' + bars + '</div><p class="revenue-chart-caption">Monthly revenue · imported dataset · ' + currency + '</p></div>';
+      })()
+    : '<p class="empty-state">Monthly revenue trend is unavailable. Map a valid transaction date and revenue field in Data Management.</p>';
+  document.querySelectorAll("#overview .chart, #analytics .chart").forEach(chart => {
+    chart.classList.toggle("chart-empty", monthly.length === 0);
+    chart.innerHTML = chartMarkup;
+  });
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
