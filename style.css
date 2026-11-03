@@ -509,3 +509,62 @@ body.auth-required .account-page { max-width: 100%; }
  #assistant .bf-assistant-mode{flex:1;min-width:150px}
  #assistant .bf-chat-compose-footer .primary-button{flex:1}
 }
+
+
+/* Guided data workspace: one clear upload, review and understanding flow. */
+.data-page-heading{margin-bottom:18px}
+.data-page-heading .subtitle{max-width:720px;line-height:1.7}
+.data-workflow-steps{display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:14px 17px;border:1px solid var(--border);border-radius:13px;background:#fff}
+.data-workflow-step{display:flex;align-items:center;gap:10px;min-width:0}
+.data-workflow-step>span{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:#edf3ff;color:#315fc3;font-size:10px;font-weight:800}
+.data-workflow-step>div{display:grid;gap:3px}
+.data-workflow-step strong{color:#2e405e;font-size:11px}
+.data-workflow-step small{color:#8290a3;font-size:9px}
+.data-workflow-connector{height:1px;flex:1;min-width:12px;background:#e5eaf2}
+.data-import-card,.data-saved-panel{margin:0 0 18px}
+.data-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:17px}
+.data-section-heading h2{margin:3px 0 5px}
+.data-section-heading .muted{margin:0;max-width:650px;line-height:1.6}
+.data-upload-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(220px,.8fr);gap:18px;align-items:start}
+.data-upload-controls{min-width:0}
+.data-upload-controls .form-label{display:grid;gap:7px;margin-bottom:13px;color:#46556c;font-size:11px;font-weight:700}
+.data-upload-help{padding:17px;border:1px solid #e7edf5;border-radius:12px;background:#f8fafd}
+.data-upload-help strong{color:#30415c;font-size:11px}
+.data-upload-help p,.data-upload-help li{color:#758399;font-size:10px;line-height:1.7}
+.data-upload-help ul{padding-left:17px;margin:10px 0 0}
+.data-upload-help li+li{margin-top:5px}
+.data-review-section{margin:0 0 18px}
+.data-review-section[hidden]{display:none!important}
+.data-preview-heading{margin:20px 0 10px}
+.data-preview-heading h3{margin:0 0 4px;font-size:13px}
+.data-preview-heading .muted{margin:0;font-size:10px}
+.data-review-section .import-review-actions{margin-top:15px}
+.data-review-section #import-save{min-width:145px}
+.data-saved-panel .record-list{margin-top:6px}
+#data-import .import-dropzone{min-height:150px;padding:20px}
+#data-import .import-dropzone strong{font-size:12px}
+#data-import .import-dropzone span{font-size:10px}
+#data-import .import-dropzone small{font-size:9px}
+#data-import .import-mapping-grid{margin-top:4px}
+#data-import .import-mapping-item{min-width:0}
+#data-import .import-preview-wrap{max-width:100%;overflow:auto}
+#data-import .import-preview-table{min-width:520px}
+@media(max-width:760px){
+ .data-workflow-steps{gap:7px;padding:12px 10px}
+ .data-workflow-step{gap:6px}
+ .data-workflow-step>span{width:26px;height:26px;flex-basis:26px;font-size:9px}
+ .data-workflow-step strong{font-size:10px}
+ .data-workflow-step small{font-size:8px}
+ .data-upload-grid{grid-template-columns:minmax(0,1fr)}
+ .data-upload-help{padding:14px}
+ .data-section-heading{align-items:flex-start}
+ .data-section-heading>.count-pill{white-space:nowrap}
+ .data-review-section .import-review-actions{align-items:stretch;flex-direction:column}
+ .data-review-section #import-save{width:100%}
+}
+@media(max-width:420px){
+ .data-workflow-steps{align-items:flex-start}
+ .data-workflow-step{align-items:flex-start;flex-direction:column}
+ .data-workflow-connector{margin-top:13px}
+ .data-workflow-step>div{min-height:25px}
+}
