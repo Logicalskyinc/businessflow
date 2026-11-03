@@ -99,27 +99,56 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       if (!workspaceContext || typeof workspaceContext !== "object") {
         throw new GreyIntegrationError("Business workspace context could not be saved.", 503, true);
       }
-      const grey = await sendMessageToGrey({
-        userId: req.user.id,
-        businessId: conversation.business_id,
-        message: userMessage.content,
-        requestId: clientMessageId,
-        conversationId: conversation.grey_conversation_id,
-        workspaceContext
-      });
-
-      if (!conversation.grey_conversation_id) {
-        const { error: mappingError } = await req.supabase.from("businessflow_conversations")
-          .update({ grey_conversation_id: grey.conversationId })
-          .eq("id", conversationId).is("grey_conversation_id", null);
-        if (mappingError) throw mappingError;
+      let greyConversationId = conversation.grey_conversation_id;
+      let initializationToken = null;
+      if (!greyConversationId) {
+        const { data: claim, error: claimError } = await req.supabase.rpc("businessflow_claim_grey_initialization", {
+          p_conversation_id: conversationId
+        });
+        if (claimError) throw claimError;
+        if (claim?.status === "busy") {
+          throw new GreyIntegrationError("Another request is initializing Grey for this conversation. Retry shortly.", 503, true);
+        }
+        if (claim?.status === "claimed" && isUuid(claim.token)) {
+          initializationToken = claim.token;
+        } else if (claim?.status === "ready" && isUuid(claim.conversation_id)) {
+          greyConversationId = claim.conversation_id;
+        } else {
+          throw new GreyIntegrationError("Grey conversation initialization returned an invalid state.", 502);
+        }
       }
 
-      const { data: currentConversation, error: mappingReadError } = await req.supabase.from("businessflow_conversations")
-        .select("grey_conversation_id").eq("id", conversationId).maybeSingle();
-      if (mappingReadError) throw mappingReadError;
-      if (!currentConversation || currentConversation.grey_conversation_id !== grey.conversationId) {
-        throw new GreyIntegrationError("This conversation is being initialized by another request. Retry the message.", 503, true);
+      let grey;
+      try {
+        grey = await sendMessageToGrey({
+          userId: req.user.id,
+          businessId: conversation.business_id,
+          message: userMessage.content,
+          requestId: clientMessageId,
+          conversationId: greyConversationId,
+          workspaceContext
+        });
+        if (initializationToken) {
+          const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
+            p_conversation_id: conversationId,
+            p_token: initializationToken,
+            p_grey_conversation_id: grey.conversationId
+          });
+          if (completeError) throw completeError;
+          if (completed !== true) {
+            throw new GreyIntegrationError("Grey conversation ownership changed during initialization. Retry the message.", 503, true);
+          }
+        } else if (greyConversationId && grey.conversationId !== greyConversationId) {
+          throw new GreyIntegrationError("Grey returned a different conversation than expected.", 502);
+        }
+      } catch (error) {
+        if (initializationToken) {
+          await req.supabase.rpc("businessflow_release_grey_initialization", {
+            p_conversation_id: conversationId,
+            p_token: initializationToken
+          });
+        }
+        throw error;
       }
 
       const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
