@@ -538,3 +538,15 @@ body.auth-required .account-page { max-width: 100%; }
   .bf-chat-layout { grid-template-columns: minmax(0, 1fr); }
   .bf-chat-history { max-height: 150px; overflow: auto; }
 }
+
+
+/* Data-driven monthly revenue visualisation */
+.revenue-chart{display:grid;gap:12px;width:100%;min-width:0;padding:12px 2px 2px}
+.revenue-chart-bars{display:grid;grid-auto-columns:minmax(48px,1fr);grid-auto-flow:column;align-items:end;gap:clamp(5px,1.4vw,14px);min-height:205px;overflow-x:auto;padding:8px 2px 0}
+.revenue-bar-column{display:grid;grid-template-rows:30px minmax(100px,1fr) 25px;align-items:end;gap:6px;min-width:0;text-align:center}
+.revenue-bar-value{overflow:hidden;color:#64748b;font-size:9px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.revenue-bar-track{display:flex;align-items:end;justify-content:center;height:100%;border-radius:8px 8px 3px 3px;background:#f0f3f9}
+.revenue-bar-fill{width:min(70%,34px);min-height:3px;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#6f8ff0,#4268cf);transition:height .25s ease}
+.revenue-bar-label{color:#718096;font-size:10px;white-space:nowrap}
+.revenue-chart-caption{margin:0;color:#8490a3;font-size:10px}
+@media(max-width:760px){.revenue-chart-bars{min-height:175px;grid-auto-columns:minmax(54px,1fr)}.revenue-bar-column{grid-template-rows:27px minmax(85px,1fr) 24px}.revenue-bar-value{font-size:8px}}
