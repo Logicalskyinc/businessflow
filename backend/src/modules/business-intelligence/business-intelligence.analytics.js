@@ -231,8 +231,10 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         ? Number(((revenue - previousRevenue) / Math.abs(previousRevenue) * 100).toFixed(1)) : null };
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers], index, periods) => {
-    const previous = index > 0 ? periods[index - 1][1] : new Set();
+  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const previousMonth = new Date(Date.UTC(year, monthNumber - 2, 1)).toISOString().slice(0, 7);
+    const previous = monthlyCustomerActivity.get(previousMonth) || new Set();
     const returning = [...customers].filter(customer => previous.has(customer)).length;
     return { month, activeCustomers: customers.size, returningCustomers: returning,
       returningRate: customers.size ? Number((returning / customers.size * 100).toFixed(1)) : 0 };
