@@ -82,11 +82,19 @@ function experimentFromCloud(item) {
 function memoryToCloud(item) {
   return {
     category: MEMORY_CATEGORY_MAP[item.category] || "business_context",
-    content: { title: item.title, date: item.date, text: item.content }
+    content: JSON.stringify({ title: item.title, date: item.date, text: item.content })
   };
 }
 function memoryFromCloud(item) {
-  const content = item.content && typeof item.content === "object" ? item.content : {};
+  let content = {};
+  if (item.content && typeof item.content === "object") content = item.content;
+  else if (typeof item.content === "string") {
+    try {
+      const parsed = JSON.parse(item.content);
+      if (parsed && typeof parsed === "object") content = parsed;
+      else content = { text: item.content };
+    } catch { content = { text: item.content }; }
+  }
   return {
     id: item.id, title: String(content.title || "Business note"),
     category: MEMORY_LABEL_MAP[item.category] || "Other",
