@@ -136,8 +136,7 @@ begin
   update public.businessflow_conversations c
   set grey_conversation_id = p_grey_conversation_id,
       grey_initialization_token = null,
-      grey_initialization_expires_at = null,
-      grey_initialization_message_id = null
+      grey_initialization_expires_at = null
   where c.id = p_conversation_id
     and c.created_by = v_user_id
     and c.grey_conversation_id is null
@@ -151,8 +150,8 @@ end;
 $$;
 
 revoke all on function public.businessflow_set_message_context(uuid, jsonb) from public, anon;
-revoke all on function public.businessflow_claim_grey_initialization(uuid) from public, anon;
+revoke all on function public.businessflow_claim_grey_initialization(uuid, uuid) from public, anon;
 revoke all on function public.businessflow_complete_grey_initialization(uuid, uuid, uuid) from public, anon;
 grant execute on function public.businessflow_set_message_context(uuid, jsonb) to authenticated;
-grant execute on function public.businessflow_claim_grey_initialization(uuid) to authenticated;
+grant execute on function public.businessflow_claim_grey_initialization(uuid, uuid) to authenticated;
 grant execute on function public.businessflow_complete_grey_initialization(uuid, uuid, uuid) to authenticated;
