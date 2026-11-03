@@ -422,18 +422,53 @@
 </section>
 
 <section class="page" id="data-import">
-          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your business records into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
-          <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>How to add your CSV</strong><p><b>1.</b> Tap Choose a CSV or Excel file. <b>2.</b> Check the preview and map customer, service, amount, date and status columns where available. <b>3.</b> Tap <b>Add to BusinessFlow</b>. The saved dataset will open below with a summary calculated from your imported records. You must be signed in and have a business workspace selected.</p></div></div>
-          <article class="panel import-upload-panel"><div class="panel-heading"><div><h2>Choose a file</h2><p class="muted">CSV or Excel workbook · maximum 2 MB, 40 columns and 250 data rows per import.</p></div><span class="count-pill">CSV / XLSX</span></div>
-            <label class="form-label">Dataset name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
-            <label class="import-dropzone" for="import-file"><span class="import-upload-icon" aria-hidden="true">⇧</span><strong>Choose a CSV or Excel file</strong><span>Tap to select a file from your device</span><small>CSV, XLSX or XLS · file contents are not uploaded automatically</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
-            <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p></article>
-          <section id="import-review" hidden><article class="panel"><div class="panel-heading"><div><h2>Review and map columns</h2><p class="muted">Choose the business meaning for each source column. Keep as source field preserves its original name.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
-            <div id="import-column-mapping" class="import-mapping-grid"></div><h3 class="import-preview-heading">Sample preview <span>first 10 rows</span></h3><div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
-            <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Add to BusinessFlow</button></div></article></section>
-          <article class="panel"><div class="panel-heading"><div><h2>Saved datasets</h2><p class="muted">Datasets already imported into the selected workspace.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
-            <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div><div id="saved-import-detail" class="saved-import-detail" hidden></div><p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p></article>
-          <footer class="app-footer">BusinessFlow · Data import</footer></section>
+          <div class="page-heading data-page-heading">
+            <p class="eyebrow">BUSINESS DATA</p>
+            <h1>Bring your business data together</h1>
+            <p class="subtitle">Upload a file, check how BusinessFlow understands its columns, then explore findings calculated from your records.</p>
+          </div>
+
+          <div class="data-workflow-steps" aria-label="Import steps">
+            <div class="data-workflow-step"><span>01</span><div><strong>Upload</strong><small>Choose your file</small></div></div>
+            <div class="data-workflow-connector" aria-hidden="true"></div>
+            <div class="data-workflow-step"><span>02</span><div><strong>Review</strong><small>Check the columns</small></div></div>
+            <div class="data-workflow-connector" aria-hidden="true"></div>
+            <div class="data-workflow-step"><span>03</span><div><strong>Understand</strong><small>Explore your data</small></div></div>
+          </div>
+
+          <article class="panel data-import-card">
+            <div class="data-section-heading">
+              <div><p class="eyebrow">STEP 1 · UPLOAD</p><h2>Choose a business file</h2><p class="muted">Start with a sales, customer, service, booking or expense spreadsheet.</p></div>
+              <span class="count-pill">CSV · XLSX · XLS</span>
+            </div>
+            <div class="data-upload-grid">
+              <div class="data-upload-controls">
+                <label class="form-label">Give this dataset a name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
+                <label class="import-dropzone" for="import-file"><span class="import-upload-icon">⇧</span><strong>Choose a CSV or Excel file</strong><span>Open Files on your device to select a spreadsheet</span><small>Maximum 2 MB · 40 columns · 250 data rows</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
+                <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p>
+              </div>
+              <aside class="data-upload-help"><strong>What happens to your file?</strong><p>BusinessFlow reads the file in your browser so you can review it before saving.</p><ul><li>Your original column names are preserved.</li><li>Unrecognised columns can stay as source fields.</li><li>Business metrics are calculated from imported records, not guessed.</li></ul></aside>
+            </div>
+          </article>
+
+          <section id="import-review" class="data-review-section" hidden>
+            <article class="panel">
+              <div class="data-section-heading"><div><p class="eyebrow">STEP 2 · REVIEW</p><h2>Check what each column means</h2><p class="muted">BusinessFlow suggests likely meanings. Correct any suggestion that does not fit your data.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
+              <div id="import-column-mapping" class="import-mapping-grid"></div>
+              <div class="data-preview-heading"><div><h3>Preview your records</h3><p class="muted">A sample of the first 10 rows before saving.</p></div></div>
+              <div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
+              <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Save dataset</button></div>
+            </article>
+          </section>
+
+          <article class="panel data-saved-panel">
+            <div class="data-section-heading"><div><p class="eyebrow">STEP 3 · UNDERSTAND</p><h2>Your saved datasets</h2><p class="muted">Open a dataset to see summaries calculated from its saved records.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
+            <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div>
+            <div id="saved-import-detail" class="saved-import-detail" hidden></div>
+            <p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p>
+          </article>
+          <footer class="app-footer">BusinessFlow · Your data stays understandable and connected to your decisions.</footer>
+        </section>
         <section class="page" id="connections">
           <div class="page-heading">
             <p class="eyebrow">BUSINESS SYSTEMS</p>
