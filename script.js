@@ -314,7 +314,7 @@ function renderGoals() {
   renderAnalyticsGoals();
 
   const count = document.querySelector("#goal-count");
-  if (count) count.textContent = String(goals.length);
+  if (count) count.textContent = goals.length + (goals.length === 1 ? " goal" : " goals");
 
   updateStorageStatus();
 }
