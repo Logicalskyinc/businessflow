@@ -163,7 +163,7 @@ async function buildWorkspaceContext(supabase, businessId) {
     experiments: experimentsResult.data ?? [],
     memory: (memoryResult.data ?? []).map(item => ({
       category: item.category,
-      content: typeof item.content === "string" ? item.content.slice(0, 700) : item.content
+      content: (typeof item.content === "string" ? item.content : JSON.stringify(item.content)).slice(0, 700)
     }))
   };
 
