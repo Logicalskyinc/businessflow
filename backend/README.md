@@ -48,6 +48,7 @@ Copy `.env.example` to your local environment and set:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY` (the project's publishable/anon key, never a service-role key)
 - optionally `PORT` and `NODE_ENV`
+- optionally `OYOSKY_SERVICE_URL` and `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` to enable the explicit OYOSKY assistant mode. The token must match `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on the OYOSKY service and must never be exposed to the browser.
 
 The deployed backend will need the same values in its hosting provider's secret/environment settings. No production hosting variables have been changed by this commit.
 
@@ -92,7 +93,7 @@ These are initial owner-only policies. Membership roles are groundwork only; tea
 
 ## Not implemented yet
 
-The backend code persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. The frontend code now contains account authentication, workspace selection, goal loading, cloud goal CRUD, and an explicit local-goal import flow. However, `apiBaseUrl` is intentionally empty in `frontend-config.js`, so these flows cannot reach the backend until a deployment is separately approved, configured, and verified. The `onboarding/validate` endpoint remains non-persistent. The API does not yet compute live business analytics, call an AI provider, integrate Grey/GreyFlow, or execute external actions.
+The backend code persists onboarding profiles and exposes authenticated CRUD endpoints for goals, experiments, and structured business-memory records. It also computes rule-based business insights and provides persistent, workspace-scoped conversations. An optional OYOSKY assistant mode now sends bounded workspace context from the authenticated backend to OYOSKY through a dedicated service credential. The OYOSKY endpoint currently uses deterministic ATLAS/ORBIT reasoning, not trained OYOSKY model weights. The frontend contains account authentication, workspace selection, goal loading, cloud goal CRUD, and an explicit local-goal import flow. The frontend's `apiBaseUrl` must still be configured and verified for the cloud experience to work. The `onboarding/validate` endpoint remains non-persistent. Grey and GreyFlow are not yet integrated into BusinessFlow, and no external actions are executed.
 
 Before adding further customer data, implement and test the complete authorization flow, automated RLS integration tests, and server-side secret configuration. Never trust a business or tenant ID supplied by the browser, and never expose a Supabase service-role key to the frontend.
 
@@ -105,3 +106,25 @@ The shared project's security advisor also reports two findings on existing Grow
 The API permits browser requests from `https://logicalskyinc.github.io` by default. If the frontend is hosted elsewhere, set `BUSINESSFLOW_ALLOWED_ORIGINS` in the backend environment to a comma-separated list of exact origins (scheme and hostname, no path). The CORS middleware does not enable credentialed cookies; the API uses bearer tokens. Keep the frontend's Supabase publishable/anon key public and never expose a service-role key.
 
 The frontend account panel supports Supabase email/password sign-in, account creation, sign-out, workspace selection, goal loading and CRUD calls, and an explicit local-goal import flow. The frontend's `apiBaseUrl` remains blank until the backend is deployed and verified, so these cloud calls are not currently live. Do not describe the app as cloud-synced until end-to-end tests confirm sign-in, workspace creation, goal persistence across reloads, and cross-account isolation.
+
+## OYOSKY assistant mode
+
+The conversation API accepts `assistant_mode: "businessflow"` (default) or `assistant_mode: "oyosky"`. BusinessFlow loads the selected authenticated workspace's profile, goals, experiments, and bounded business-memory context on the backend. It sends that context to OYOSKY over HTTPS using a dedicated server-to-server bearer token. The browser never receives this credential.
+
+Set `OYOSKY_SERVICE_URL` and `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on the BusinessFlow backend. Set the same token as `OYOSKY_BUSINESSFLOW_SERVICE_TOKEN` on OYOSKY. The OYOSKY endpoint disables shared OYOSKY memory and rejects requests without its dedicated credential. If OYOSKY is unavailable, BusinessFlow returns an explicit error and does not silently substitute a different reasoning provider.
+
+The current OYOSKY endpoint returns its deterministic ATLAS/ORBIT reasoning assessment. It does not use trained OYOSKY model weights, execute actions, or write OYOSKY memory. This integration is not live until both services are separately configured and deployed.
+
+## Grey assistant mode
+
+The conversation API accepts `assistant_mode: "grey"`. The authenticated BusinessFlow backend signs a short-lived HS256 token for the selected user and business workspace and sends it to the configured Grey HTTPS endpoint. The browser never receives the signing secret. Grey stores its own tenant-scoped persistent conversation history; BusinessFlow stores the returned Grey conversation ID to reconnect future turns.
+
+Set `GREY_SERVICE_URL` and `GREY_BUSINESSFLOW_JWT_SECRET` on the BusinessFlow backend. Set the same secret as `GREY_BUSINESSFLOW_JWT_SECRET` on Grey. Grey also requires `GREY_CHAT_HISTORY_DATABASE_URL` for persistent history, replay protection and rate limits. If Grey or its history database is unavailable, BusinessFlow reports an explicit error and does not fall back to another assistant. The first migration adds the Grey conversation link column; apply migrations before enabling the integration.
+
+BusinessFlow sends the selected workspace's business profile, goals, experiments and saved business memory. Users should choose Grey only when they are comfortable sharing that data with the configured Grey service. Grey treats this context as untrusted reference data and does not grant it owner memory permissions.
+
+Each persisted BusinessFlow message records its selected assistant mode (`businessflow`, `oyosky`, or `grey`) so the interface can label older replies correctly after a refresh. Apply the `202611020002_businessflow_assistant_modes.sql` migration after the Grey conversation-link migration.
+
+Grey retries use the UUID of the already-persisted BusinessFlow user message as `request_id`. If a request times out after Grey has saved its answer, BusinessFlow can retry the same message ID and Grey returns the original conversation and saved answer rather than appending another turn. The backend persists the Grey conversation ID before committing the assistant reply, so a failed BusinessFlow write can recover the same Grey conversation on retry.
+
+If a user message was saved but its assistant response was not, the conversation history includes its persisted `client_message_id`. The UI exposes a retry action for that unmatched user message and resends the same ID, allowing Grey to recover its saved conversation and response after a browser refresh. Do not generate a new client message ID for a retry.

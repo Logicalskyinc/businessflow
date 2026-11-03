@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -21,7 +21,7 @@
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
         <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
-        <a href="#overview" class="nav-link" data-page="overview"><span>✳</span> Intelligence</a>
+        <a href="#assistant" class="nav-link" data-page="assistant"><span>✳</span> AI Assistant</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
@@ -60,53 +60,39 @@
       </header>
 
       <div class="page-container">
-        <section class="page active" id="overview">
-          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
-          </div>
-
-          <div class="welcome-row">
+      <section class="page active" id="overview">
+          <div class="welcome-row dashboard-welcome">
             <div>
-              <p class="eyebrow">BUSINESS INTELLIGENCE</p>
+              <p class="eyebrow">YOUR BUSINESS WORKSPACE</p>
               <h1 id="overview-greeting">Good morning.</h1>
-              <p class="subtitle">Your business, clearly understood. Make confident decisions with reliable information.</p>
+              <p class="subtitle">A clear view of what matters, what needs attention, and what to do next.</p>
             </div>
             <div class="welcome-actions">
-              <button type="button" class="secondary-button" data-go-to="account" id="manage-workspace-button">Manage workspace</button>
-              <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
+              <button type="button" class="secondary-button" data-go-to="data-import">Add business data</button>
+              <button type="button" class="primary-button" data-go-to="assistant">Ask your assistant</button>
             </div>
           </div>
 
-          <div class="insight-banner">
-            <div class="insight-icon">✳</div>
-            <div>
-              <strong>Business intelligence is ready to work.</strong>
-              <p>BusinessFlow examines your imported records, goals, experiments and business memory to surface evidence-based next steps.</p>
-            </div>
+          <div class="workspace-notice" role="status">
+            <span class="workspace-notice-dot"></span>
+            <span>Connect a real data source to unlock revenue and customer metrics. BusinessFlow will never invent missing figures.</span>
+            <button type="button" class="text-button" data-go-to="data-import">Connect data</button>
           </div>
-          <article class="panel intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
+
+          <article class="panel intelligence-panel dashboard-insights">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p>
+                <h2>Your next useful insight</h2>
+                <p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p>
+              </div>
+              <button type="button" class="text-button" data-go-to="analytics">View analysis</button>
+            </div>
             <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
           </article>
 
-          <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to BusinessFlow Intelligence</h2><p class="muted">Your workspace context, goals, experiments and saved decisions stay together.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
-            <div class="bf-chat-layout">
-              <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Recent conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
-              <section class="bf-chat-main" aria-label="BusinessFlow Intelligence conversation">
-                <div id="bf-chat-messages" class="bf-chat-messages" aria-live="polite"><div class="bf-chat-empty"><strong>Start with what matters to your business.</strong><p>Ask about a goal, a customer problem, a dataset, or a decision you need to make.</p></div></div>
-                <form id="bf-chat-form" class="bf-chat-composer"><label class="sr-only" for="bf-chat-input">Message BusinessFlow Intelligence</label><textarea id="bf-chat-input" rows="2" maxlength="8000" placeholder="What would you like to understand or improve?" required></textarea><div class="bf-chat-compose-footer"><span id="bf-chat-status">Your conversations are saved to this workspace.</span><button type="submit" class="primary-button" id="bf-chat-send">Send message</button></div></form>
-              </section>
-            </div>
-            <p class="bf-chat-disclaimer">This first release uses saved workspace data and deterministic business rules. AI-model reasoning and external actions are not enabled yet.</p>
-          </article>
-
-          <div class="section-heading">
-            <div>
-              <h2>Business overview</h2>
-              <p class="muted">Live indicators appear when you connect business data.</p>
-            </div>
+          <div class="section-heading dashboard-section-heading">
+            <div><h2>Business at a glance</h2><p class="muted">Only verified figures from connected records are shown.</p></div>
             <label class="period-control">Period
               <select id="period-select">
                 <option value="7">Last 7 days</option>
@@ -117,134 +103,95 @@
           </div>
 
           <div class="metrics-grid">
-            <article class="metric-card">
-              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value" data-metric-value="active-experiments">0</strong>
-              <p class="metric-note" data-metric-note="active-experiments">From saved experiments</p>
-            </article>
+            <article class="metric-card"><div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div><strong class="metric-value">—</strong><p class="metric-note">Connect a revenue source</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div><strong class="metric-value">—</strong><p class="metric-note">Connect customer records</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div><strong class="metric-value">—</strong><p class="metric-note">Needs sales or funnel data</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div><strong class="metric-value" data-metric-value="active-experiments">0</strong><p class="metric-note" data-metric-note="active-experiments">From saved experiments</p></article>
           </div>
 
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue performance</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
-              </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
-                <button type="button" class="text-button" data-go-to="goals">View all</button>
-              </div>
+          <div class="content-grid dashboard-lower-grid">
+            <article class="panel dashboard-preview-panel">
+              <div class="panel-heading"><div><p class="eyebrow">WHAT YOU'RE WORKING TOWARD</p><h2>Business goals</h2><p class="muted">Small, measurable steps make progress easier to see.</p></div><button type="button" class="text-button" data-go-to="goals">All goals</button></div>
               <div id="goal-list" class="goal-list"></div>
-              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+              <p class="muted" data-storage-status role="status">Checking workspace storage…</p>
+              <button type="button" class="secondary-button dashboard-inline-action" data-go-to="goals">Create or update a goal</button>
+            </article>
+            <article class="panel dashboard-preview-panel">
+              <div class="panel-heading"><div><p class="eyebrow">LEARN BY TESTING</p><h2>Recent experiments</h2><p class="muted">Try a small change and measure what happens.</p></div><button type="button" class="text-button" data-go-to="experiments">All experiments</button></div>
+              <div id="overview-experiment-list" class="simple-list"><p class="empty-state">Loading saved experiments…</p></div>
+              <button type="button" class="secondary-button dashboard-inline-action" data-go-to="experiments">Explore experiments</button>
             </article>
           </div>
-
-          <article class="panel">
-            <h2>Recent experiments</h2>
-            <p class="muted">Your saved experiments, not sample records.</p>
-            <div id="overview-experiment-list" class="simple-list">
-              <p class="empty-state">Loading saved experiments…</p>
-            </div>
-          </article>
-
-          <footer class="app-footer">BusinessFlow · Business workspace</footer>
+          <footer class="app-footer">BusinessFlow · Understand your business. Decide with evidence. Grow with confidence.</footer>
         </section>
 
-        <section class="page" id="analytics">
-          <div class="page-heading">
+        <section class="page" id="assistant">
+          <div class="page-heading assistant-page-heading">
+            <p class="eyebrow">YOUR BUSINESS PARTNER</p>
+            <h1>AI Assistant</h1>
+            <p class="subtitle">Ask a question, understand your numbers, plan your next move, or get help building a business from the ground up.</p>
+          </div>
+          <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
+            <div class="panel-heading"><div><p class="eyebrow">ONE CONVERSATION WORKSPACE</p><h2>Think through the next decision</h2><p class="muted">Your selected business context and saved conversation stay together.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
+            <div class="bf-chat-layout">
+              <aside class="bf-chat-history" aria-label="Conversation history"><div class="bf-chat-history-heading">Recent conversations</div><div id="bf-conversation-list"><p class="empty-state">Sign in and select a workspace to load your conversations.</p></div></aside>
+              <section class="bf-chat-main" aria-label="Business assistant conversation">
+                <div id="bf-chat-messages" class="bf-chat-messages" aria-live="polite"><div class="bf-chat-empty"><strong>Start with what matters to your business.</strong><p>Ask about a goal, a customer problem, a dataset, or a decision you need to make.</p></div></div>
+                <form id="bf-chat-form" class="bf-chat-composer"><label class="sr-only" for="bf-chat-input">Message your business assistant</label><textarea id="bf-chat-input" rows="2" maxlength="8000" placeholder="What would you like to understand or improve?" required></textarea><div class="bf-chat-compose-footer"><span id="bf-chat-status">Your conversations are saved to this workspace.</span><label class="bf-assistant-mode" for="bf-assistant-mode"><span>Assistant</span><select id="bf-assistant-mode"><option value="businessflow">BusinessFlow</option><option value="oyosky">OYOSKY · ATLAS</option><option value="grey">Grey · Business assistant</option></select></label><button type="submit" class="primary-button" id="bf-chat-send">Send message</button></div></form>
+              </section>
+            </div>
+            <p class="bf-chat-disclaimer">BusinessFlow uses saved workspace data and deterministic rules. OYOSKY sends selected workspace details to OYOSKY for a deterministic ATLAS/ORBIT assessment. Grey sends selected business profile, goals, experiments and saved business memory to your private Grey service. Choose an assistant only when you are comfortable sharing that workspace context. Neither integration executes business actions; OYOSKY does not yet use trained OYOSKY model weights.</p>
+          </article>
+          <article class="assistant-guidance">
+            <div><strong>New to business?</strong><p>Ask how to price a service, find your first customers, track costs, or turn an idea into a simple plan.</p></div>
+            <div><strong>Already running a business?</strong><p>Bring your records and ask about performance, customer retention, experiments, and growth opportunities.</p></div>
+          </article>
+        </section>
+
+          <section class="page" id="analytics">
+          <div class="page-heading analytics-page-heading">
             <p class="eyebrow">PERFORMANCE INTELLIGENCE</p>
             <h1>Analytics</h1>
-            <p class="subtitle">Understand performance, track trends, and measure progress.</p>
+            <p class="subtitle">See what your records can prove, understand where information is missing, and decide what to measure next.</p>
           </div>
 
-          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span>Revenue, customer, and conversion metrics are not populated with sample values. Goal progress reflects the goals currently loaded in this workspace.</span>
+          <div class="analytics-truth-note" role="note">
+            <span class="analytics-truth-icon">i</span>
+            <p>BusinessFlow only reports figures supported by your saved data. Missing information stays clearly marked instead of being replaced with estimates.</p>
+            <button type="button" class="text-button" data-go-to="data-import">Manage data</button>
           </div>
 
-          <div class="section-heading">
-            <div>
-              <h2>Performance overview</h2>
-              <p class="muted">Connect a real source to populate business indicators</p>
+          <article class="panel analytics-coverage-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">DATA COVERAGE</p><h2>What this analysis can see</h2><p class="muted">Coverage updates when your selected business workspace is analysed.</p></div>
+              <span class="count-pill" id="analytics-engine-label">Not analysed</span>
             </div>
-            <label class="period-control">Period
-              <select id="analytics-period">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="metrics-grid">
-            <article class="metric-card">
-              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value" data-metric-value="active-experiments">0</strong>
-              <p class="metric-note" data-metric-note="active-experiments">From saved experiments</p>
-            </article>
-          </div>
-
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue trend</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
-              </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
-            </article>
-
-            <article class="panel">
-              <h2>Goal performance</h2>
-              <p class="muted">Progress calculated from your saved goals</p>
-              <div id="analytics-goals" class="goal-list">
-                <p class="empty-state">Goal performance will appear here.</p>
-              </div>
-            </article>
-          </div>
-
-          <article class="panel">
-            <h2>Business insights</h2>
-            <p class="muted">Insights should be based on reliable data, not assumptions.</p>
-            <div id="analytics-insights" class="insight-list"><p class="empty-state">Select a workspace to generate verified business insights.</p></div>
+            <div class="analytics-coverage-grid">
+              <div class="analytics-coverage-item"><span>Records analysed</span><strong id="analytics-record-count">—</strong><small>Saved records included in the latest analysis</small></div>
+              <div class="analytics-coverage-item"><span>Datasets included</span><strong id="analytics-dataset-count">—</strong><small>Datasets available to the analysis engine</small></div>
+              <div class="analytics-coverage-item"><span>Active experiments</span><strong data-metric-value="active-experiments">0</strong><small data-metric-note="active-experiments">From saved experiments</small></div>
+            </div>
+            <p id="analytics-coverage-status" class="muted analytics-coverage-status" role="status">Select a workspace to inspect its data coverage.</p>
           </article>
 
-          <footer class="app-footer">BusinessFlow · Performance intelligence</footer>
+          <div class="analytics-content-grid">
+            <article class="panel analytics-goals-panel">
+              <div class="panel-heading"><div><p class="eyebrow">BUSINESS PLANNING</p><h2>Goal progress</h2><p class="muted">Progress is calculated from your saved targets.</p></div><button type="button" class="text-button" data-go-to="goals">Manage goals</button></div>
+              <div id="analytics-goals" class="goal-list"><p class="empty-state">Goal performance will appear here.</p></div>
+            </article>
+            <article class="panel analytics-next-panel">
+              <p class="eyebrow">MAKE THE NEXT DECISION</p>
+              <h2>Turn a finding into an action</h2>
+              <p class="muted">Use your analysis to choose a small, measurable improvement. Track the result instead of relying on guesswork.</p>
+              <div class="analytics-next-actions"><button type="button" class="secondary-button" data-go-to="experiments">Review experiments</button><button type="button" class="primary-button" data-go-to="assistant">Discuss with AI</button></div>
+            </article>
+          </div>
+
+          <article class="panel analytics-insights-panel">
+            <div class="panel-heading"><div><p class="eyebrow">EVIDENCE-BASED FINDINGS</p><h2>Business insights</h2><p class="muted">Each finding includes the evidence and a suggested next step.</p></div><span class="count-pill">Workspace analysis</span></div>
+            <div id="analytics-insights" class="insight-list"><p class="empty-state">Select a workspace to generate verified business insights.</p></div>
+          </article>
+          <footer class="app-footer">BusinessFlow · Understand the evidence before making the decision.</footer>
         </section>
 
         <section class="page" id="experiments">
@@ -279,6 +226,11 @@
               <label class="form-label full-span">Hypothesis
                 <textarea id="experiment-hypothesis" name="hypothesis" rows="3" maxlength="1000" placeholder="If we do X, we expect Y because..." required></textarea>
               </label>
+              <label class="form-label full-span">Related business goal (optional)
+                <select id="experiment-goal" name="goalId">
+                  <option value="">No linked goal</option>
+                </select>
+              </label>
               <label class="form-label">Baseline value
                 <input id="experiment-baseline" name="baseline" type="number" min="0" step="any" placeholder="Leave blank until measured">
               </label>
@@ -303,45 +255,43 @@
         </section>
 
         <section class="page" id="goals">
-          <div class="page-heading">
+          <div class="page-heading goals-page-heading">
             <p class="eyebrow">BUSINESS PLANNING</p>
-            <h1>Business Goals</h1>
-            <p class="subtitle">Set measurable targets and track progress.</p>
+            <h1>Goals that move your business forward</h1>
+            <p class="subtitle">Choose a result that matters, set a measurable target, and update progress as real results come in.</p>
           </div>
 
-          <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Goals are stored locally unless you sign in, connect the API, and select a cloud workspace. Browser records are not overwritten automatically.</span>
+          <div class="goals-intro-note"><span>↗</span><p>A useful goal has one clear outcome, a number you can measure, and a current result you can update.</p></div>
+
+          <div class="goals-workspace-grid">
+            <article class="panel goals-list-panel">
+              <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS TARGETS</p><h2>Goal progress</h2><p class="muted">Update a result when your business makes progress.</p></div><span class="count-pill" id="goal-count">0 goals</span></div>
+              <div id="all-goals-list" class="record-list"></div>
+              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
+            </article>
+            <article class="panel goals-create-panel">
+              <p class="eyebrow">MAKE A PLAN</p>
+              <h2>Create a business goal</h2>
+              <p class="muted">Start with one outcome you can track. You can edit it later.</p>
+              <form id="goal-form" class="form-grid">
+                <label class="form-label full-span">What do you want to achieve?
+                  <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
+                </label>
+                <label class="form-label">Current result
+                  <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
+                </label>
+                <label class="form-label">Your target
+                  <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
+                </label>
+                <label class="form-label full-span">How will you measure it?
+                  <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
+                </label>
+                <button type="submit" class="primary-button full-span">Save goal</button>
+              </form>
+              <div class="goal-examples"><strong>Examples</strong><span>Get 20 new customers</span><span>Reach 500,000 FCFA in sales</span><span>Reduce missed appointments to 5</span></div>
+            </article>
           </div>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div><h2>Your goals</h2><p class="muted">Update your current result to calculate progress.</p></div>
-              <span class="count-pill" id="goal-count">0</span>
-            </div>
-            <div id="all-goals-list" class="record-list"></div>
-            <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-          </article>
-
-          <article class="panel">
-            <h2>Create a business goal</h2>
-            <p class="muted">Choose a target that you can measure.</p>
-            <form id="goal-form" class="form-grid">
-              <label class="form-label full-span">Goal name
-                <input id="goal-title" name="title" maxlength="120" placeholder="e.g. Reach 100 customers" required>
-              </label>
-              <label class="form-label">Current value
-                <input id="goal-current" name="current" type="number" min="0" step="any" value="0" required>
-              </label>
-              <label class="form-label">Target value
-                <input id="goal-target" name="target" type="number" min="0.01" step="any" placeholder="100" required>
-              </label>
-              <label class="form-label full-span">Measurement unit
-                <input id="goal-unit" name="unit" maxlength="40" value="customers" placeholder="customers, sales, orders" required>
-              </label>
-              <button type="submit" class="primary-button full-span">Save goal</button>
-            </form>
-          </article>
+          <footer class="app-footer">BusinessFlow · Progress you can measure and learn from.</footer>
         </section>
 
         <section class="page" id="business-memory">
@@ -444,18 +394,53 @@
 </section>
 
 <section class="page" id="data-import">
-          <div class="page-heading"><p class="eyebrow">BUSINESS DATA</p><h1>Add your business records</h1><p class="subtitle">Bring your business records into BusinessFlow. Review its columns, add the records to your workspace, and open a data readout.</p></div>
-          <div class="connections-notice"><span class="connections-notice-icon" aria-hidden="true">✓</span><div><strong>How to add your CSV</strong><p><b>1.</b> Tap Choose a CSV or Excel file. <b>2.</b> Check the preview and map customer, service, amount, date and status columns where available. <b>3.</b> Tap <b>Add to BusinessFlow</b>. The saved dataset will open below with a summary calculated from your imported records. You must be signed in and have a business workspace selected.</p></div></div>
-          <article class="panel import-upload-panel"><div class="panel-heading"><div><h2>Choose a file</h2><p class="muted">CSV or Excel workbook · maximum 2 MB, 40 columns and 250 data rows per import.</p></div><span class="count-pill">CSV / XLSX</span></div>
-            <label class="form-label">Dataset name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
-            <label class="import-dropzone" for="import-file"><span class="import-upload-icon" aria-hidden="true">⇧</span><strong>Choose a CSV or Excel file</strong><span>Tap to select a file from your device</span><small>CSV, XLSX or XLS · file contents are not uploaded automatically</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
-            <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p></article>
-          <section id="import-review" hidden><article class="panel"><div class="panel-heading"><div><h2>Review and map columns</h2><p class="muted">Choose the business meaning for each source column. Keep as source field preserves its original name.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
-            <div id="import-column-mapping" class="import-mapping-grid"></div><h3 class="import-preview-heading">Sample preview <span>first 10 rows</span></h3><div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
-            <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Add to BusinessFlow</button></div></article></section>
-          <article class="panel"><div class="panel-heading"><div><h2>Saved datasets</h2><p class="muted">Datasets already imported into the selected workspace.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
-            <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div><div id="saved-import-detail" class="saved-import-detail" hidden></div><p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p></article>
-          <footer class="app-footer">BusinessFlow · Data import</footer></section>
+          <div class="page-heading data-page-heading">
+            <p class="eyebrow">BUSINESS DATA</p>
+            <h1>Bring your business data together</h1>
+            <p class="subtitle">Upload a file, check how BusinessFlow understands its columns, then explore findings calculated from your records.</p>
+          </div>
+
+          <div class="data-workflow-steps" aria-label="Import steps">
+            <div class="data-workflow-step"><span>01</span><div><strong>Upload</strong><small>Choose your file</small></div></div>
+            <div class="data-workflow-connector" aria-hidden="true"></div>
+            <div class="data-workflow-step"><span>02</span><div><strong>Review</strong><small>Check the columns</small></div></div>
+            <div class="data-workflow-connector" aria-hidden="true"></div>
+            <div class="data-workflow-step"><span>03</span><div><strong>Understand</strong><small>Explore your data</small></div></div>
+          </div>
+
+          <article class="panel data-import-card">
+            <div class="data-section-heading">
+              <div><p class="eyebrow">STEP 1 · UPLOAD</p><h2>Choose a business file</h2><p class="muted">Start with a sales, customer, service, booking or expense spreadsheet.</p></div>
+              <span class="count-pill">CSV · XLSX · XLS</span>
+            </div>
+            <div class="data-upload-grid">
+              <div class="data-upload-controls">
+                <label class="form-label">Give this dataset a name<input id="import-dataset-name" maxlength="160" placeholder="e.g. October sales" autocomplete="off"></label>
+                <label class="import-dropzone" for="import-file"><span class="import-upload-icon">⇧</span><strong>Choose a CSV or Excel file</strong><span>Open Files on your device to select a spreadsheet</span><small>Maximum 2 MB · 40 columns · 250 data rows</small><input id="import-file" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
+                <p id="import-file-status" class="muted" role="status" aria-live="polite">No file selected.</p>
+              </div>
+              <aside class="data-upload-help"><strong>What happens to your file?</strong><p>BusinessFlow reads the file in your browser so you can review it before saving.</p><ul><li>Your original column names are preserved.</li><li>Unrecognised columns can stay as source fields.</li><li>Business metrics are calculated from imported records, not guessed.</li></ul></aside>
+            </div>
+          </article>
+
+          <section id="import-review" class="data-review-section" hidden>
+            <article class="panel">
+              <div class="data-section-heading"><div><p class="eyebrow">STEP 2 · REVIEW</p><h2>Check what each column means</h2><p class="muted">BusinessFlow suggests likely meanings. Correct any suggestion that does not fit your data.</p></div><span class="count-pill" id="import-row-count">0 rows</span></div>
+              <div id="import-column-mapping" class="import-mapping-grid"></div>
+              <div class="data-preview-heading"><div><h3>Preview your records</h3><p class="muted">A sample of the first 10 rows before saving.</p></div></div>
+              <div class="import-preview-wrap"><table class="import-preview-table"><thead id="import-preview-head"></thead><tbody id="import-preview-body"></tbody></table></div>
+              <div class="import-review-actions"><p id="import-review-status" role="status" aria-live="polite"></p><button id="import-save" type="button" class="primary-button">Save dataset</button></div>
+            </article>
+          </section>
+
+          <article class="panel data-saved-panel">
+            <div class="data-section-heading"><div><p class="eyebrow">STEP 3 · UNDERSTAND</p><h2>Your saved datasets</h2><p class="muted">Open a dataset to see summaries calculated from its saved records.</p></div><button id="imports-refresh" type="button" class="small-button">Refresh</button></div>
+            <div id="saved-imports-list" class="record-list"><p class="empty-state">Sign in and select a business workspace to load saved datasets.</p></div>
+            <div id="saved-import-detail" class="saved-import-detail" hidden></div>
+            <p id="saved-imports-status" class="muted" role="status" aria-live="polite"></p>
+          </article>
+          <footer class="app-footer">BusinessFlow · Your data stays understandable and connected to your decisions.</footer>
+        </section>
         <section class="page" id="connections">
           <div class="page-heading">
             <p class="eyebrow">BUSINESS SYSTEMS</p>

@@ -314,9 +314,10 @@ function renderGoals() {
   renderAnalyticsGoals();
 
   const count = document.querySelector("#goal-count");
-  if (count) count.textContent = String(goals.length);
+  if (count) count.textContent = goals.length + (goals.length === 1 ? " goal" : " goals");
 
   updateStorageStatus();
+  renderExperimentGoalOptions();
 }
 
 async function createGoal(title, current, target, unit) {
@@ -599,6 +600,7 @@ function loadExperiments() {
         ? null
         : Number(item.result),
       status: item.status,
+      goalId: typeof item.goalId === "string" ? item.goalId : "",
       notes: String(item.notes ?? "").slice(0, 2000),
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
@@ -631,7 +633,22 @@ function renderOverviewExperiments() {
     }).join("");
 }
 
+function renderExperimentGoalOptions(selectedGoalId = null) {
+  const select = document.querySelector("#experiment-goal");
+  if (!select) return;
+
+  const selected = selectedGoalId === null ? select.value : selectedGoalId;
+  const options = goals.map(goal =>
+    '<option value="' + escapeHTML(goal.id) + '">' +
+    escapeHTML(goal.title) + '</option>'
+  ).join("");
+
+  select.innerHTML = '<option value="">No linked goal</option>' + options;
+  select.value = goals.some(goal => goal.id === selected) ? selected : "";
+}
+
 function renderExperiments() {
+  renderExperimentGoalOptions();
   const container = document.querySelector("#experiment-list");
   const count = document.querySelector("#experiment-count");
 
@@ -667,6 +684,12 @@ function renderExperiments() {
 
         <p><strong>Hypothesis</strong></p>
         <p>${formatText(item.hypothesis)}</p>
+        ${item.goalId ? (() => {
+          const linkedGoal = goals.find(goal => goal.id === item.goalId);
+          return '<p class="muted"><strong>Related goal:</strong> ' +
+            (linkedGoal ? escapeHTML(linkedGoal.title) : "Goal no longer available") +
+            '</p>';
+        })() : ""}
 
         <div class="record-details">
           <p><strong>Baseline:</strong>
@@ -739,6 +762,7 @@ function setupExperimentForm() {
     ).value.trim();
     const status = document.querySelector("#experiment-status").value;
     const notes = document.querySelector("#experiment-notes").value.trim();
+    const goalId = document.querySelector("#experiment-goal").value;
 
     const baseline = baselineInput === "" ? null : Number(baselineInput);
     const result = resultInput === "" ? null : Number(resultInput);
@@ -779,6 +803,11 @@ function setupExperimentForm() {
       return;
     }
 
+    if (goalId && !goals.some(goal => goal.id === goalId)) {
+      showToast("Choose an available business goal or clear the selection.");
+      return;
+    }
+
     const now = new Date().toISOString();
 
     if (editingExperimentId !== null) {
@@ -797,6 +826,7 @@ function setupExperimentForm() {
         baseline,
         result,
         status,
+        goalId,
         notes,
         updatedAt: now
       });
@@ -819,6 +849,7 @@ function setupExperimentForm() {
       baseline,
       result,
       status,
+      goalId,
       notes,
       createdAt: now,
       updatedAt: now
@@ -880,6 +911,7 @@ function handleExperimentAction(action, id) {
   document.querySelector("#experiment-result").value =
     item.result === null ? "" : String(item.result);
   document.querySelector("#experiment-status").value = item.status;
+  renderExperimentGoalOptions(item.goalId || "");
   document.querySelector("#experiment-notes").value = item.notes;
 
   setExperimentFormMode(true);
@@ -1383,13 +1415,29 @@ function renderBusinessInsights() {
   const analytics = document.querySelector("#analytics-insights");
   const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
+  const coverage = result?.coverage || {};
+  const setText = (selector, value) => {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = value;
+  };
+  setText("#analytics-record-count", Number.isFinite(Number(coverage.recordsAnalysed))
+    ? new Intl.NumberFormat().format(Number(coverage.recordsAnalysed)) : "—");
+  setText("#analytics-dataset-count", Number.isFinite(Number(coverage.datasetCount))
+    ? new Intl.NumberFormat().format(Number(coverage.datasetCount)) : "—");
+  setText("#analytics-engine-label", result
+    ? (result.engine === "businessflow_rules_v1" ? "Rules engine" : "Analysis ready")
+    : "Not analysed");
+  setText("#analytics-coverage-status", result
+    ? (Number(coverage.recordsAnalysed) > 0
+      ? "Analysis covers " + Number(coverage.recordsAnalysed) + " saved records across " + Number(coverage.datasetCount || 0) + " datasets. Findings below are based on this coverage."
+      : "The analysis completed, but no saved records were available to support business metrics.")
+    : "Select a workspace to inspect its data coverage.");
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
     if (status) status.textContent = "Waiting for a selected workspace.";
     return;
   }
-  const coverage = result.coverage || {};
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
@@ -1718,10 +1766,10 @@ async function viewSavedImport(id){
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
-    const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
+    const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(title,meta,analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
     dataset.rows.slice(0,25).forEach(row=>{const line=document.createElement("tr");dataset.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";line.append(td);});tbody.append(line);});
-    table.append(thead,tbody);wrap.append(table);panel.append(title,meta,wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
+    table.append(thead,tbody);wrap.append(table);panel.append(wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
   }catch(error){panel.textContent=error.message||"Could not load this dataset.";}
 }
 function setupDataImport(){
@@ -1761,7 +1809,7 @@ function setupDataImport(){
       pendingImport.filename=file.name;
       const name=document.querySelector("#import-dataset-name");
       if(name&&!name.value.trim())name.value=file.name.replace(/\.(csv|xlsx|xls)$/i,"").slice(0,160);
-      fileStatus.textContent="File ready: "+file.name+". Review the preview below, then tap Add to BusinessFlow.";
+      fileStatus.textContent="File ready: "+file.name+". Review the preview below, then save your dataset.";
       renderImportReview();
       review.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(error){
@@ -1793,7 +1841,7 @@ function setupDataImport(){
     if(!pendingImport){status.textContent="Choose and review a file first.";return;}
     if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
     button.disabled=true;
-    status.textContent="Validating and saving the reviewed dataset…";
+    status.textContent="Checking your column mapping and saving the dataset…";
     try{
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
@@ -1802,11 +1850,10 @@ function setupDataImport(){
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
       showToast("Dataset added to BusinessFlow.");
       await loadSavedImports();
-      status.textContent="Dataset saved. BusinessFlow Intelligence is analysing the updated workspace…";
+      status.textContent="Dataset saved. Opening its data readout…";
+      if(result.import.id) await viewSavedImport(result.import.id);
       await loadBusinessInsights(cloud.businessId);
-      document.querySelector("#saved-import-detail")?.setAttribute("hidden","");
-      navigateTo("overview");
-      status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
+      status.textContent="Dataset saved. Review the data readout below, then use the Overview to see workspace-level insights.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
     finally{button.disabled=false;}
   });
@@ -1827,12 +1874,14 @@ function initializeBusinessFlowChat() {
   const input = document.querySelector("#bf-chat-input");
   const send = document.querySelector("#bf-chat-send");
   const status = document.querySelector("#bf-chat-status");
+  const assistantMode = document.querySelector("#bf-assistant-mode");
   const newButton = document.querySelector("#bf-new-conversation");
   if (!panel || !list || !messages || !form || !input || !send) return;
 
   let conversations = [];
   let activeConversationId = null;
   let busy = false;
+  let activeMessages = [];
   let pendingClientMessageId = null;
   let pendingClientMessageContent = null;
   const api = () => window.BusinessFlowCloud;
@@ -1853,15 +1902,25 @@ function initializeBusinessFlowChat() {
   }
 
   function renderMessages(items) {
+    activeMessages = Array.isArray(items) ? items : [];
     if (!items.length) {
       messages.innerHTML = '<div class="bf-chat-empty"><strong>What should we work on?</strong><p>Ask a question about your business. I will use the records saved in this workspace.</p></div>';
       return;
     }
-    messages.innerHTML = items.map(item =>
-      '<article class="bf-message ' + (item.role === "user" ? "user" : "assistant") + '"><span>' +
-      (item.role === "user" ? "YOU" : "BUSINESSFLOW INTELLIGENCE") + '</span><p>' +
-      formatText(item.content) + '</p></article>'
-    ).join("");
+    const repliedTo = new Set(items.filter(item => item.reply_to_message_id).map(item => String(item.reply_to_message_id)));
+    messages.innerHTML = items.map(item => {
+      const isUser = item.role === "user";
+      const mode = item.assistant_mode || (typeof item.content === "string" && item.content.startsWith("OYOSKY / ATLAS ASSESSMENT") ? "oyosky" : "businessflow");
+      const isOyoSky = !isUser && mode === "oyosky";
+      const isGrey = !isUser && mode === "grey";
+      const label = isUser ? "YOU" : (isOyoSky ? "OYOSKY · ATLAS" : isGrey ? "GREY" : "BUSINESSFLOW INTELLIGENCE");
+      const canRetry = isUser && item.client_message_id && !repliedTo.has(String(item.id));
+      const retry = canRetry
+        ? '<button type="button" class="bf-message-retry" data-retry-message-id="' + escapeHTML(item.id) + '">Retry assistant response</button>'
+        : "";
+      return '<article class="bf-message ' + (isUser ? "user" : "assistant") + (isOyoSky ? " oyosky" : isGrey ? " grey" : "") + '"><span>' +
+        label + '</span><p>' + formatText(item.content) + '</p>' + retry + '</article>';
+    }).join("");
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -1934,6 +1993,43 @@ function initializeBusinessFlowChat() {
     catch (error) { setStatus(error.message || "Could not load messages."); }
   });
 
+  messages.addEventListener("click", async event => {
+    const button = event.target.closest("[data-retry-message-id]");
+    if (!button || busy) return;
+    const item = activeMessages.find(message => String(message.id) === button.dataset.retryMessageId);
+    if (!item || item.role !== "user" || !item.client_message_id) return;
+    const current = state();
+    if (!current.signedIn || !current.apiConnected || !current.businessId) {
+      setStatus("Sign in and select the original business workspace before retrying.");
+      return;
+    }
+    busy = true;
+    send.disabled = true;
+    input.disabled = true;
+    button.disabled = true;
+    setStatus("Retrying the saved message with the same message ID…");
+    try {
+      await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          content: item.content,
+          client_message_id: item.client_message_id,
+          assistant_mode: ["oyosky", "grey"].includes(item.assistant_mode) ? item.assistant_mode : "businessflow"
+        })
+      });
+      const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
+      renderMessages(result.messages || []);
+      setStatus("Saved response restored to this conversation.");
+    } catch (error) {
+      setStatus(error.message || "Retry failed. Your original message remains saved.");
+      button.disabled = false;
+    } finally {
+      busy = false;
+      send.disabled = false;
+      input.disabled = false;
+    }
+  });
+
   form.addEventListener("submit", async event => {
     event.preventDefault();
     const content = input.value.trim();
@@ -1959,11 +2055,16 @@ function initializeBusinessFlowChat() {
     input.disabled = true;
     const previous = input.value;
     input.value = "";
-    setStatus("BusinessFlow Intelligence is reviewing your workspace…");
+    const selectedAssistant = assistantMode?.value === "oyosky" ? "OYOSKY" : assistantMode?.value === "grey" ? "Grey" : "BusinessFlow Intelligence";
+    setStatus(selectedAssistant + " is reviewing your workspace…");
     try {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
         method: "POST",
-        body: JSON.stringify({ content, client_message_id: clientMessageId })
+        body: JSON.stringify({
+          content,
+          client_message_id: clientMessageId,
+          assistant_mode: ["oyosky", "grey"].includes(assistantMode?.value) ? assistantMode.value : "businessflow"
+        })
       });
       const items = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages");
       renderMessages(items.messages || []);
