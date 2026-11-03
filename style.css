@@ -485,3 +485,56 @@ body.auth-required .account-page { max-width: 100%; }
 .billing-entitlements ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 18px;margin:12px 0 0;padding-left:18px;color:#5f718c;font-size:11px}
 .billing-footnote{margin:15px 0 0;color:#8a96a8;font-size:10px;line-height:1.7}
 @media(max-width:620px){.billing-current{align-items:stretch;flex-direction:column}.billing-current .secondary-button{width:100%}.billing-entitlements ul{grid-template-columns:minmax(0,1fr)}}
+
+
+/* BusinessFlow dashboard refinement: clearer hierarchy, stronger data surfaces. */
+:root {
+  --background: #f3f5fa;
+  --text: #17243b;
+  --muted: #748198;
+  --border: #e2e7f0;
+  --shadow: 0 8px 28px rgba(18, 34, 65, .045);
+}
+.sidebar { width: 264px; padding: 27px 17px 20px; }
+.brand { margin-bottom: 42px; }
+.navigation { gap: 7px; }
+.nav-link { min-height: 46px; padding: 11px 13px; border-radius: 11px; font-size: 13px; }
+.nav-link.active { box-shadow: inset 3px 0 0 #7fa0ff; }
+.topbar { min-height: 70px; padding-inline: clamp(18px, 3vw, 42px); }
+.page-container { max-width: 1680px; padding: 34px clamp(18px, 3vw, 42px) 48px; }
+.welcome-row { margin-bottom: 30px; }
+.welcome-row h1 { font-size: clamp(30px, 3vw, 39px); letter-spacing: -1.4px; }
+.welcome-row .subtitle { max-width: 620px; font-size: 14px; }
+.insight-banner { padding: 22px 24px; border-color: #dce5f8; background: linear-gradient(110deg, #edf2ff 0%, #f5f8ff 58%, #eff9f4 100%); }
+.intelligence-panel { border-top: 3px solid #426be0; }
+.bf-chat-panel { border: 1px solid #dce4f4; background: linear-gradient(180deg, #fff 0%, #fbfcff 100%); }
+.bf-chat-panel .panel-heading { align-items: flex-start; }
+.metrics-grid { gap: 16px; }
+.metric-card { position: relative; min-height: 145px; padding: 21px 22px; overflow: hidden; }
+.metric-card::after { position: absolute; right: -24px; bottom: -43px; width: 112px; height: 112px; border: 1px solid rgba(53,99,233,.07); border-radius: 50%; content: ""; }
+.metric-heading { color: #65738a; font-size: 12px; font-weight: 700; }
+.metric-value { position: relative; z-index: 1; margin-top: 19px; font-size: clamp(22px, 2.2vw, 30px); letter-spacing: -1px; }
+.metric-note { position: relative; z-index: 1; max-width: 95%; min-height: 30px; color: #8490a3; font-size: 10px; line-height: 1.5; }
+.panel { padding: 24px; }
+.panel-heading h2, .panel > h2 { font-size: 16px; letter-spacing: -.35px; }
+.insight-item { padding: 17px 18px; border: 1px solid #e6eaf2; border-radius: 13px; background: #fff; }
+.insight-item + .insight-item { margin-top: 11px; }
+.insight-item-top { gap: 10px; }
+.insight-type { border-radius: 6px; letter-spacing: .35px; }
+.insight-item p { line-height: 1.65; }
+.primary-button { min-height: 43px; padding-inline: 17px; box-shadow: 0 5px 13px rgba(53,99,233,.16); }
+.secondary-button { min-height: 43px; }
+@media (max-width: 1100px) {
+  .sidebar { width: 235px; }
+  .page-container { padding-inline: 22px; }
+}
+@media (max-width: 760px) {
+  .sidebar { width: min(290px, 86vw); }
+  .page-container { padding: 20px 14px 34px; }
+  .welcome-row h1 { font-size: 29px; }
+  .metric-card { min-height: 132px; padding: 15px; }
+  .metric-value { font-size: clamp(18px, 5vw, 23px); }
+  .panel { padding: 17px; }
+  .bf-chat-layout { grid-template-columns: minmax(0, 1fr); }
+  .bf-chat-history { max-height: 150px; overflow: auto; }
+}
