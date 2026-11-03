@@ -100,12 +100,24 @@ billingRouter.post("/checkout", async (request, response, next) => {
   try {
     const business = await getOwnedBusiness(request, request.body?.business_id);
     const planKey = request.body?.plan_key;
+    const currency = request.body?.currency;
+    const billingInterval = request.body?.billing_interval;
     if (typeof planKey !== "string" || !/^[a-z][a-z0-9_-]{1,63}$/.test(planKey)) {
       return response.status(400).json({ error: "invalid_plan_key" });
     }
+    if (typeof currency !== "string" || !/^[a-z]{3}$/.test(currency)) {
+      return response.status(400).json({ error: "invalid_currency" });
+    }
+    if (!["month", "year"].includes(billingInterval)) {
+      return response.status(400).json({ error: "invalid_billing_interval" });
+    }
 
     const db = getBillingClient();
-    const { data: plan, error: planError } = await db.rpc("billing_get_plan", { p_plan_key: planKey });
+    const { data: plan, error: planError } = await db.rpc("billing_get_plan", {
+      p_plan_key: planKey,
+      p_currency: currency,
+      p_billing_interval: billingInterval
+    });
     if (planError) throw planError;
     if (!plan?.stripe_price_id) return response.status(404).json({ error: "plan_unavailable" });
 
@@ -136,8 +148,8 @@ billingRouter.post("/checkout", async (request, response, next) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: business.id,
-      metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey },
-      subscription_data: { metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey } },
+      metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey, currency, billing_interval: billingInterval },
+      subscription_data: { metadata: { product_key: "businessflow", business_id: business.id, plan_key: planKey, currency, billing_interval: billingInterval } },
       allow_promotion_codes: true
     }, { idempotencyKey: "businessflow_checkout_" + business.id + "_" + idempotencyKey });
 
