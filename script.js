@@ -31,7 +31,7 @@ const MEMORY_CATEGORY_MAP = {
   "Customer insight": "observation",
   "Lesson learned": "lesson",
   "Process": "business_context",
-  "Follow-up": "preference",
+  "Follow-up": "observation",
   "Other": "business_context"
 };
 const MEMORY_LABEL_MAP = Object.fromEntries(
@@ -1326,6 +1326,8 @@ async async function loadCloudCollections(businessId) {
   cloudCollectionWorkspaceId = null;
   cloudExperiments = false;
   cloudMemories = false;
+  updateStorageStatus();
+  setLegacyImportButtons();
 
   if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
     loadExperiments();
