@@ -224,7 +224,8 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
         p_conversation_id: conversationId,
         p_reply_to_message_id: userMessage.id,
-        p_content: grey.response
+        p_content: grey.response,
+        p_assistant_mode: "grey"
       });
       if (assistantError) throw assistantError;
 
