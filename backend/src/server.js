@@ -23,7 +23,7 @@ app.use((request, response, next) => {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
     response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-    response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
+    response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,Idempotency-Key");
     response.setHeader("Access-Control-Max-Age", "600");
   }
 
