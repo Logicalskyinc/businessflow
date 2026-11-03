@@ -1761,7 +1761,7 @@ function setupDataImport(){
       pendingImport.filename=file.name;
       const name=document.querySelector("#import-dataset-name");
       if(name&&!name.value.trim())name.value=file.name.replace(/\.(csv|xlsx|xls)$/i,"").slice(0,160);
-      fileStatus.textContent="File ready: "+file.name+". Review the preview below, then tap Add to BusinessFlow.";
+      fileStatus.textContent="File ready: "+file.name+". Review the preview below, then save your dataset.";
       renderImportReview();
       review.scrollIntoView({behavior:"smooth",block:"start"});
     }catch(error){
@@ -1793,7 +1793,7 @@ function setupDataImport(){
     if(!pendingImport){status.textContent="Choose and review a file first.";return;}
     if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
     button.disabled=true;
-    status.textContent="Validating and saving the reviewed dataset…";
+    status.textContent="Checking your column mapping and saving the dataset…";
     try{
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
@@ -1802,11 +1802,10 @@ function setupDataImport(){
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
       showToast("Dataset added to BusinessFlow.");
       await loadSavedImports();
-      status.textContent="Dataset saved. BusinessFlow Intelligence is analysing the updated workspace…";
+      status.textContent="Dataset saved. Opening its data readout…";
+      if(result.import.id) await viewSavedImport(result.import.id);
       await loadBusinessInsights(cloud.businessId);
-      document.querySelector("#saved-import-detail")?.setAttribute("hidden","");
-      navigateTo("overview");
-      status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
+      status.textContent="Dataset saved. Review the data readout below, then use the Overview to see workspace-level insights.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
     finally{button.disabled=false;}
   });
