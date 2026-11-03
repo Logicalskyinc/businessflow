@@ -109,17 +109,17 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     const values = [...customerSpend.values()].filter(Number.isFinite).sort((a, b) => a - b);
     if (!values.length) return null;
     const bands = [
-      { label: "Lower value", min: 0, max: Math.floor((values.length - 1) / 3) },
-      { label: "Mid value", min: Math.floor(values.length / 3), max: Math.floor((2 * values.length - 1) / 3) },
-      { label: "Higher value", min: Math.floor(2 * values.length / 3), max: values.length - 1 }
+      { label: "Lower value", customers: 0, revenue: 0 },
+      { label: "Mid value", customers: 0, revenue: 0 },
+      { label: "Higher value", customers: 0, revenue: 0 }
     ];
-    return bands.map(band => {
-      const slice = values.slice(band.min, band.max + 1);
-      return { label: band.label, customers: slice.length,
-        revenue: Number(slice.reduce((sum, value) => sum + value, 0).toFixed(2)) };
+    values.forEach((value, index) => {
+      const band = bands[Math.min(2, Math.floor(index * 3 / values.length))];
+      band.customers++;
+      band.revenue += value;
     });
-  })();
-  const progressGoals = activeGoals.map(goal => {
+    return bands.map(band => ({ ...band, revenue: Number(band.revenue.toFixed(2)) }));
+  })();  const progressGoals = activeGoals.map(goal => {
     const target = Number(goal.target_value), current = Number(goal.current_value);
     return { id: goal.id, title: goal.title, status: goal.status, metric: goal.metric_name,
       currentValue: Number.isFinite(current) ? current : null, targetValue: Number.isFinite(target) ? target : null,
