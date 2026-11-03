@@ -95,7 +95,7 @@ businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req
         const day = parsed.toISOString().slice(0, 10);
         return (!from || day >= from) && (!to || day <= to);
       });
-      return { ...dataset, rows: filteredRows };
+      return { ...dataset, rows: filteredRows, row_count: filteredRows.length };
     });
     const result = buildBusinessInsights({
       profile: profileResult.data, imports: filteredImports, goals: goalsResult.data || [],
