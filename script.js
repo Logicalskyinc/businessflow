@@ -1563,7 +1563,9 @@ function renderBusinessInsights() {
         const label = document.createElement("span");
         label.textContent = item.name + " · " + Number(item.records).toLocaleString() + " records";
         const value = document.createElement("strong");
-        value.textContent = revenueAvailable && item.revenue !== null ? money(item.revenue) : "Revenue unavailable";
+        const revenueText = revenueAvailable && item.revenue !== null ? money(item.revenue) : "Revenue unavailable";
+        const marginText = item.grossMarginPercent == null ? "" : " · " + item.grossMarginPercent.toFixed(1) + "% gross margin";
+        value.textContent = revenueText + marginText;
         line.append(label, value); productHost.append(line);
       });
       const revenueNote = document.createElement("small"); revenueNote.className = "explorer-footnote";
@@ -1626,10 +1628,11 @@ function renderBusinessInsights() {
       profitabilityHost.textContent = "There are not enough valid revenue and cost values to calculate a reliable gross margin.";
     } else {
       const items = [
-        ["Mapped revenue", money(metrics.revenueTotal)],
-        ["Mapped cost", money(metrics.costTotal)],
+        ["Comparable revenue", money(metrics.profitabilityRevenue)],
+        ["Comparable cost", money(metrics.profitabilityCost)],
         ["Gross profit", money(metrics.grossProfit)],
-        ["Gross margin", Number(metrics.grossMarginPercent).toFixed(1) + "%"]
+        ["Gross margin", Number(metrics.grossMarginPercent).toFixed(1) + "%"],
+        ["Comparable transactions", Number(metrics.profitabilityRecords || 0).toLocaleString()]
       ];
       items.forEach(([label, value]) => {
         const line = document.createElement("div"); line.className = "explorer-value-line";
@@ -1638,7 +1641,7 @@ function renderBusinessInsights() {
         line.append(name, amount); profitabilityHost.append(line);
       });
       const note = document.createElement("small"); note.className = "explorer-footnote";
-      note.textContent = "Gross profit is mapped revenue minus mapped cost. Ensure both columns use the same currency, transaction scope and accounting basis. This is not net profit.";
+      note.textContent = "Gross profit uses only rows with both readable revenue and cost values. Ensure both columns use the same currency and accounting basis. This is not net profit.";
       profitabilityHost.append(note);
     }
   }
