@@ -82,7 +82,7 @@ function experimentFromCloud(item) {
 function memoryToCloud(item) {
   return {
     category: MEMORY_CATEGORY_MAP[item.category] || "business_context",
-    content: JSON.stringify({ title: item.title, date: item.date, text: item.content })
+    content: { title: item.title, date: item.date, text: item.content }
   };
 }
 function memoryFromCloud(item) {
