@@ -43,6 +43,19 @@ let cloudCollectionsRequest = 0;
 let cloudExperiments = false;
 let cloudMemories = false;
 
+function getCloudCollectionMode(type) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn) return false;
+  const ready = Boolean(cloud.apiConnected && cloud.businessId &&
+    cloudCollectionWorkspaceId === cloud.businessId &&
+    (type === "experiments" ? cloudExperiments : cloudMemories));
+  if (!ready) {
+    showToast("Cloud workspace data is still loading or unavailable. Try again before saving changes.");
+    return null;
+  }
+  return true;
+}
+
 function experimentToCloud(item) {
   return {
     title: item.title,
@@ -798,8 +811,9 @@ function setupExperimentForm() {
       !EXPERIMENT_STATUSES.includes(status) || notes.length > 2000) {
       showToast("Check the experiment fields and try again."); return;
     }
+    const cloudMode = getCloudCollectionMode("experiments");
+    if (cloudMode === null) return;
     const cloud = window.BusinessFlowCloud?.getState?.();
-    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudExperiments);
     const now = new Date().toISOString();
     const draft = { title, hypothesis, baseline, result, status, notes, updatedAt: now };
     try {
@@ -828,8 +842,9 @@ async function handleExperimentAction(action, id) {
   const item = experiments[index];
   if (action === "delete") {
     if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloudMode = getCloudCollectionMode("experiments");
+    if (cloudMode === null) return;
     const cloud = window.BusinessFlowCloud?.getState?.();
-    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudExperiments);
     try {
       if (cloudMode) await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id);
       experiments.splice(index,1);
@@ -973,8 +988,9 @@ function setupMemoryForm() {
     if (!title || title.length > 120 || !MEMORY_CATEGORIES.includes(category) || !date ||
       Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10) !== date ||
       !content || content.length > 4000) { showToast("Check the business memory fields and try again."); return; }
+    const cloudMode = getCloudCollectionMode("memory");
+    if (cloudMode === null) return;
     const cloud = window.BusinessFlowCloud?.getState?.();
-    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudMemories);
     const item = { id:createId(), title, category, date, content, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
     try {
       if (cloudMode) Object.assign(item, memoryFromCloud(await window.BusinessFlowCloud.createMemory(cloud.businessId, memoryToCloud(item))));
@@ -992,8 +1008,9 @@ async function handleMemoryAction(action, id) {
   const item = memories[index];
   if (action === "delete") {
     if (!confirm('Delete "' + item.title + '"?')) return;
+    const cloudMode = getCloudCollectionMode("memory");
+    if (cloudMode === null) return;
     const cloud = window.BusinessFlowCloud?.getState?.();
-    const cloudMode = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId && cloudCollectionWorkspaceId === cloud.businessId && cloudMemories);
     try {
       if (cloudMode) await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);
       memories.splice(index,1);
@@ -1010,8 +1027,9 @@ async function handleMemoryAction(action, id) {
   const cleanCategory=category.trim(), cleanDate=date.trim();
   const parsedDate=new Date(cleanDate+"T00:00:00");
   if(!title.trim()||title.trim().length>120||!MEMORY_CATEGORIES.includes(cleanCategory)||Number.isNaN(parsedDate.getTime())||parsedDate.toISOString().slice(0,10)!==cleanDate||!content.trim()||content.trim().length>4000){showToast("Check the memory fields and try again.");return;}
+  const cloudMode=getCloudCollectionMode("memory");
+  if(cloudMode===null)return;
   const cloud=window.BusinessFlowCloud?.getState?.();
-  const cloudMode=Boolean(cloud?.signedIn&&cloud.apiConnected&&cloud.businessId&&cloudCollectionWorkspaceId===cloud.businessId&&cloudMemories);
   const next={...item,title:title.trim(),category:cleanCategory,date:cleanDate,content:content.trim(),updatedAt:new Date().toISOString()};
   try {
     if(cloudMode) Object.assign(next,memoryFromCloud(await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryToCloud(next))));
