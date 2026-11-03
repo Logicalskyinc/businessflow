@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -242,6 +242,15 @@
             </article>
           </div>
 
+          <section class="data-explorer-section">
+            <div class="section-heading"><div><p class="eyebrow">DATA EXPLORER</p><h2>Understand the shape of your business</h2><p class="muted">Customer behaviour, product activity and data reliability from mapped records.</p></div></div>
+            <div class="data-explorer-grid">
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Customer segments</h3><p class="muted">Repeat versus one-time customers</p></div></div><div id="explorer-customer-segments" class="explorer-content"><p class="empty-state">Customer identity mapping is required.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Product / service performance</h3><p class="muted">Most frequently recorded mapped item</p></div></div><div id="explorer-product-performance" class="explorer-content"><p class="empty-state">Map a product or service column to explore activity.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Data quality</h3><p class="muted">Coverage and validation signals</p></div></div><div id="explorer-data-quality" class="explorer-content"><p class="empty-state">Import a dataset to inspect its quality.</p></div></article>
+              <article class="panel explorer-panel"><div class="panel-heading"><div><h3>Value and date coverage</h3><p class="muted">Transaction value and reporting period</p></div></div><div id="explorer-value-coverage" class="explorer-content"><p class="empty-state">Map revenue and transaction date fields.</p></div></article>
+            </div>
+          </section>
           <article class="panel">
             <h2>Business insights</h2>
             <p class="muted">Insights should be based on reliable data, not assumptions.</p>
@@ -599,7 +608,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=20" defer></script>
+  <script src="script.js?v=21" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
