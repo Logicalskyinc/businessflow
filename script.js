@@ -38,7 +38,7 @@ const MEMORY_LABEL_MAP = Object.fromEntries(
   Object.entries(MEMORY_CATEGORY_MAP).map(([label, value]) => [value, label])
 );
 let cloudCollectionWorkspaceId = null;
-let cloudCollectionsBusy = false;
+let cloudCollectionsBusy = false;\nlet cloudCollectionsRequest = 0;
 let cloudExperiments = false;
 let cloudMemories = false;
 
@@ -1237,7 +1237,7 @@ async async function loadCloudCollections(businessId) {
       window.BusinessFlowCloud.loadExperiments(businessId),
       window.BusinessFlowCloud.loadMemory(businessId)
     ]);
-    if (window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
+    if (requestId !== cloudCollectionsRequest || window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
     experiments = remoteExperiments.map(experimentFromCloud);
     memories = remoteMemory.map(memoryFromCloud).filter(isValidMemory);
     cloudCollectionWorkspaceId = businessId; cloudExperiments = true; cloudMemories = true;
