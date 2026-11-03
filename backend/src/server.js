@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import { businessIntelligenceRouter } from "./modules/business-intelligence/business-intelligence.routes.js";
 import { conversationRouter } from "./modules/business-intelligence/conversation.routes.js";
+import { billingRouter, handleStripeWebhook } from "./modules/billing/billing.routes.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
@@ -36,6 +37,8 @@ app.use((request, response, next) => {
   return next();
 });
 
+app.post("/api/billing/webhook", express.raw({ type: "application/json", limit: "1mb" }), handleStripeWebhook);
+
 app.use(express.json({ limit: "1mb", strict: true }));
 
 app.get("/health", (_request, response) => {
@@ -48,6 +51,7 @@ app.get("/health", (_request, response) => {
 
 app.use("/api/business-intelligence", businessIntelligenceRouter);
 app.use("/api/business-intelligence/conversations", conversationRouter);
+app.use("/api/billing", billingRouter);
 
 app.use((request, response) => {
   response.status(404).json({
