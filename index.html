@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body class="auth-pending">
   <div class="app-shell">
@@ -191,13 +191,28 @@
               <h2>Performance overview</h2>
               <p class="muted">Connect a real source to populate business indicators</p>
             </div>
-            <label class="period-control">Period
-              <select id="analytics-period">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
+            <div class="analytics-filter-bar" aria-label="Analytics filters">
+              <label class="period-control">Period
+                <select id="analytics-period">
+                  <option value="all">All available dates</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </label>
+              <label class="period-control">Dataset
+                <select id="analytics-dataset"><option value="">All datasets</option></select>
+              </label>
+              <label class="period-control">From
+                <input type="date" id="analytics-from" disabled>
+              </label>
+              <label class="period-control">To
+                <input type="date" id="analytics-to" disabled>
+              </label>
+              <button type="button" class="secondary-button" id="analytics-reset">Reset filters</button>
+            </div>
+            <p id="analytics-filter-status" class="muted" role="status" aria-live="polite">Showing all available workspace data.</p>
           </div>
 
           <div class="metrics-grid">
@@ -608,7 +623,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=21" defer></script>
+  <script src="script.js?v=22" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
