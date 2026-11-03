@@ -10,7 +10,7 @@ const uniqueText = value => String(value ?? "").trim().toLowerCase();
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
-  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0, costMapped = false, invalidCostValues = 0, costValueCount = 0, costTotal = 0;
+  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0, costMapped = false, invalidCostValues = 0, costValueCount = 0, costTotal = 0, pairedRevenueTotal = 0, pairedCostTotal = 0, pairedCostRecords = 0;
   const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), monthlyCustomerActivity = new Map(), dateValues = [];
   for (const dataset of imports) {
     const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
@@ -69,6 +69,11 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         if (costAmount === null) invalidCostValues++;
         else { costTotal += costAmount; costValueCount++; }
       }
+      if (amountForBreakdown !== null && costAmount !== null) {
+        pairedRevenueTotal += amountForBreakdown;
+        pairedCostTotal += costAmount;
+        pairedCostRecords++;
+      }
       let customer = "";
       if (fields.customer_id || fields.email || fields.customer_name) {
         customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
@@ -82,10 +87,13 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         const product = String(row[fields.product] ?? "").trim();
         if (product) {
           productFrequency.set(product, (productFrequency.get(product) || 0) + 1);
-          if (amountForBreakdown !== null) {
-            const current = productRevenue.get(product) || { revenue: 0, records: 0 };
-            current.revenue += amountForBreakdown;
-            current.records++;
+          if (amountForBreakdown !== null || costAmount !== null) {
+            const current = productRevenue.get(product) || { revenue: 0, revenueRecords: 0, cost: 0, costRecords: 0, pairedRevenue: 0, pairedCost: 0, pairedRecords: 0 };
+            if (amountForBreakdown !== null) { current.revenue += amountForBreakdown; current.revenueRecords++; }
+            if (costAmount !== null) { current.cost += costAmount; current.costRecords++; }
+            if (amountForBreakdown !== null && costAmount !== null) {
+              current.pairedRevenue += amountForBreakdown; current.pairedCost += costAmount; current.pairedRecords++;
+            }
             productRevenue.set(product, current);
           }
         }
@@ -113,8 +121,14 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const topProduct = [...productFrequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
   const productPerformance = [...productFrequency.entries()].map(([name, records]) => {
     const financial = productRevenue.get(name);
-    return { name, records, revenue: financial ? Number(financial.revenue.toFixed(2)) : null,
-      revenueRecords: financial?.records || 0 };
+    return { name, records, revenue: financial?.revenueRecords ? Number(financial.revenue.toFixed(2)) : null,
+      revenueRecords: financial?.revenueRecords || 0,
+      cost: financial?.costRecords ? Number(financial.cost.toFixed(2)) : null,
+      costRecords: financial?.costRecords || 0,
+      grossProfit: financial?.pairedRecords ? Number((financial.pairedRevenue - financial.pairedCost).toFixed(2)) : null,
+      grossMarginPercent: financial?.pairedRecords && financial.pairedRevenue > 0
+        ? Number(((financial.pairedRevenue - financial.pairedCost) / financial.pairedRevenue * 100).toFixed(1)) : null,
+      comparableRecords: financial?.pairedRecords || 0 };
   }).sort((a, b) => b.records - a.records).slice(0, 8);
   const customerValueDistribution = (() => {
     const values = [...customerSpend.values()].filter(Number.isFinite).sort((a, b) => a - b);
@@ -243,10 +257,12 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       customerValueRecords: customerSpend.size,
       costTotal: costMapped && costValueCount ? Number(costTotal.toFixed(2)) : null,
       costRecords: costValueCount,
-      grossProfit: revenueMapped && costMapped && revenueValueCount && costValueCount
-        ? Number((revenueTotal - costTotal).toFixed(2)) : null,
-      grossMarginPercent: revenueMapped && costMapped && revenueTotal > 0 && revenueValueCount && costValueCount
-        ? Number(((revenueTotal - costTotal) / revenueTotal * 100).toFixed(1)) : null,
+      grossProfit: pairedCostRecords ? Number((pairedRevenueTotal - pairedCostTotal).toFixed(2)) : null,
+      grossMarginPercent: pairedCostRecords && pairedRevenueTotal > 0
+        ? Number(((pairedRevenueTotal - pairedCostTotal) / pairedRevenueTotal * 100).toFixed(1)) : null,
+      profitabilityRecords: pairedCostRecords,
+      profitabilityRevenue: pairedCostRecords ? Number(pairedRevenueTotal.toFixed(2)) : null,
+      profitabilityCost: pairedCostRecords ? Number(pairedCostTotal.toFixed(2)) : null,
       monthlyRetention
     },
     dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, costMapped, invalidRevenueValues, invalidCostValues,
