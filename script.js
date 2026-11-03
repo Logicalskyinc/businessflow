@@ -140,7 +140,7 @@ function updateStorageStatus() {
   document.querySelectorAll("[data-storage-status]").forEach(element => {
     const cloud = window.BusinessFlowCloud?.getState?.();
     element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
-      ? "Business goals saved to the selected cloud workspace"
+      ? "Goals, experiments, and business memory use the selected cloud workspace"
       : storageAvailable
         ? "Saved locally in this browser · Not synced across devices"
         : "Browser storage unavailable · Changes may not persist";
