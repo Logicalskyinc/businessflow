@@ -1528,6 +1528,19 @@ function renderBusinessInsights() {
       const foot = document.createElement("small"); foot.className = "explorer-footnote";
       foot.textContent = total.toLocaleString() + " distinct customers identified from mapped records.";
       customersHost.append(foot);
+      const valueBands = Array.isArray(metrics.customerValueDistribution) ? metrics.customerValueDistribution : [];
+      if (valueBands.some(band => band.customers > 0)) {
+        const heading = document.createElement("strong"); heading.className = "explorer-subheading";
+        heading.textContent = "Customer value distribution"; customersHost.append(heading);
+        const known = Number(metrics.customerValueRecords || 0);
+        valueBands.forEach(band => {
+          if (!band.customers) return;
+          renderExplorerBar(customersHost, band.label, band.customers.toLocaleString() + " · " + money(band.revenue), known, band.customers);
+        });
+        const note = document.createElement("small"); note.className = "explorer-footnote";
+        note.textContent = "Customers are grouped by their recorded revenue, split into three value bands. This is not a lifetime-value forecast.";
+        customersHost.append(note);
+      }
     }
   }
   const productHost = document.querySelector("#explorer-product-performance");
@@ -1543,6 +1556,21 @@ function renderBusinessInsights() {
       const count = document.createElement("p"); count.className = "explorer-footnote";
       count.textContent = Number(metrics.topProduct.records).toLocaleString() + " records. This ranks frequency, not revenue or profitability.";
       productHost.append(count);
+      const products = Array.isArray(metrics.productPerformance) ? metrics.productPerformance : [];
+      const revenueAvailable = products.some(item => item.revenue !== null && item.revenueRecords > 0);
+      products.forEach(item => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span");
+        label.textContent = item.name + " · " + Number(item.records).toLocaleString() + " records";
+        const value = document.createElement("strong");
+        value.textContent = revenueAvailable && item.revenue !== null ? money(item.revenue) : "Revenue unavailable";
+        line.append(label, value); productHost.append(line);
+      });
+      const revenueNote = document.createElement("small"); revenueNote.className = "explorer-footnote";
+      revenueNote.textContent = revenueAvailable
+        ? "Revenue is summed only from readable mapped amounts for each product. It is not profit."
+        : "Map a revenue field to compare product revenue. Frequency alone does not indicate financial contribution.";
+      productHost.append(revenueNote);
     }
   }
   const qualityHost = document.querySelector("#explorer-data-quality");
