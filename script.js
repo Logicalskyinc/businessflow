@@ -38,7 +38,8 @@ const MEMORY_LABEL_MAP = Object.fromEntries(
   Object.entries(MEMORY_CATEGORY_MAP).map(([label, value]) => [value, label])
 );
 let cloudCollectionWorkspaceId = null;
-let cloudCollectionsBusy = false;\nlet cloudCollectionsRequest = 0;
+let cloudCollectionsBusy = false;
+let cloudCollectionsRequest = 0;
 let cloudExperiments = false;
 let cloudMemories = false;
 
@@ -139,7 +140,11 @@ function createId() {
 function updateStorageStatus() {
   document.querySelectorAll("[data-storage-status]").forEach(element => {
     const cloud = window.BusinessFlowCloud?.getState?.();
-    element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
+    const fullySynced = cloud?.signedIn && cloud.apiConnected &&
+      cloud.businessId === cloudGoalWorkspaceId &&
+      cloud.businessId === cloudCollectionWorkspaceId &&
+      cloudExperiments && cloudMemories;
+    element.textContent = fullySynced
       ? "Goals, experiments, and business memory use the selected cloud workspace"
       : storageAvailable
         ? "Saved locally in this browser · Not synced across devices"
