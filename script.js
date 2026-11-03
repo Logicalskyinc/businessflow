@@ -2152,7 +2152,7 @@ function initializeBusinessFlowBilling() {
         portalButton.hidden = false;
       } else {
         currentStatus.textContent = "Free workspace access. No payment method required.";
-        portalButton.hidden = !current.businessId;
+        portalButton.hidden = !subscription;
       }
       renderPlans();
       renderEntitlements(entitlementResult.entitlements);
