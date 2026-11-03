@@ -5,7 +5,7 @@ alter table public.businessflow_conversations
   add column if not exists grey_initialization_expires_at timestamptz,
   add column if not exists grey_initialization_message_id uuid;
 
-grant update (title, updated_at, grey_conversation_id, grey_initialization_token, grey_initialization_expires_at, grey_initialization_message_id)
+grant update (title, updated_at)
   on public.businessflow_conversations to authenticated;
 
 -- Freeze the workspace snapshot per user message so retries send identical input.
@@ -150,39 +150,9 @@ begin
 end;
 $$;
 
-create or replace function public.businessflow_release_grey_initialization(
-  p_conversation_id uuid,
-  p_token uuid
-) returns void
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  v_user_id uuid := auth.uid();
-begin
-  if v_user_id is null then
-    raise exception 'authentication_required' using errcode = '42501';
-  end if;
-  update public.businessflow_conversations c
-  set grey_initialization_token = null,
-      grey_initialization_expires_at = null
-  where c.id = p_conversation_id
-    and c.created_by = v_user_id
-    and c.grey_initialization_token = p_token
-    and c.grey_conversation_id is null
-    and exists (
-      select 1 from public.businessflow_profiles p
-      where p.id = c.business_id and p.owner_user_id = v_user_id
-    );
-end;
-$$;
-
 revoke all on function public.businessflow_set_message_context(uuid, jsonb) from public, anon;
 revoke all on function public.businessflow_claim_grey_initialization(uuid) from public, anon;
 revoke all on function public.businessflow_complete_grey_initialization(uuid, uuid, uuid) from public, anon;
-revoke all on function public.businessflow_release_grey_initialization(uuid, uuid) from public, anon;
 grant execute on function public.businessflow_set_message_context(uuid, jsonb) to authenticated;
 grant execute on function public.businessflow_claim_grey_initialization(uuid) to authenticated;
 grant execute on function public.businessflow_complete_grey_initialization(uuid, uuid, uuid) to authenticated;
-grant execute on function public.businessflow_release_grey_initialization(uuid, uuid) to authenticated;
