@@ -1615,6 +1615,7 @@ async function loadBusinessInsights(businessId, filters = getAnalyticsFilters())
     const result = await cloud.loadInsights(businessId, filters);
     if (requestId !== analyticsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
+    updateAnalyticsFilterStatus(filters, "Showing");
     renderBusinessInsights();
   } catch (error) {
     if (requestId !== analyticsRequestId) return;
