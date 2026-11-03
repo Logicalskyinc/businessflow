@@ -607,3 +607,27 @@ body.auth-required .account-page { max-width: 100%; }
  .analytics-next-actions{width:100%}
  .analytics-next-actions button{flex:1}
 }
+
+
+/* Goals workspace: separate planning from progress review without changing goal logic. */
+.goals-page-heading{margin-bottom:17px}
+.goals-page-heading .subtitle{max-width:720px;line-height:1.7}
+.goals-intro-note{display:flex;align-items:center;gap:10px;margin-bottom:17px;padding:12px 15px;border:1px solid #e5ebf3;border-radius:12px;background:#fff}
+.goals-intro-note>span{display:grid;place-items:center;width:25px;height:25px;flex:0 0 25px;border-radius:8px;background:#edf3ff;color:#315fc3;font-weight:800}
+.goals-intro-note p{margin:0;color:#6e7c91;font-size:10px;line-height:1.6}
+.goals-workspace-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px;align-items:start}
+.goals-list-panel,.goals-create-panel{min-width:0;margin:0}
+.goals-list-panel .panel-heading{align-items:flex-start}
+.goals-create-panel{background:linear-gradient(150deg,#fff,#f8fbff)}
+.goals-create-panel>h2{margin:4px 0 6px;font-size:17px}
+.goals-create-panel>.muted{font-size:10px;line-height:1.65}
+.goals-create-panel .form-grid{margin-top:17px;gap:12px}
+.goals-create-panel .form-label{font-size:10px}
+.goal-examples{display:grid;gap:7px;margin-top:19px;padding-top:15px;border-top:1px solid #e8edf4}
+.goal-examples strong{color:#68778d;font-size:10px}
+.goal-examples span{color:#8190a3;font-size:9px}
+.goals-list-panel .record-list{margin-top:8px}
+@media(max-width:760px){
+ .goals-workspace-grid{grid-template-columns:minmax(0,1fr)}
+ .goals-create-panel{order:-1}
+}
