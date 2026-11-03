@@ -1251,7 +1251,8 @@ async async function loadCloudCollections(businessId) {
 
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
-  void loadCloudGoalsForWorkspace(businessId);\n  void loadCloudCollections(businessId);
+  void loadCloudGoalsForWorkspace(businessId);
+  void loadCloudCollections(businessId);
   void loadBusinessInsights(businessId);
 });
 
