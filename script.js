@@ -1594,6 +1594,29 @@ function renderBusinessInsights() {
       retentionHost.append(note);
     }
   }
+  const comparisonHost = document.querySelector("#explorer-period-comparison");
+  if (comparisonHost) {
+    comparisonHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyPerformance) ? metrics.monthlyPerformance : [];
+    if (!result.dataQuality?.revenueMapped) {
+      comparisonHost.textContent = "Map a revenue column to compare monthly business performance.";
+    } else if (!periods.length) {
+      comparisonHost.textContent = "No dated revenue records are available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        const change = period.revenueChangePercent == null ? "No comparable prior month" :
+          (period.revenueChangePercent > 0 ? "+" : "") + period.revenueChangePercent.toFixed(1) + "% vs prior month";
+        value.textContent = (period.revenue == null ? "No revenue" : money(period.revenue)) + " · " + change;
+        line.append(label, value); comparisonHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Each month is compared with the previous month present in the filtered dataset. A missing month is not treated as zero revenue.";
+      comparisonHost.append(note);
+    }
+  }
   const profitabilityHost = document.querySelector("#explorer-profitability");
   if (profitabilityHost) {
     profitabilityHost.replaceChildren();
