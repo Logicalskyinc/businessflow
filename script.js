@@ -1493,6 +1493,101 @@ function renderBusinessInsights() {
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
+  const renderExplorerBar = (host, label, value, maximum, detail) => {
+    if (!host) return;
+    const row = document.createElement("div"); row.className = "explorer-bar-row";
+    const top = document.createElement("div"); top.className = "explorer-bar-top";
+    const name = document.createElement("span"); name.textContent = label;
+    const amount = document.createElement("strong"); amount.textContent = value;
+    top.append(name, amount);
+    const track = document.createElement("div"); track.className = "explorer-bar-track";
+    const fill = document.createElement("div"); fill.className = "explorer-bar-fill";
+    fill.style.width = Math.max(0, Math.min(100, maximum > 0 ? Number(detail) / maximum * 100 : 0)) + "%";
+    track.append(fill); row.append(top, track); host.append(row);
+  };
+  const customersHost = document.querySelector("#explorer-customer-segments");
+  if (customersHost) {
+    customersHost.replaceChildren();
+    if (!result.dataQuality?.customerMapped || metrics.customers == null) {
+      customersHost.textContent = "Customer identity is not mapped. Map customer ID, email or customer name to calculate segments.";
+    } else {
+      const repeat = Number(metrics.repeatCustomers || 0);
+      const total = Number(metrics.customers || 0);
+      const once = Math.max(0, total - repeat);
+      const repeatPct = total ? Math.round(repeat / total * 100) : 0;
+      const headline = document.createElement("div"); headline.className = "explorer-highlight";
+      const strong = document.createElement("strong"); strong.textContent = repeatPct + "%";
+      const caption = document.createElement("span"); caption.textContent = "of identified customers appear more than once";
+      headline.append(strong, caption); customersHost.append(headline);
+      renderExplorerBar(customersHost, "Repeat customers", repeat.toLocaleString(), total, repeat);
+      renderExplorerBar(customersHost, "One-time customers", once.toLocaleString(), total, once);
+      const foot = document.createElement("small"); foot.className = "explorer-footnote";
+      foot.textContent = total.toLocaleString() + " distinct customers identified from mapped records.";
+      customersHost.append(foot);
+    }
+  }
+  const productHost = document.querySelector("#explorer-product-performance");
+  if (productHost) {
+    productHost.replaceChildren();
+    if (!result.dataQuality?.productMapped || !metrics.topProduct) {
+      productHost.textContent = "No mapped product or service values are available yet.";
+    } else {
+      const top = document.createElement("div"); top.className = "explorer-highlight";
+      const name = document.createElement("strong"); name.textContent = metrics.topProduct.name;
+      const caption = document.createElement("span"); caption.textContent = "Most frequently recorded product or service";
+      top.append(name, caption); productHost.append(top);
+      const count = document.createElement("p"); count.className = "explorer-footnote";
+      count.textContent = Number(metrics.topProduct.records).toLocaleString() + " records. This ranks frequency, not revenue or profitability.";
+      productHost.append(count);
+    }
+  }
+  const qualityHost = document.querySelector("#explorer-data-quality");
+  if (qualityHost) {
+    qualityHost.replaceChildren();
+    const quality = result.dataQuality || {};
+    const checks = [
+      ["Revenue mapping", Boolean(quality.revenueMapped)],
+      ["Customer identity", Boolean(quality.customerMapped)],
+      ["Product / service", Boolean(quality.productMapped)],
+      ["Transaction date", Boolean(quality.dateMapped)]
+    ];
+    const mappedCount = checks.filter(item => item[1]).length;
+    const qualityHead = document.createElement("div"); qualityHead.className = "explorer-highlight";
+    const qualityValue = document.createElement("strong"); qualityValue.textContent = Math.round(mappedCount / checks.length * 100) + "%";
+    const qualityCaption = document.createElement("span"); qualityCaption.textContent = "of core analytics fields mapped";
+    qualityHead.append(qualityValue, qualityCaption); qualityHost.append(qualityHead);
+    checks.forEach(([label, ok]) => {
+      const line = document.createElement("div"); line.className = "explorer-quality-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const state = document.createElement("strong"); state.textContent = ok ? "Mapped" : "Missing";
+      state.className = ok ? "is-mapped" : "is-unmapped";
+      line.append(name, state); qualityHost.append(line);
+    });
+    const invalid = Number(quality.invalidRevenueValues || 0);
+    const invalidLine = document.createElement("small"); invalidLine.className = "explorer-footnote";
+    invalidLine.textContent = invalid + " blank or non-numeric revenue cells reported by the analytics engine.";
+    qualityHost.append(invalidLine);
+  }
+  const valueHost = document.querySelector("#explorer-value-coverage");
+  if (valueHost) {
+    valueHost.replaceChildren();
+    const valueCards = [
+      ["Revenue records", Number(metrics.revenueRecords || 0).toLocaleString()],
+      ["Average mapped amount", metrics.averageOrderValue == null ? "Unavailable" : money(metrics.averageOrderValue)],
+      ["Reporting period", metrics.dateRange?.from && metrics.dateRange?.to
+        ? new Date(metrics.dateRange.from).toLocaleDateString() + " – " + new Date(metrics.dateRange.to).toLocaleDateString()
+        : "No valid date range"]
+    ];
+    valueCards.forEach(([label, value]) => {
+      const line = document.createElement("div"); line.className = "explorer-value-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const amount = document.createElement("strong"); amount.textContent = value;
+      line.append(name, amount); valueHost.append(line);
+    });
+    const note = document.createElement("small"); note.className = "explorer-footnote";
+    note.textContent = "Average amount is calculated across readable mapped revenue values. It is not a profit or margin measure.";
+    valueHost.append(note);
+  }
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
