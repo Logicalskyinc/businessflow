@@ -112,8 +112,31 @@ security invoker
 set search_path = ''
 as $$
 begin
-  if p_user_id is null or p_grey_conversation_id !~*
-    '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+  if p_user_id is null or p_grey_conversation_id is null
+     or p_grey_conversation_id !~*
+       '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
+    raise exception 'invalid_initialization_completion' using errcode = '22023';
+  end if;
+
+  update public.businessflow_conversations c
+  set grey_conversation_id = p_grey_conversation_id,
+      grey_initialization_token = null,
+      grey_initialization_expires_at = null
+  where c.id = p_conversation_id and c.created_by = p_user_id
+    and c.grey_conversation_id is null and c.grey_initialization_token = p_token
+    and exists (select 1 from public.businessflow_profiles p
+      where p.id = c.business_id and p.owner_user_id = p_user_id);
+  return found;
+end;
+$$;
+
+revoke all on function public.businessflow_set_message_context(uuid,jsonb,uuid) from public, anon, authenticated;
+revoke all on function public.businessflow_claim_grey_initialization(uuid,uuid,uuid) from public, anon, authenticated;
+revoke all on function public.businessflow_complete_grey_initialization(uuid,uuid,text,uuid) from public, anon, authenticated;
+grant execute on function public.businessflow_set_message_context(uuid,jsonb,uuid) to service_role;
+grant execute on function public.businessflow_claim_grey_initialization(uuid,uuid,uuid) to service_role;
+grant execute on function public.businessflow_complete_grey_initialization(uuid,uuid,text,uuid) to service_role;
+ then
     raise exception 'invalid_initialization_completion' using errcode = '22023';
   end if;
 
