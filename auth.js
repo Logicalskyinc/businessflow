@@ -361,7 +361,13 @@ window.BusinessFlowCloud = Object.freeze({
     userId: session?.user?.id ?? null
   }),
   request: apiRequest,
-  loadInsights: async businessId => apiRequest("/api/business-intelligence/insights?business_id=" + encodeURIComponent(businessId)),
+  loadInsights: async (businessId, filters = {}) => {
+    const params = new URLSearchParams({ business_id: businessId });
+    if (filters.datasetId) params.set("dataset_id", filters.datasetId);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    return apiRequest("/api/business-intelligence/insights?" + params.toString());
+  },
   listBusinesses: () => [...businesses],
   loadBusinesses,
   getBusinessId: () => activeBusinessId,
