@@ -83,7 +83,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     const { data: inserted, error: insertError } = await req.supabase.from("businessflow_messages")
       .insert({
         conversation_id: conversationId, created_by: req.user.id, role: "user",
-        content: content.trim(), client_message_id: clientMessageId
+        content: content.trim(), client_message_id: clientMessageId, assistant_mode: "grey"
       })
       .select("id,conversation_id,role,content,created_at").single();
     if (insertError?.code === "23505") {
