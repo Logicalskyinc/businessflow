@@ -817,7 +817,7 @@ function setupExperimentForm() {
   });
 }
 
-async function handleExperimentAction(action, id) {
+async async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
   if (index < 0) { showToast("Experiment not found."); return; }
   const item = experiments[index];
@@ -981,7 +981,7 @@ function setupMemoryForm() {
   });
 }
 
-async function handleMemoryAction(action, id) {
+async async function handleMemoryAction(action, id) {
   const index = memories.findIndex(item => item.id === id);
   if (index < 0) { showToast("Memory entry not found."); return; }
   const item = memories[index];
@@ -1251,7 +1251,7 @@ async async function loadCloudCollections(businessId) {
 
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
-  void loadCloudGoalsForWorkspace(businessId);
+  void loadCloudGoalsForWorkspace(businessId);\n  void loadCloudCollections(businessId);
   void loadBusinessInsights(businessId);
 });
 
