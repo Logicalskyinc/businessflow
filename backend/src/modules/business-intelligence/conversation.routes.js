@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
+import { GreyIntegrationError, sendMessageToGrey } from "./grey-client.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -54,19 +55,23 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     const { conversationId } = req.params;
     const { content, client_message_id: clientMessageId } = req.body ?? {};
     if (!isUuid(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
-    if (typeof content !== "string" || !content.trim() || content.trim().length > 8000) {
-      return res.status(400).json({ error: "invalid_message", message: "Message must contain 1 to 8,000 characters." });
+    if (typeof content !== "string" || !content.trim() || content.trim().length > 4000) {
+      return res.status(400).json({ error: "invalid_message", message: "Message must contain 1 to 4,000 characters." });
     }
     if (!isUuid(clientMessageId)) return res.status(400).json({ error: "invalid_client_message_id" });
 
     const { data: conversation, error: conversationError } = await req.supabase.from("businessflow_conversations")
-      .select("id,business_id,title").eq("id", conversationId).maybeSingle();
+      .select("id,business_id,title,grey_conversation_id")
+      .eq("id", conversationId).maybeSingle();
     if (conversationError) return next(conversationError);
     if (!conversation) return res.status(404).json({ error: "conversation_not_found" });
 
     let userMessage;
     const { data: inserted, error: insertError } = await req.supabase.from("businessflow_messages")
-      .insert({ conversation_id: conversationId, created_by: req.user.id, role: "user", content: content.trim(), client_message_id: clientMessageId })
+      .insert({
+        conversation_id: conversationId, created_by: req.user.id, role: "user",
+        content: content.trim(), client_message_id: clientMessageId
+      })
       .select("id,conversation_id,role,content,created_at").single();
     if (insertError?.code === "23505") {
       const { data, error } = await req.supabase.from("businessflow_messages")
@@ -76,6 +81,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       userMessage = data;
     } else if (insertError) return next(insertError);
     else userMessage = inserted;
+    if (!userMessage) return res.status(409).json({ error: "message_retry_conflict", retryable: true });
 
     const { data: existingReply, error: replyLookupError } = await req.supabase.from("businessflow_messages")
       .select("id,conversation_id,role,content,created_at")
@@ -83,67 +89,94 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (replyLookupError) return next(replyLookupError);
     if (existingReply) return res.json({ user_message: userMessage, assistant_message: existingReply, replayed: true });
 
-    const answer = await buildBusinessFlowReply(req.supabase, conversation.business_id, userMessage.content);
-    const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
-      p_conversation_id: conversationId,
-      p_reply_to_message_id: userMessage.id,
-      p_content: answer
-    });
-    if (assistantError) return next(assistantError);
+    try {
+      const workspaceContext = await buildWorkspaceContext(req.supabase, conversation.business_id);
+      const grey = await sendMessageToGrey({
+        userId: req.user.id,
+        businessId: conversation.business_id,
+        message: userMessage.content,
+        requestId: clientMessageId,
+        conversationId: conversation.grey_conversation_id,
+        workspaceContext
+      });
 
-    const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
-    await req.supabase.from("businessflow_conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
-    return res.status(201).json({ user_message: userMessage, assistant_message: assistantMessage, replayed: false });
+      if (!conversation.grey_conversation_id) {
+        const { error: mappingError } = await req.supabase.from("businessflow_conversations")
+          .update({ grey_conversation_id: grey.conversationId })
+          .eq("id", conversationId).is("grey_conversation_id", null);
+        if (mappingError) throw mappingError;
+      }
+
+      const { data: currentConversation, error: mappingReadError } = await req.supabase.from("businessflow_conversations")
+        .select("grey_conversation_id").eq("id", conversationId).maybeSingle();
+      if (mappingReadError) throw mappingReadError;
+      if (!currentConversation || currentConversation.grey_conversation_id !== grey.conversationId) {
+        throw new GreyIntegrationError("This conversation is being initialized by another request. Retry the message.", 503, true);
+      }
+
+      const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
+        p_conversation_id: conversationId,
+        p_reply_to_message_id: userMessage.id,
+        p_content: grey.response
+      });
+      if (assistantError) throw assistantError;
+
+      const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
+      const { error: titleError } = await req.supabase.from("businessflow_conversations")
+        .update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
+      if (titleError) throw titleError;
+
+      return res.status(201).json({
+        user_message: userMessage,
+        assistant_message: assistantMessage,
+        replayed: grey.replayed
+      });
+    } catch (error) {
+      if (error instanceof GreyIntegrationError) {
+        return res.status(error.status).json({
+          error: error.status === 503 ? "grey_temporarily_unavailable" : "grey_integration_error",
+          message: error.message,
+          retryable: error.retryable
+        });
+      }
+      return next(error);
+    }
   } catch (error) { return next(error); }
 });
 
-async function buildBusinessFlowReply(supabase, businessId, prompt) {
+async function buildWorkspaceContext(supabase, businessId) {
   const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
     supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
-    supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(50),
-    supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(50),
-    supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(20)
+    supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(30),
+    supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(20),
+    supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12)
   ]);
   for (const result of [profileResult, goalsResult, experimentsResult, memoryResult]) {
     if (result.error) throw result.error;
   }
-  const profile = profileResult.data;
-  if (!profile) throw new Error("Business workspace not found.");
-  const goals = goalsResult.data ?? [];
-  const experiments = experimentsResult.data ?? [];
-  const memory = memoryResult.data ?? [];
-  const activeGoals = goals.filter(item => item.status === "active");
-  const runningExperiments = experiments.filter(item => item.status === "running");
-  const lower = prompt.toLowerCase();
-  const lines = [
-    "I'm BusinessFlow Intelligence for " + profile.name + ". I can use this workspace's saved business records to help you make evidence-based decisions.",
-    profile.primary_goal ? "Your recorded primary goal: " + profile.primary_goal + "." : "Your primary goal has not been recorded yet.",
-    "Workspace context: " + activeGoals.length + " active goal(s), " + runningExperiments.length + " running experiment(s), and " + memory.length + " saved memory item(s)."
-  ];
-  if (/goal|target|progress|revenue|customer|growth|sales|performance/.test(lower) && activeGoals.length) {
-    lines.push("Active goals:");
-    for (const goal of activeGoals.slice(0, 5)) {
-      const progress = typeof goal.target_value === "number" && goal.target_value > 0
-        ? " (" + Math.round((Number(goal.current_value || 0) / goal.target_value) * 100) + "% of target)"
-        : "";
-      lines.push("• " + goal.title + ": " + (goal.current_value ?? 0) + (goal.metric_name ? " " + goal.metric_name : "") +
-        (goal.target_value !== null ? " / " + goal.target_value : "") + progress + ".");
+  if (!profileResult.data) throw new GreyIntegrationError("Business workspace not found.", 404);
+
+  const context = {
+    source: "BusinessFlow workspace records",
+    profile: profileResult.data,
+    goals: goalsResult.data ?? [],
+    experiments: experimentsResult.data ?? [],
+    memory: (memoryResult.data ?? []).map(item => ({
+      category: item.category,
+      content: typeof item.content === "string" ? item.content.slice(0, 700) : item.content
+    }))
+  };
+
+  while (Buffer.byteLength(JSON.stringify(context), "utf8") > 11_000) {
+    if (context.memory.length) context.memory.pop();
+    else if (context.experiments.length) context.experiments.pop();
+    else if (context.goals.length) context.goals.pop();
+    else {
+      context.profile.business_description = String(context.profile.business_description ?? "").slice(0, 500);
+      context.profile.name = String(context.profile.name ?? "").slice(0, 100);
+      context.profile.primary_goal = String(context.profile.primary_goal ?? "").slice(0, 300);
+      break;
     }
   }
-  if (/experiment|test|campaign|marketing/.test(lower) && experiments.length) {
-    lines.push("Recent experiments:");
-    for (const experiment of experiments.slice(0, 5)) {
-      lines.push("• " + experiment.title + " (" + experiment.status + ")" +
-        (experiment.success_metric ? ": " + experiment.success_metric : "") + ".");
-    }
-  }
-  if (memory.length) {
-    lines.push("Relevant saved business memory:");
-    for (const item of memory.slice(0, 3)) {
-      const value = typeof item.content === "string" ? item.content : JSON.stringify(item.content);
-      lines.push("• " + String(value).slice(0, 350));
-    }
-  }
-  lines.push("What I can do right now: review your goals, interpret imported datasets through the Analytics page, and help structure an experiment. This first release uses your saved workspace data and deterministic rules. It does not yet use an external AI model or execute actions. I won't invent figures when the workspace has no supporting data.");
-  return lines.join("\n").slice(0, 7900);
+  return context;
 }
