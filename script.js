@@ -1838,6 +1838,7 @@ function renderImportReview(){
         duplicate.value="";
         document.querySelector("#import-review-status").textContent="BusinessFlow kept both source columns. Only one is mapped to each standard field; the other remains available for Intelligence analysis.";
       }
+      renderImportQualitySummary();
     });
     label.append(title,select);mappings.append(label);
   });
@@ -1858,17 +1859,73 @@ function currentImportMapping(){
   });
   return mapping;
 }
+function renderDatasetPortfolio() {
+  const metrics = document.querySelector("#dataset-portfolio-metrics");
+  const coverage = document.querySelector("#dataset-portfolio-coverage");
+  const status = document.querySelector("#dataset-portfolio-status");
+  if (!metrics || !coverage || !status) return;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud?.apiConnected || !cloud?.businessId) {
+    status.textContent = "Workspace not connected";
+    metrics.innerHTML = '<p class="empty-state">Connect and select a workspace to view dataset coverage.</p>';
+    coverage.replaceChildren();
+    return;
+  }
+  const datasets = Array.isArray(importedDatasets) ? importedDatasets : [];
+  const rows = datasets.reduce((sum, item) => sum + Math.max(0, Number(item.row_count) || 0), 0);
+  const fields = new Set();
+  datasets.forEach(item => {
+    const mapping = item.column_mapping && typeof item.column_mapping === "object" ? item.column_mapping : {};
+    Object.values(mapping).forEach(field => { if (typeof field === "string" && field) fields.add(field); });
+  });
+  const cards = [
+    { label: "Saved datasets", value: String(datasets.length), note: "In this workspace" },
+    { label: "Imported records", value: rows.toLocaleString(), note: "Across saved datasets" },
+    { label: "Business fields mapped", value: String(fields.size), note: "Unique standard fields covered" }
+  ];
+  metrics.replaceChildren();
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "dataset-portfolio-card";
+    const label = document.createElement("span"); label.textContent = item.label;
+    const value = document.createElement("strong"); value.textContent = item.value;
+    const note = document.createElement("small"); note.textContent = item.note;
+    card.append(label, value, note); metrics.append(card);
+  });
+  const standards = [
+    ["Revenue", "revenue"], ["Customer identity", "customer_id"],
+    ["Transaction date", "order_date"], ["Product / service", "product"], ["Status", "status"]
+  ];
+  coverage.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "dataset-coverage-heading";
+  const title = document.createElement("strong"); title.textContent = "Analytics field coverage";
+  const note = document.createElement("span"); note.textContent = "Based on saved column mappings";
+  heading.append(title, note); coverage.append(heading);
+  standards.forEach(([label, field]) => {
+    const count = datasets.filter(item => Object.values(item.column_mapping || {}).includes(field)).length;
+    const row = document.createElement("div"); row.className = "dataset-coverage-row";
+    const name = document.createElement("span"); name.textContent = label;
+    const track = document.createElement("div"); track.className = "dataset-coverage-track";
+    const fill = document.createElement("div"); fill.className = "dataset-coverage-fill";
+    fill.style.width = datasets.length ? Math.round(count / datasets.length * 100) + "%" : "0%";
+    track.append(fill);
+    const value = document.createElement("small"); value.textContent = count + " / " + datasets.length;
+    row.append(name, track, value); coverage.append(row);
+  });
+  status.textContent = datasets.length ? "Workspace portfolio" : "No datasets yet";
+}
 async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
+    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];renderDatasetPortfolio();list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
-  }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
+  }catch(error){status.textContent=error.message||"Could not load saved datasets.";renderDatasetPortfolio();}
 }
 function buildDatasetReadout(dataset){
   const mapping=dataset.column_mapping&&typeof dataset.column_mapping==="object"?dataset.column_mapping:{};
