@@ -1224,6 +1224,31 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
   navigateTo("overview");
 });
 
+async function loadCloudCollections(businessId) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  cloudCollectionWorkspaceId = null; cloudExperiments = false; cloudMemories = false;
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    loadExperiments(); loadMemories(); renderExperiments(); renderMemories(); updateStorageStatus(); return;
+  }
+  if (cloudCollectionsBusy) return;
+  cloudCollectionsBusy = true;
+  try {
+    const [remoteExperiments, remoteMemory] = await Promise.all([
+      window.BusinessFlowCloud.loadExperiments(businessId),
+      window.BusinessFlowCloud.loadMemory(businessId)
+    ]);
+    if (window.BusinessFlowCloud.getState()?.businessId !== businessId) return;
+    experiments = remoteExperiments.map(experimentFromCloud);
+    memories = remoteMemory.map(memoryFromCloud).filter(isValidMemory);
+    cloudCollectionWorkspaceId = businessId; cloudExperiments = true; cloudMemories = true;
+    renderExperiments(); renderMemories(); updateStorageStatus();
+  } catch (error) {
+    console.error("Cloud workspace records could not load:", error);
+    showToast("Could not load cloud experiments and memory: " + error.message);
+    experiments = []; memories = []; renderExperiments(); renderMemories();
+  } finally { cloudCollectionsBusy = false; }
+}
+
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
