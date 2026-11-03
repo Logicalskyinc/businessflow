@@ -1383,13 +1383,29 @@ function renderBusinessInsights() {
   const analytics = document.querySelector("#analytics-insights");
   const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
+  const coverage = result?.coverage || {};
+  const setText = (selector, value) => {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = value;
+  };
+  setText("#analytics-record-count", Number.isFinite(Number(coverage.recordsAnalysed))
+    ? new Intl.NumberFormat().format(Number(coverage.recordsAnalysed)) : "—");
+  setText("#analytics-dataset-count", Number.isFinite(Number(coverage.datasetCount))
+    ? new Intl.NumberFormat().format(Number(coverage.datasetCount)) : "—");
+  setText("#analytics-engine-label", result
+    ? (result.engine === "businessflow_rules_v1" ? "Rules engine" : "Analysis ready")
+    : "Not analysed");
+  setText("#analytics-coverage-status", result
+    ? (Number(coverage.recordsAnalysed) > 0
+      ? "Analysis covers " + Number(coverage.recordsAnalysed) + " saved records across " + Number(coverage.datasetCount || 0) + " datasets. Findings below are based on this coverage."
+      : "The analysis completed, but no saved records were available to support business metrics.")
+    : "Select a workspace to inspect its data coverage.");
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
     if (status) status.textContent = "Waiting for a selected workspace.";
     return;
   }
-  const coverage = result.coverage || {};
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
