@@ -822,7 +822,7 @@ function setupExperimentForm() {
   });
 }
 
-async async function handleExperimentAction(action, id) {
+async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
   if (index < 0) { showToast("Experiment not found."); return; }
   const item = experiments[index];
@@ -986,7 +986,7 @@ function setupMemoryForm() {
   });
 }
 
-async async function handleMemoryAction(action, id) {
+async function handleMemoryAction(action, id) {
   const index = memories.findIndex(item => item.id === id);
   if (index < 0) { showToast("Memory entry not found."); return; }
   const item = memories[index];
