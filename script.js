@@ -1873,6 +1873,10 @@ function renderDatasetPortfolio() {
     status.textContent = "Workspace not connected";
     metrics.innerHTML = '<p class="empty-state">Connect and select a workspace to view dataset coverage.</p>';
     coverage.replaceChildren();
+    const summary = document.querySelector("#overview-dataset-summary");
+    const detail = document.querySelector("#overview-dataset-detail");
+    if (summary) summary.textContent = "No connected dataset portfolio";
+    if (detail) detail.textContent = "Connect a business workspace to view imported records.";
     return;
   }
   const datasets = Array.isArray(importedDatasets) ? importedDatasets : [];
@@ -1918,6 +1922,12 @@ function renderDatasetPortfolio() {
     row.append(name, track, value); coverage.append(row);
   });
   status.textContent = datasets.length ? "Workspace portfolio" : "No datasets yet";
+  const summary = document.querySelector("#overview-dataset-summary");
+  const detail = document.querySelector("#overview-dataset-detail");
+  if (summary) summary.textContent = datasets.length
+    ? datasets.length + " dataset" + (datasets.length === 1 ? "" : "s") + " · " + rows.toLocaleString() + " imported records"
+    : "No datasets imported yet";
+  if (detail) detail.textContent = fields.size + " standard business fields mapped across this workspace.";
 }
 async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
