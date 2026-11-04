@@ -10,6 +10,59 @@ const experimentStatuses = ["draft", "planned", "running", "completed", "cancell
 const memoryCategories = ["business_context", "decision", "observation", "preference", "lesson", "experiment_result"];
 const singularResource = { goals: "goal", experiments: "experiment", memory: "memory" };
 
+businessIntelligenceRouter.get("/activity", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!uuid(req.query.business_id)) return bad(res, ["A valid business_id is required."]);
+    const parsed = Number.parseInt(req.query.limit || "50", 10);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 100) : 50;
+    const { data, error } = await req.supabase.from("businessflow_activity").select("id,event_key,event_type,title,message,entity_id,is_read,created_at")
+      .eq("business_id", req.query.business_id).order("created_at", { ascending: false }).limit(limit);
+    if (error) return next(error);
+    return res.json({ status: "ok", activity: data || [] });
+  } catch (error) { return next(error); }
+});
+
+businessIntelligenceRouter.post("/activity", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!object(req.body) || !uuid(req.body.business_id)) return bad(res, ["A valid business_id is required."]);
+    const allowed = ["goal_created","goal_updated","goal_completed","goal_deleted","experiment_created","experiment_updated","experiment_deleted","dataset_imported"];
+    const { event_key, event_type, title, message = "", entity_id = "" } = req.body;
+    if (typeof event_key !== "string" || !/^[a-zA-Z0-9:_-]{8,160}$/.test(event_key)) return bad(res, ["event_key must be 8-160 safe characters."]);
+    if (!allowed.includes(event_type)) return bad(res, ["event_type is unsupported."]);
+    if (typeof title !== "string" || !title.trim() || title.length > 120) return bad(res, ["title must contain 1-120 characters."]);
+    if (typeof message !== "string" || message.length > 300) return bad(res, ["message must be 300 characters or fewer."]);
+    if (typeof entity_id !== "string" || entity_id.length > 100) return bad(res, ["entity_id must be 100 characters or fewer."]);
+    const payload = { business_id: req.body.business_id, created_by: req.user.id, event_key, event_type, title: title.trim(), message, entity_id };
+    const { data, error } = await req.supabase.from("businessflow_activity").upsert(payload, { onConflict: "business_id,event_key", ignoreDuplicates: true }).select("id,event_key,event_type,title,message,entity_id,is_read,created_at").maybeSingle();
+    if (error) return next(error);
+    if (data) return res.status(201).json({ status: "created", activity: data });
+    const existing = await req.supabase.from("businessflow_activity").select("id,event_key,event_type,title,message,entity_id,is_read,created_at").eq("business_id", payload.business_id).eq("event_key", event_key).maybeSingle();
+    if (existing.error) return next(existing.error);
+    return res.json({ status: "ok", duplicate: true, activity: existing.data });
+  } catch (error) { return next(error); }
+});
+
+businessIntelligenceRouter.patch("/activity/:id", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!uuid(req.params.id) || !object(req.body) || typeof req.body.is_read !== "boolean" || !uuid(req.body.business_id)) return bad(res, ["A valid activity id, business_id and boolean is_read are required."]);
+    const { data, error } = await req.supabase.from("businessflow_activity").update({ is_read: req.body.is_read })
+      .eq("id", req.params.id).eq("business_id", req.body.business_id)
+      .select("id,is_read").maybeSingle();
+    if (error) return next(error);
+    if (!data) return res.status(404).json({ error: "activity_not_found" });
+    return res.json({ status: "updated", activity: data });
+  } catch (error) { return next(error); }
+});
+
+businessIntelligenceRouter.delete("/activity", requireAuthenticatedUser, async (req, res, next) => {
+  try {
+    if (!uuid(req.query.business_id)) return bad(res, ["A valid business_id is required."]);
+    const { error, count } = await req.supabase.from("businessflow_activity").delete({ count: "exact" }).eq("business_id", req.query.business_id);
+    if (error) return next(error);
+    return res.json({ status: "deleted", count: count ?? 0 });
+  } catch (error) { return next(error); }
+});
+
 businessIntelligenceRouter.get("/health", (_req, res) => res.json({
   module: "business-intelligence", status: "available",
   capabilities: { onboardingQuestions: true, answerValidation: true, profilePersistence: true,
