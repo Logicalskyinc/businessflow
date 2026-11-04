@@ -1187,33 +1187,39 @@ function setupMemorySearch() {
 /* ---------- Navigation ---------- */
 
 function navigateTo(pageId) {
-  const page = document.getElementById(pageId);
-
+  let page = document.getElementById(pageId);
   if (!page || !page.classList.contains("page")) return;
+
   const cloudState = window.BusinessFlowCloud?.getState?.();
   if (pageId !== "account" && !cloudState?.signedIn) {
     pageId = "account";
-    return navigateTo(pageId);
+    page = document.getElementById(pageId);
+  }
+
+  const progress = document.querySelector("#bf-route-progress");
+  if (progress) {
+    progress.classList.remove("is-active");
+    void progress.offsetWidth;
+    progress.classList.add("is-active");
+    window.clearTimeout(navigateTo.progressTimer);
+    navigateTo.progressTimer = window.setTimeout(() => {
+      progress.classList.remove("is-active");
+    }, 650);
   }
 
   document.querySelectorAll(".page").forEach(item => {
     item.classList.toggle("active", item === page);
   });
 
-  document.querySelectorAll(".nav-link[data-page]").forEach(link => {
+  document.querySelectorAll(".nav-link[data-page], .mobile-tab[data-page]").forEach(link => {
     const active = link.dataset.page === pageId;
-
     link.classList.toggle("active", active);
-
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
 
   const breadcrumb = document.querySelector("#current-section");
-  const activeLink = document.querySelector(
-    '.nav-link[data-page="' + pageId + '"]'
-  );
-
+  const activeLink = document.querySelector('.nav-link[data-page="' + pageId + '"]');
   if (breadcrumb) {
     breadcrumb.textContent = activeLink
       ? activeLink.textContent.trim()
@@ -1221,9 +1227,8 @@ function navigateTo(pageId) {
   }
 
   document.querySelector("#sidebar")?.classList.remove("open");
-  document.querySelector(".menu-button")?.setAttribute(
-    "aria-expanded", "false"
-  );
+  document.body.classList.remove("navigation-open");
+  document.querySelector(".menu-button")?.setAttribute("aria-expanded", "false");
 
   if (location.hash !== "#" + pageId) {
     history.replaceState(null, "", "#" + pageId);
@@ -1247,12 +1252,32 @@ function setupNavigation() {
   const menuButton = document.querySelector(".menu-button");
   const sidebar = document.querySelector("#sidebar");
 
+  const backdrop = document.querySelector("#sidebar-backdrop");
   if (menuButton && sidebar) {
     menuButton.addEventListener("click", () => {
       const isOpen = sidebar.classList.toggle("open");
+      document.body.classList.toggle("navigation-open", isOpen);
       menuButton.setAttribute("aria-expanded", String(isOpen));
     });
   }
+  backdrop?.addEventListener("click", () => {
+    sidebar?.classList.remove("open");
+    document.body.classList.remove("navigation-open");
+    menuButton?.setAttribute("aria-expanded", "false");
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    sidebar?.classList.remove("open");
+    document.body.classList.remove("navigation-open");
+    menuButton?.setAttribute("aria-expanded", "false");
+  });
+
+  document.querySelectorAll(".mobile-tab[data-page]").forEach(link => {
+    link.addEventListener("click", event => {
+      event.preventDefault();
+      navigateTo(link.dataset.page);
+    });
+  });
 
   window.addEventListener("hashchange", () => {
     const pageId = location.hash.slice(1);
