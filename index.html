@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -110,6 +110,18 @@
               <section class="pulse-section"><div class="pulse-section-heading"><h3>Recent experiment work</h3><button type="button" class="text-button" data-go-to="experiments">Open experiments</button></div><div id="pulse-experiment-activity" class="pulse-activity-list"><p class="empty-state">Your saved experiments will appear here.</p></div></section>
               <section class="pulse-section"><div class="pulse-section-heading"><h3>Goals in focus</h3><button type="button" class="text-button" data-go-to="goals">View goals</button></div><div id="pulse-goal-focus" class="pulse-goal-list"><p class="empty-state">Create a goal to start tracking progress.</p></div></section>
             </div>
+          </section>
+
+          <section class="panel activity-center" aria-labelledby="activity-center-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">WORKSPACE UPDATES</p><h2 id="activity-center-title">Activity and notifications</h2><p class="muted">Important changes recorded in this browser.</p></div>
+              <span class="count-pill" id="activity-unread-count">0 unread</span>
+            </div>
+            <div class="activity-toolbar">
+              <span id="activity-center-status" class="muted" role="status">Your workspace activity will appear here.</span>
+              <div><button type="button" class="text-button" id="activity-mark-read">Mark all read</button><button type="button" class="text-button" id="activity-clear">Clear history</button></div>
+            </div>
+            <div id="activity-feed" class="activity-feed" aria-live="polite"><p class="empty-state">No activity yet. Saving a goal, updating an experiment or importing data will appear here.</p></div>
           </section>
 
           <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
@@ -627,7 +639,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=20" defer></script>
+  <script src="script.js?v=21" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
