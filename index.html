@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -251,14 +251,17 @@
               <p class="chart-disclaimer">No live revenue source connected.</p>
             </article>
 
-            <article class="panel">
-              <h2>Goal performance</h2>
-              <p class="muted">Progress calculated from your saved goals</p>
-              <div id="analytics-goals" class="goal-list">
-                <p class="empty-state">Goal performance will appear here.</p>
-              </div>
+            <article class="panel analytics-goal-panel">
+              <div class="panel-heading"><div><h2>Goal performance</h2><p class="muted">Progress calculated from your saved goals</p></div><span class="count-pill" id="analytics-goal-total">0 goals</span></div>
+              <div id="analytics-goal-summary" class="analytics-goal-summary" aria-live="polite"></div>
+              <div id="analytics-goals" class="goal-list"><p class="empty-state">Goal performance will appear here.</p></div>
             </article>
           </div>
+
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Data readiness</h2><p class="muted">What your current data can reliably tell you</p></div><span class="count-pill">Verified</span></div>
+            <div id="analytics-data-readiness" class="analytics-data-readiness"><span class="analytics-readiness-mark" aria-hidden="true">↗</span><div><strong>Checking workspace data…</strong><p>BusinessFlow will only display metrics supported by available records.</p></div></div>
+          </article>
 
           <article class="panel">
             <h2>Business insights</h2>
@@ -624,7 +627,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=19" defer></script>
+  <script src="script.js?v=20" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
