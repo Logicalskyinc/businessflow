@@ -1456,6 +1456,7 @@ function renderBusinessInsights() {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
     if (status) status.textContent = "Waiting for a selected workspace.";
+    renderWorkspacePulse();
     return;
   }
   const coverage = result.coverage || {};
