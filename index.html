@@ -6,9 +6,14 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body class="auth-pending">
+  <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
+    <div class="bf-loading-brand"><span class="bf-loading-mark">B</span><span>BusinessFlow<small>BUSINESS INTELLIGENCE</small></span></div>
+    <div class="bf-loading-track"><span></span></div>
+    <p id="bf-loading-message">Preparing your workspace…</p>
+  </div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a href="#overview" class="brand">
@@ -602,7 +607,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=17" defer></script>
+  <script src="script.js?v=18" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
