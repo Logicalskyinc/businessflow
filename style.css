@@ -668,3 +668,24 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
   .pulse-metric > span { font-size: 9px; }
   .pulse-metric strong { font-size: 22px; }
 }
+
+
+/* Phase 4 analytics: clear, responsive goal progress visualisation */
+.analytics-goal-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:15px 0}
+.analytics-summary-tile{padding:12px;border:1px solid var(--border);border-radius:12px;background:#f8faff}
+.analytics-summary-tile span{display:block;color:var(--muted);font-size:10px}
+.analytics-summary-tile strong{display:block;margin-top:5px;color:var(--text);font-size:22px;font-weight:820;font-variant-numeric:tabular-nums}
+.analytics-goal-row{padding:13px 0;border-top:1px solid var(--border)}
+.analytics-goal-row:first-child{border-top:0}
+.analytics-goal-row-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.analytics-goal-row-head strong{min-width:0;overflow-wrap:anywhere;color:var(--text);font-size:12px}
+.analytics-goal-row-head span{flex:0 0 auto;color:var(--blue);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.analytics-goal-track{height:9px;margin:10px 0 7px;overflow:hidden;border-radius:20px;background:#edf1f7}
+.analytics-goal-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#3563e9,#18a874);transition:width .45s var(--bf-ease)}
+.analytics-goal-fill.is-complete{background:#18a874}
+.analytics-goal-meta{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px}
+.analytics-data-readiness{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid #e7edf7;border-radius:13px;background:#f8faff}
+.analytics-readiness-mark{display:grid;place-items:center;flex:0 0 30px;height:30px;border-radius:10px;background:#eaf0ff;color:var(--blue);font-weight:800}
+.analytics-data-readiness strong{display:block;color:var(--text);font-size:12px}
+.analytics-data-readiness p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+@media(max-width:760px){.analytics-goal-summary{gap:7px}.analytics-summary-tile{padding:10px}.analytics-summary-tile strong{font-size:20px}}
