@@ -253,13 +253,15 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
 });
 
 async function buildWorkspaceContext(supabase, businessId) {
-  const [profileResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
+  const [profileResult, goalsResult, experimentsResult, memoryResult, importsResult, activityResult] = await Promise.all([
     supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
     supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(30),
     supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(20),
-    supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12)
+    supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12),
+    supabase.from("businessflow_imports").select("name,source_filename,columns,column_mapping,row_count,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(10),
+    supabase.from("businessflow_activity").select("event_type,title,message,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12)
   ]);
-  for (const result of [profileResult, goalsResult, experimentsResult, memoryResult]) {
+  for (const result of [profileResult, goalsResult, experimentsResult, memoryResult, importsResult, activityResult]) {
     if (result.error) throw result.error;
   }
   if (!profileResult.data) throw new GreyIntegrationError("Business workspace not found.", 404);
@@ -269,6 +271,15 @@ async function buildWorkspaceContext(supabase, businessId) {
     profile: profileResult.data,
     goals: goalsResult.data ?? [],
     experiments: experimentsResult.data ?? [],
+    importedDatasets: (importsResult.data ?? []).map(item => ({
+      name: item.name, sourceFilename: item.source_filename,
+      columns: (item.columns ?? []).slice(0, 30),
+      columnMapping: item.column_mapping ?? {}, rowCount: item.row_count,
+      importedAt: item.created_at
+    })),
+    recentActivity: (activityResult.data ?? []).map(item => ({
+      type: item.event_type, title: item.title, message: item.message, occurredAt: item.created_at
+    })),
     memory: (memoryResult.data ?? []).map(item => ({
       category: item.category,
       content: (typeof item.content === "string" ? item.content : JSON.stringify(item.content)).slice(0, 700)
@@ -277,6 +288,8 @@ async function buildWorkspaceContext(supabase, businessId) {
 
   while (Buffer.byteLength(JSON.stringify(context), "utf8") > 9_000) {
     if (context.memory.length) context.memory.pop();
+    else if (context.recentActivity.length) context.recentActivity.pop();
+    else if (context.importedDatasets.length) context.importedDatasets.pop();
     else if (context.experiments.length) context.experiments.pop();
     else if (context.goals.length) context.goals.pop();
     else {
