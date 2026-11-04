@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -95,6 +95,22 @@
             <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
             <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
           </article>
+
+          <section class="workspace-pulse panel" aria-labelledby="workspace-pulse-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">WORKSPACE PULSE</p><h2 id="workspace-pulse-title">Your business at a glance</h2><p class="muted" id="workspace-pulse-caption">A live summary of saved workspace activity.</p></div>
+              <span class="pulse-live-label"><span aria-hidden="true"></span> Workspace</span>
+            </div>
+            <div class="pulse-metrics" id="workspace-pulse-metrics">
+              <article class="pulse-metric"><span>Saved goals</span><strong id="pulse-goals-count">0</strong><small>Goals being tracked</small></article>
+              <article class="pulse-metric"><span>Running experiments</span><strong id="pulse-experiments-count">0</strong><small>Active tests</small></article>
+              <article class="pulse-metric"><span>Evidence insights</span><strong id="pulse-insights-count">0</strong><small>From business data</small></article>
+            </div>
+            <div class="pulse-lower-grid">
+              <section class="pulse-section"><div class="pulse-section-heading"><h3>Recent experiment work</h3><button type="button" class="text-button" data-go-to="experiments">Open experiments</button></div><div id="pulse-experiment-activity" class="pulse-activity-list"><p class="empty-state">Your saved experiments will appear here.</p></div></section>
+              <section class="pulse-section"><div class="pulse-section-heading"><h3>Goals in focus</h3><button type="button" class="text-button" data-go-to="goals">View goals</button></div><div id="pulse-goal-focus" class="pulse-goal-list"><p class="empty-state">Create a goal to start tracking progress.</p></div></section>
+            </div>
+          </section>
 
           <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
             <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey uses your selected business workspace, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
@@ -608,7 +624,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=18" defer></script>
+  <script src="script.js?v=19" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
