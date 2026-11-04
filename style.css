@@ -689,3 +689,22 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
 .analytics-data-readiness strong{display:block;color:var(--text);font-size:12px}
 .analytics-data-readiness p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
 @media(max-width:760px){.analytics-goal-summary{gap:7px}.analytics-summary-tile{padding:10px}.analytics-summary-tile strong{font-size:20px}}
+
+
+/* Phase 5: activity centre and notification states */
+.activity-center{overflow:hidden}
+.activity-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.activity-toolbar>div{display:flex;gap:14px;flex:0 0 auto}
+.activity-toolbar .text-button{font-size:11px}
+.activity-feed{display:grid;gap:0}
+.activity-event{display:flex;align-items:flex-start;gap:11px;padding:14px 3px;border-bottom:1px solid #edf0f5}
+.activity-event:last-child{border-bottom:0}
+.activity-event-icon{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:11px;background:#edf2ff;color:var(--blue);font-size:17px;font-weight:800}
+.activity-event-copy{min-width:0;flex:1}
+.activity-event-copy strong{display:block;color:var(--text);font-size:12px;line-height:1.45}
+.activity-event-copy p{margin:4px 0;color:var(--muted);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.activity-event-copy small{color:var(--muted);font-size:10px}
+.activity-read-state{flex:0 0 auto;padding:4px 7px;border-radius:20px;background:#edf8f3;color:#19845e;font-size:9px;font-weight:750}
+.activity-event.is-read .activity-read-state{background:#f0f2f6;color:#8993a3}
+.activity-event.is-read .activity-event-icon{background:#f1f3f7;color:#78869d}
+@media(max-width:760px){.activity-toolbar{align-items:flex-start;flex-direction:column}.activity-toolbar>div{width:100%;justify-content:flex-end}.activity-event{gap:9px}.activity-event-icon{flex-basis:30px;height:30px}}
