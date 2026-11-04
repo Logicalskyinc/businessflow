@@ -266,46 +266,51 @@ function renderGoalList(container) {
 
 function renderAnalyticsGoals() {
   const container = document.querySelector("#analytics-goals");
+  const summary = document.querySelector("#analytics-goal-summary");
+  const total = document.querySelector("#analytics-goal-total");
   if (!container) return;
 
-  if (goals.length === 0) {
-    container.innerHTML = `
-      <p class="empty-state">
-        No saved goals yet. Create a goal to start tracking progress.
-      </p>
-    `;
+  const validGoals = goals.filter(goal =>
+    Number.isFinite(Number(goal.current)) &&
+    Number.isFinite(Number(goal.target)) &&
+    Number(goal.target) > 0
+  );
+  const completed = validGoals.filter(goal => getProgress(goal) >= 100).length;
+  const average = validGoals.length
+    ? Math.round(validGoals.reduce((sum, goal) => sum + getProgress(goal), 0) / validGoals.length)
+    : 0;
+
+  if (total) total.textContent = validGoals.length + (validGoals.length === 1 ? " goal" : " goals");
+  if (summary) summary.innerHTML = validGoals.length
+    ? '<div class="analytics-summary-tile"><span>Average progress</span><strong>' + average + '%</strong></div><div class="analytics-summary-tile"><span>Completed goals</span><strong>' + completed + ' / ' + validGoals.length + '</strong></div>'
+    : '<div class="analytics-data-readiness"><span class="analytics-readiness-mark" aria-hidden="true">◎</span><div><strong>Goal analytics are ready when you are</strong><p>Create measurable goals to see progress comparisons and completion rates here.</p></div></div>';
+
+  if (!validGoals.length) {
+    container.innerHTML = '<p class="empty-state">No measurable goals are available yet. Add a goal with a target greater than zero.</p>';
     return;
   }
 
-  container.innerHTML = goals.map(goal => {
-    const title = escapeHTML(goal.title);
-    const progress = getProgress(goal);
-    const unit = goal.unit || "units";
+  container.innerHTML = validGoals.slice()
+    .sort((a, b) => getProgress(b) - getProgress(a))
+    .map(goal => {
+      const title = escapeHTML(goal.title);
+      const progress = getProgress(goal);
+      const unit = goal.unit || "units";
+      return '<article class="analytics-goal-row"><div class="analytics-goal-row-head"><strong>' + title + '</strong><span>' + progress + '%</span></div><div class="analytics-goal-track" role="progressbar" aria-label="' + title + ' progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progress + '"><div class="analytics-goal-fill ' + (progress >= 100 ? "is-complete" : "") + '" style="width:' + progress + '%"></div></div><div class="analytics-goal-meta"><span>' + formatGoalValue(goal.current, unit) + ' current</span><span>' + formatGoalValue(goal.target, unit) + ' target</span></div></article>';
+    }).join("");
+}
 
-    return `
-      <article class="goal-item">
-        <div class="goal-top">
-          <strong>${title}</strong>
-          <span>${progress}% complete</span>
-        </div>
-
-        <div class="progress-track"
-          role="progressbar"
-          aria-label="${title} completion"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="${progress}">
-          <div class="progress-fill ${progress >= 100 ? "complete" : ""}"
-            style="width:${progress}%"></div>
-        </div>
-
-        <small>
-          ${formatGoalValue(goal.current, unit)}
-          of ${formatGoalValue(goal.target, unit)}
-        </small>
-      </article>
-    `;
-  }).join("");
+function renderAnalyticsDataReadiness() {
+  const node = document.querySelector("#analytics-data-readiness");
+  if (!node) return;
+  const coverage = latestBusinessInsights?.coverage || {};
+  const records = Number(coverage.recordsAnalysed || 0);
+  const datasets = Number(coverage.datasetCount || 0);
+  if (records > 0 || datasets > 0) {
+    node.innerHTML = '<span class="analytics-readiness-mark" aria-hidden="true">✓</span><div><strong>' + records.toLocaleString() + ' records analysed across ' + datasets.toLocaleString() + ' datasets</strong><p>These records support the insights shown below. Revenue, customer and conversion metrics remain unavailable until their fields are reliably identified.</p></div>';
+  } else {
+    node.innerHTML = '<span class="analytics-readiness-mark" aria-hidden="true">↗</span><div><strong>Connect or import a business dataset</strong><p>BusinessFlow will analyse recognised fields and show metrics only when the underlying records support them.</p></div>';
+  }
 }
 
 function renderGoals() {
@@ -1457,6 +1462,7 @@ function renderBusinessInsights() {
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
     if (status) status.textContent = "Waiting for a selected workspace.";
     renderWorkspacePulse();
+    renderAnalyticsDataReadiness();
     return;
   }
   const coverage = result.coverage || {};
@@ -1471,6 +1477,7 @@ function renderBusinessInsights() {
   if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
   renderWorkspacePulse();
+  renderAnalyticsDataReadiness();
 }
 async function loadBusinessInsights(businessId) {
   const cloud = window.BusinessFlowCloud;
