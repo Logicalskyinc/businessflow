@@ -441,6 +441,7 @@ async function createGoal(title, current, target, unit) {
       });
       if (!saveGoals()) showToast("Cloud goal saved, but the local browser copy could not be updated.");
       renderGoals();
+      recordActivity("goal_created", "Goal created", cleanTitle, saved.id);
       showToast("Goal saved to your BusinessFlow cloud workspace.");
       return true;
     } catch (error) {
@@ -460,6 +461,7 @@ async function createGoal(title, current, target, unit) {
     return false;
   }
   renderGoals();
+  recordActivity("goal_created", "Goal created", cleanTitle, goals[goals.length - 1]?.id || "");
   showToast("Goal saved in this browser. Cloud sync is not connected.");
   return true;
 }
@@ -495,6 +497,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
+    recordActivity("goal_deleted", "Goal deleted", goal.title, id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Goal deleted from this browser.");
     return;
   }
@@ -532,6 +535,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
+    recordActivity("goal_updated", "Goal progress updated", goal.title + ": " + value + " " + (goal.unit || "units"), id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated locally.");
     return;
   }
@@ -588,6 +592,7 @@ async function handleGoalAction(action, id) {
       return;
     }
     renderGoals();
+    recordActivity("goal_updated", "Goal details updated", goal.title, id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated locally.");
   }
 }
@@ -887,6 +892,7 @@ function setupExperimentForm() {
 
       renderExperiments();
       cancelExperimentEdit();
+      recordActivity("experiment_updated", "Experiment updated", title + " · " + status, item.id);
       showToast("Experiment updated in this browser.");
       return;
     }
@@ -910,6 +916,7 @@ function setupExperimentForm() {
 
     renderExperiments();
     form.reset();
+    recordActivity("experiment_created", "Experiment created", title + " · " + status, experiments[0]?.id || "");
     showToast("Experiment saved in this browser.");
   });
 }
@@ -939,6 +946,7 @@ function handleExperimentAction(action, id) {
 
     if (editingExperimentId === id) cancelExperimentEdit();
     renderExperiments();
+    recordActivity("experiment_deleted", "Experiment deleted", item.title, id);
     showToast("Experiment deleted.");
     return;
   }
@@ -1985,6 +1993,7 @@ function setupDataImport(){
       if(!name)throw Error("Enter a name for this dataset.");
       const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
+      recordActivity("dataset_imported", "Dataset imported", result.import.row_count + " rows added to the workspace", result.import.id || "");
       showToast("Dataset added to BusinessFlow.");
       await loadSavedImports();
       status.textContent="Dataset saved. BusinessFlow Intelligence is analysing the updated workspace…";
