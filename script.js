@@ -33,6 +33,78 @@ let editingExperimentId = null;
 let memories = [];
 let storageAvailable = true;
 
+const ACTIVITY_KEY = "businessflow_activity_v1";
+const ACTIVITY_LIMIT = 80;
+let activityItems = [];
+let activityReady = false;
+
+function loadActivity() {
+  activityItems = loadCollection(ACTIVITY_KEY)
+    .filter(item => item && typeof item.id === "string" &&
+      typeof item.type === "string" && typeof item.title === "string" &&
+      typeof item.message === "string" && typeof item.createdAt === "string")
+    .slice(0, ACTIVITY_LIMIT);
+  activityReady = true;
+  renderActivityCenter();
+}
+
+function recordActivity(type, title, message, entityId = "") {
+  if (!activityReady) return;
+  const allowed = ["goal_created","goal_updated","goal_completed","goal_deleted",
+    "experiment_created","experiment_updated","experiment_deleted","dataset_imported"];
+  if (!allowed.includes(type)) return;
+  const item = {
+    id: createId(), type, title: String(title).slice(0,120),
+    message: String(message).slice(0,300), entityId: String(entityId).slice(0,100),
+    createdAt: new Date().toISOString(), read: false
+  };
+  activityItems.unshift(item);
+  activityItems = activityItems.slice(0, ACTIVITY_LIMIT);
+  if (!saveCollection(ACTIVITY_KEY, activityItems)) {
+    activityItems.shift();
+    return;
+  }
+  renderActivityCenter();
+}
+
+function renderActivityCenter() {
+  const feed = document.querySelector("#activity-feed");
+  const count = document.querySelector("#activity-unread-count");
+  const status = document.querySelector("#activity-center-status");
+  const unread = activityItems.filter(item => !item.read).length;
+  if (count) count.textContent = unread + (unread === 1 ? " unread" : " unread");
+  if (status) status.textContent = activityItems.length
+    ? activityItems.length + " recent events · Stored in this browser"
+    : "Your workspace activity will appear here.";
+  if (!feed) return;
+  if (!activityItems.length) {
+    feed.innerHTML = '<p class="empty-state">No activity yet. Saving a goal, updating an experiment or importing data will appear here.</p>';
+    return;
+  }
+  feed.innerHTML = activityItems.map(item => {
+    const date = new Date(item.createdAt);
+    const when = Number.isNaN(date.getTime()) ? "Saved event" : date.toLocaleString();
+    const symbol = item.type.startsWith("goal") ? "◎" : item.type.startsWith("experiment") ? "◇" : "↥";
+    return '<article class="activity-event ' + (item.read ? "is-read" : "is-unread") + '"><span class="activity-event-icon" aria-hidden="true">' + symbol + '</span><div class="activity-event-copy"><strong>' + escapeHTML(item.title) + '</strong><p>' + escapeHTML(item.message) + '</p><small>' + escapeHTML(when) + '</small></div><span class="activity-read-state">' + (item.read ? "Read" : "New") + '</span></article>';
+  }).join("");
+}
+
+function setupActivityCenter() {
+  document.querySelector("#activity-mark-read")?.addEventListener("click", () => {
+    if (!activityItems.some(item => !item.read)) return;
+    activityItems = activityItems.map(item => ({ ...item, read: true }));
+    if (saveCollection(ACTIVITY_KEY, activityItems)) renderActivityCenter();
+  });
+  document.querySelector("#activity-clear")?.addEventListener("click", () => {
+    if (!activityItems.length) return;
+    if (!window.confirm("Clear this browser's BusinessFlow activity history? This does not delete goals, experiments or imported datasets.")) return;
+    const previous = activityItems;
+    activityItems = [];
+    if (!saveCollection(ACTIVITY_KEY, activityItems)) activityItems = previous;
+    renderActivityCenter();
+  });
+}
+
 /* ---------- Shared helpers ---------- */
 
 function escapeHTML(value) {
@@ -1571,8 +1643,10 @@ function initializeBusinessFlow() {
   loadGoals();
   loadExperiments();
   loadMemories();
+  loadActivity();
 
   setupNavigation();
+  setupActivityCenter();
   setupConnections();
   setupDataImport();
 
