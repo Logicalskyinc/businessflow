@@ -1482,9 +1482,39 @@ window.addEventListener("businessflow:import-local-goals-requested", () => {
   void importLocalGoalsToCloud();
 });
 
+/* ---------- Branded loading experience ---------- */
+function initializeBusinessFlowLoading() {
+  const boot = document.querySelector("#bf-loading-screen");
+  const action = document.querySelector("#bf-action-loading");
+  const message = document.querySelector("#bf-action-loading-message");
+  let bootFinished = false;
+  const finishBoot = () => {
+    if (bootFinished) return;
+    bootFinished = true;
+    boot?.classList.add("is-leaving");
+    window.setTimeout(() => boot?.remove(), 350);
+  };
+  // Auth emits cloud-state after its initial session check. Keep a hard timeout
+  // so a network/auth failure can never leave the app covered indefinitely.
+  window.addEventListener("businessflow:cloud-state", finishBoot, { once: true });
+  window.setTimeout(finishBoot, 6500);
+  window.BusinessFlowLoading = {
+    show(text = "Working on your workspace…") {
+      if (message) message.textContent = text;
+      action?.classList.add("is-visible");
+      action?.setAttribute("aria-hidden", "false");
+    },
+    hide() {
+      action?.classList.remove("is-visible");
+      action?.setAttribute("aria-hidden", "true");
+    }
+  };
+}
+
 /* ---------- Start the app ---------- */
 
 function initializeBusinessFlow() {
+  initializeBusinessFlowLoading();
   loadGoals();
   loadExperiments();
   loadMemories();
@@ -1781,6 +1811,7 @@ function setupDataImport(){
     pendingImport=null;
     review.hidden=true;
     fileStatus.textContent="File selected: "+file.name+". Reading file…";
+    window.BusinessFlowLoading?.show("Reading and checking your file…");
     try{
       pendingImport=await readImportFile(file);
       pendingImport.filename=file.name;
@@ -1793,6 +1824,7 @@ function setupDataImport(){
       fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
     }finally{
       processingFile=null;
+      window.BusinessFlowLoading?.hide();
     }
   };
   input.addEventListener("change",handleSelectedFile);
@@ -1819,6 +1851,7 @@ function setupDataImport(){
     if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
     button.disabled=true;
     status.textContent="Validating and saving the reviewed dataset…";
+    window.BusinessFlowLoading?.show("Adding your dataset and updating business intelligence…");
     try{
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
@@ -1833,7 +1866,7 @@ function setupDataImport(){
       navigateTo("overview");
       status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
-    finally{button.disabled=false;}
+    finally{button.disabled=false;window.BusinessFlowLoading?.hide();}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
