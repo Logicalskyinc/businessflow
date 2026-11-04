@@ -316,6 +316,7 @@ function renderGoals() {
   const count = document.querySelector("#goal-count");
   if (count) count.textContent = String(goals.length);
 
+  renderWorkspacePulse();
   updateStorageStatus();
 }
 
@@ -629,6 +630,7 @@ function renderOverviewExperiments() {
         '</strong><p>' + escapeHTML(label) + '</p></div><span class="status-pill ' +
         escapeHTML(status) + '">' + escapeHTML(label) + '</span></div>';
     }).join("");
+  renderWorkspacePulse();
 }
 
 function renderExperiments() {
@@ -1403,6 +1405,48 @@ window.addEventListener("businessflow:workspace-changed", event => {
 });
 
 let latestBusinessInsights = null;
+/* ---------- Workspace pulse: derived only from saved records ---------- */
+function renderWorkspacePulse() {
+  const goalCount = document.querySelector("#pulse-goals-count");
+  const experimentCount = document.querySelector("#pulse-experiments-count");
+  const insightCount = document.querySelector("#pulse-insights-count");
+  const experimentFeed = document.querySelector("#pulse-experiment-activity");
+  const goalFocus = document.querySelector("#pulse-goal-focus");
+  const caption = document.querySelector("#workspace-pulse-caption");
+  const running = experiments.filter(item => item.status === "running").length;
+  const insights = Array.isArray(latestBusinessInsights?.insights) ? latestBusinessInsights.insights : [];
+
+  if (goalCount) goalCount.textContent = String(goals.length);
+  if (experimentCount) experimentCount.textContent = String(running);
+  if (insightCount) insightCount.textContent = String(insights.length);
+  if (caption) {
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    caption.textContent = cloud?.signedIn && cloud?.businessId
+      ? "Summary of saved goals, experiments and verified business insights."
+      : "Browser-saved goals and experiments. Connect a workspace for cloud intelligence.";
+  }
+
+  if (experimentFeed) {
+    const recent = [...experiments]
+      .sort((a,b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")))
+      .slice(0,3);
+    experimentFeed.innerHTML = recent.length ? recent.map(item => {
+      const status = String(item.status || "planned");
+      const date = item.updatedAt || item.createdAt;
+      const dateLabel = date && !Number.isNaN(Date.parse(date)) ? new Date(date).toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "Saved experiment";
+      return '<article class="pulse-activity-item"><span class="pulse-activity-mark" aria-hidden="true">◇</span><div class="pulse-activity-copy"><strong>' + escapeHTML(item.title) + '</strong><small>' + escapeHTML(status.charAt(0).toUpperCase()+status.slice(1)) + ' · ' + escapeHTML(dateLabel) + '</small></div></article>';
+    }).join("") : '<p class="pulse-empty">No experiments saved yet. Create a test to start recording what your business learns.</p>';
+  }
+
+  if (goalFocus) {
+    const focus = [...goals].sort((a,b) => getProgress(b)-getProgress(a)).slice(0,3);
+    goalFocus.innerHTML = focus.length ? focus.map(goal => {
+      const progress = getProgress(goal);
+      return '<article class="pulse-goal-item"><div class="pulse-goal-top"><strong>' + escapeHTML(goal.title) + '</strong><span>' + progress + '%</span></div><div class="progress-track" role="progressbar" aria-label="' + escapeHTML(goal.title) + ' progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + progress + '"><div class="progress-fill ' + (progress >= 100 ? "complete" : "") + '" style="width:' + progress + '%"></div></div></article>';
+    }).join("") : '<p class="pulse-empty">No saved goals yet. Create a goal to give your business a measurable direction.</p>';
+  }
+}
+
 function renderBusinessInsights() {
   const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
@@ -1425,6 +1469,7 @@ function renderBusinessInsights() {
   const content = markup || '<p class="empty-state">No recommendations are available yet.</p>';
   if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
+  renderWorkspacePulse();
 }
 async function loadBusinessInsights(businessId) {
   const cloud = window.BusinessFlowCloud;
