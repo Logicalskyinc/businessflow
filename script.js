@@ -1617,6 +1617,49 @@ function renderWorkspacePulse() {
   }
 }
 
+function renderGreyWorkspaceBrief() {
+  const root = document.querySelector("#grey-brief-insights");
+  const status = document.querySelector("#grey-brief-status");
+  if (!root) return;
+  const state = window.BusinessFlowCloud?.getState?.() ?? {};
+  if (!state.signedIn || !state.apiConnected || !state.businessId) {
+    if (status) status.textContent = "Sign in and select a connected workspace to load verified business context.";
+    root.innerHTML = '<p class="empty-state">Grey needs an authenticated business workspace before it can review your records.</p>';
+    return;
+  }
+  const result = latestBusinessInsights;
+  if (!result || result.business?.id !== state.businessId) {
+    if (status) status.textContent = "Loading verified workspace context…";
+    root.innerHTML = '<p class="empty-state">Business insights are being loaded. No business conclusions are available yet.</p>';
+    return;
+  }
+  const coverage = result.coverage || {};
+  const metrics = result.metrics || {};
+  if (status) status.textContent = (result.business?.name || state.businessName || "Selected workspace") +
+    " · " + (result.engine || "BusinessFlow analysis") + " · " +
+    (result.generatedAt ? "Updated " + new Date(result.generatedAt).toLocaleString() : "Current workspace snapshot");
+  const metricRows = [
+    ["Records analysed", Number(coverage.recordsAnalysed || 0).toLocaleString()],
+    ["Active goals", Number(coverage.activeGoalsCount || 0).toLocaleString()],
+    ["Active experiments", Number(coverage.activeExperimentsCount || 0).toLocaleString()],
+    ["Revenue total", metrics.revenueTotal == null ? "Not available" : Number(metrics.revenueTotal).toLocaleString() + " " + String(metrics.revenueCurrency || result.business?.currencyCode || "XOF")]
+  ];
+  const metricMarkup = metricRows.map(([label,value]) =>
+    '<div class="grey-brief-metric"><span>' + escapeHTML(label) + '</span><strong>' + escapeHTML(value) + '</strong></div>'
+  ).join("");
+  const insights = Array.isArray(result.insights) ? result.insights.slice(0,4) : [];
+  const insightMarkup = insights.map(item =>
+    '<article class="grey-brief-insight"><strong>' + escapeHTML(item.title || "Workspace insight") +
+    '</strong><p>' + escapeHTML(item.summary || "No summary available.") +
+    '</p><small>Evidence: ' + escapeHTML(item.evidence || "No supporting records") +
+    '</small><p class="grey-brief-next"><b>Suggested next step:</b> ' +
+    escapeHTML(item.recommendedAction || "Review the underlying business records.") + '</p></article>'
+  ).join("");
+  root.innerHTML = '<div class="grey-brief-metrics">' + metricMarkup + '</div>' +
+    (insightMarkup || '<p class="empty-state">No verified insights are available yet.</p>') +
+    '<p class="grey-brief-disclaimer">This briefing uses saved workspace records and rule-based analysis. Recommendations are not completed actions.</p>';
+}
+
 function renderBusinessInsights() {
   const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
@@ -1643,12 +1686,14 @@ function renderBusinessInsights() {
   if (analytics) analytics.innerHTML = content;
   renderWorkspacePulse();
   renderAnalyticsDataReadiness();
+  renderGreyWorkspaceBrief();
 }
 async function loadBusinessInsights(businessId) {
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
+    renderGreyWorkspaceBrief();
     return;
   }
   const status = document.querySelector("#overview-intelligence-status");
@@ -1658,10 +1703,12 @@ async function loadBusinessInsights(businessId) {
     if (cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
+    renderGreyWorkspaceBrief();
   } catch (error) {
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
     renderBusinessInsights();
+    renderGreyWorkspaceBrief();
   }
 }
 function updateWorkspaceIdentity(state = {}) {
@@ -2098,6 +2145,23 @@ function setupDataImport(){
 
 
 /* Persistent BusinessFlow Intelligence conversations */
+document.querySelector("#grey-refresh-brief")?.addEventListener("click", async event => {
+  const button = event.currentTarget;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.businessId || !cloud.signedIn || !cloud.apiConnected) {
+    renderGreyWorkspaceBrief();
+    return;
+  }
+  button.disabled = true;
+  const status = document.querySelector("#grey-brief-status");
+  if (status) status.textContent = "Refreshing verified business context…";
+  try {
+    await loadBusinessInsights(cloud.businessId);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 function initializeBusinessFlowChat() {
   const panel = document.querySelector("#businessflow-intelligence-panel");
   const list = document.querySelector("#bf-conversation-list");
