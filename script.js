@@ -38,33 +38,89 @@ const ACTIVITY_LIMIT = 80;
 let activityItems = [];
 let activityReady = false;
 
+function getActivityCloudState() {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  return cloud?.signedIn && cloud?.apiConnected && cloud?.businessId ? cloud : null;
+}
+
+async function loadWorkspaceActivity() {
+  const cloud = getActivityCloudState();
+  if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
+    renderActivityCenter();
+    return;
+  }
+  try {
+    const result = await window.BusinessFlowCloud.request(
+      "/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId) + "&limit=80"
+    );
+    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+    activityItems = Array.isArray(result.activity) ? result.activity.map(item => ({
+      id: item.id, eventKey: item.event_key, type: item.event_type,
+      title: item.title, message: item.message, entityId: item.entity_id || "",
+      createdAt: item.created_at, read: Boolean(item.is_read), cloud: true
+    })) : [];
+    saveCollection(ACTIVITY_KEY, activityItems);
+    renderActivityCenter();
+  } catch (error) {
+    console.error("BusinessFlow cloud activity could not be loaded:", error);
+    const status = document.querySelector("#activity-center-status");
+    if (status) status.textContent = "Cloud activity unavailable. Showing saved browser history.";
+    renderActivityCenter();
+  }
+}
+
 function loadActivity() {
   activityItems = loadCollection(ACTIVITY_KEY)
-    .filter(item => item && typeof item.id === "string" &&
-      typeof item.type === "string" && typeof item.title === "string" &&
-      typeof item.message === "string" && typeof item.createdAt === "string")
+    .filter(item => item && typeof item.id === "string" && typeof item.type === "string" &&
+      typeof item.title === "string" && typeof item.message === "string" && typeof item.createdAt === "string")
     .slice(0, ACTIVITY_LIMIT);
   activityReady = true;
   renderActivityCenter();
 }
 
-function recordActivity(type, title, message, entityId = "") {
+async function recordActivity(type, title, message, entityId = "") {
   if (!activityReady) return;
   const allowed = ["goal_created","goal_updated","goal_completed","goal_deleted",
     "experiment_created","experiment_updated","experiment_deleted","dataset_imported"];
   if (!allowed.includes(type)) return;
   const item = {
-    id: createId(), type, title: String(title).slice(0,120),
-    message: String(message).slice(0,300), entityId: String(entityId).slice(0,100),
-    createdAt: new Date().toISOString(), read: false
+    id: createId(), eventKey: createId(), type,
+    title: String(title).slice(0,120), message: String(message).slice(0,300),
+    entityId: String(entityId).slice(0,100), createdAt: new Date().toISOString(),
+    read: false, cloud: false
   };
   activityItems.unshift(item);
   activityItems = activityItems.slice(0, ACTIVITY_LIMIT);
-  if (!saveCollection(ACTIVITY_KEY, activityItems)) {
-    activityItems.shift();
-    return;
-  }
+  if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems.shift(); return; }
   renderActivityCenter();
+
+  const cloud = getActivityCloudState();
+  if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") return;
+  try {
+    const result = await window.BusinessFlowCloud.request("/api/business-intelligence/activity", {
+      method: "POST",
+      body: JSON.stringify({
+        business_id: cloud.businessId, event_key: item.eventKey, event_type: type,
+        title: item.title, message: item.message, entity_id: item.entityId
+      })
+    });
+    if (getActivityCloudState()?.businessId !== cloud.businessId || !result.activity) return;
+    const index = activityItems.findIndex(entry => entry.eventKey === item.eventKey);
+    if (index >= 0) {
+      const saved = result.activity;
+      activityItems[index] = {
+        id: saved.id, eventKey: saved.event_key, type: saved.event_type,
+        title: saved.title, message: saved.message, entityId: saved.entity_id || "",
+        createdAt: saved.created_at, read: Boolean(saved.is_read), cloud: true
+      };
+      saveCollection(ACTIVITY_KEY, activityItems);
+      renderActivityCenter();
+    }
+  } catch (error) {
+    console.error("BusinessFlow activity sync failed; local event retained:", error);
+    const status = document.querySelector("#activity-center-status");
+    if (status) status.textContent = "Cloud sync failed. This event remains saved in this browser.";
+  }
 }
 
 function renderActivityCenter() {
@@ -72,9 +128,11 @@ function renderActivityCenter() {
   const count = document.querySelector("#activity-unread-count");
   const status = document.querySelector("#activity-center-status");
   const unread = activityItems.filter(item => !item.read).length;
-  if (count) count.textContent = unread + (unread === 1 ? " unread" : " unread");
-  if (status) status.textContent = activityItems.length
-    ? activityItems.length + " recent events · Stored in this browser"
+  const cloud = getActivityCloudState();
+  if (count) count.textContent = unread + " unread";
+  if (status) status.textContent = cloud
+    ? activityItems.length + " workspace events · Cloud sync enabled"
+    : activityItems.length ? activityItems.length + " recent events · Stored in this browser"
     : "Your workspace activity will appear here.";
   if (!feed) return;
   if (!activityItems.length) {
@@ -90,20 +148,47 @@ function renderActivityCenter() {
 }
 
 function setupActivityCenter() {
-  document.querySelector("#activity-mark-read")?.addEventListener("click", () => {
-    if (!activityItems.some(item => !item.read)) return;
-    activityItems = activityItems.map(item => ({ ...item, read: true }));
-    if (saveCollection(ACTIVITY_KEY, activityItems)) renderActivityCenter();
-  });
-  document.querySelector("#activity-clear")?.addEventListener("click", () => {
-    if (!activityItems.length) return;
-    if (!window.confirm("Clear this browser's BusinessFlow activity history? This does not delete goals, experiments or imported datasets.")) return;
+  document.querySelector("#activity-mark-read")?.addEventListener("click", async () => {
+    const pending = activityItems.filter(item => !item.read);
+    if (!pending.length) return;
     const previous = activityItems;
-    activityItems = [];
-    if (!saveCollection(ACTIVITY_KEY, activityItems)) activityItems = previous;
+    activityItems = activityItems.map(item => ({ ...item, read: true }));
+    if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems = previous; return; }
     renderActivityCenter();
+    const cloud = getActivityCloudState();
+    if (!cloud) return;
+    for (const item of pending.filter(entry => entry.cloud && entry.id)) {
+      try {
+        await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
+          method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
+        });
+      } catch (error) { console.error("Could not sync activity read state:", error); }
+    }
+  });
+
+  document.querySelector("#activity-clear")?.addEventListener("click", async () => {
+    if (!activityItems.length || !window.confirm("Clear this workspace's activity history? This does not delete goals, experiments or imported datasets.")) return;
+    const previous = activityItems;
+    const cloud = getActivityCloudState();
+    activityItems = [];
+    if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems = previous; return; }
+    renderActivityCenter();
+    if (cloud) {
+      try {
+        await window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" });
+      } catch (error) {
+        activityItems = previous;
+        saveCollection(ACTIVITY_KEY, activityItems);
+        renderActivityCenter();
+        showToast("Cloud history could not be cleared. Activity was restored.");
+      }
+    }
   });
 }
+
+window.addEventListener("businessflow:workspace-changed", () => { void loadWorkspaceActivity(); });
+window.addEventListener("businessflow:cloud-state", () => { void loadWorkspaceActivity(); });
+
 
 /* ---------- Shared helpers ---------- */
 
