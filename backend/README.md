@@ -51,7 +51,7 @@ Copy `.env.example` to your local environment and set:
 - `GREY_BUSINESSFLOW_JWT_SECRET` (at least 32 bytes; server-only and must match Grey's integration secret)
 - optionally `PORT`, `NODE_ENV`, and `BUSINESSFLOW_ALLOWED_ORIGINS`
 
-Grey conversation state uses the authenticated user's Supabase JWT with owner-checked database RPCs. The BusinessFlow API does not need a Supabase service-role key for conversation persistence. Never expose a service-role key in the frontend.
+Grey conversation state uses the authenticated user's Supabase JWT with owner-checked database RPCs. Grey conversation persistence does not use the Supabase service-role key. The separate billing module still requires this key for its private-schema billing RPC wrappers. Keep it server-side only and never expose it in the frontend.
 
 The deployed backend will need the same values in its hosting provider's secret/environment settings. No production hosting variables have been changed by this commit.
 
