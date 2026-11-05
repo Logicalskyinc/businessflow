@@ -438,77 +438,18 @@
 
 <section class="page" id="account">
   <div class="account-page account-page-simple">
-    <div class="account-intro account-intro-simple">
-      <div class="account-intro-copy">
-        <p class="eyebrow">BUSINESSFLOW WORKSPACE</p>
-        <h1>Your business. Your decisions.</h1>
-        <p class="subtitle">Manage your account and keep the businesses you work on in one secure place.</p>
-        <div class="account-plan-line"><span class="account-plan-dot"></span><strong>Starter plan</strong><span>Up to 2 businesses</span></div>
-      </div>
-    </div>
-    <div class="account-columns account-columns-simple">
       <article class="panel account-card" aria-labelledby="account-heading">
         <div class="account-card-heading"><div class="account-icon account-icon-blue" aria-hidden="true">↗</div><div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="account-heading">Account access</h2><p class="muted">Sign in or create your BusinessFlow account.</p></div></div>
         <p id="account-status" class="account-live-status" role="status" aria-live="polite">Checking account configuration…</p>
         <form id="account-form" class="form-grid account-form">
           <label class="form-label">Email address<input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@yourbusiness.com" required></label>
           <label class="form-label">Password<input id="account-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Enter your password" required></label>
-          <div class="full-span account-actions"><button type="submit" class="primary-button" id="account-submit">Sign in</button><button type="button" class="small-button" id="account-signup">Create account</button><button type="button" class="small-button" id="account-signout" hidden>Sign out</button></div>
+          <div class="full-span account-actions"><button type="submit" class="primary-button" id="account-submit">Sign in</button><button type="button" class="small-button" id="account-signup">Create account</button></div>
         </form>
+        <div class="account-actions"><button type="button" class="small-button" id="account-signout" hidden>Sign out</button></div>
         <p id="api-status" class="account-api-status" role="status" aria-live="polite">Checking BusinessFlow connection…</p>
       </article>
-      <article class="panel account-card workspace-card" aria-labelledby="business-workspace-heading">
-        <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESSES</p><h2 id="business-workspace-heading">Business workspaces</h2><p class="muted">Each business has its own goals, records and conversations.</p></div></div>
-        <div class="workspace-plan-summary"><div><strong id="business-workspace-count">0 of 2 businesses</strong><span>Included in your Starter plan</span></div><span class="workspace-plan-pill">STARTER</span></div>
-        <div id="business-workspace" class="workspace-form-area">
-          <label class="form-label">Connected workspace<select id="business-workspace-select" name="business_workspace" disabled><option value="">Sign in to load your businesses</option></select></label>
-          <button type="button" class="secondary-button workspace-add-button" id="business-workspace-add" disabled>+ Add another business</button>
-          <div id="business-workspace-create-area" hidden>
-            <div class="workspace-divider"><span>NEW BUSINESS</span></div>
-            <form id="business-workspace-form" class="form-grid workspace-create-form">
-              <label class="form-label full-span">Business name<input id="business-workspace-name" name="business_name" maxlength="160" placeholder="e.g. My business" required></label>
-              <label class="form-label full-span">What does the business do?<input id="business-workspace-basics" name="business_basics" maxlength="2000" placeholder="Describe your product or service" required></label>
-              <label class="form-label full-span">Main business goal<input id="business-workspace-goal" name="primary_goal" maxlength="2000" placeholder="e.g. Get more paying customers" required></label>
-              <div class="full-span workspace-actions"><button id="business-workspace-create" type="submit" class="primary-button" disabled>Create business</button><button id="business-workspace-cancel" type="button" class="small-button">Cancel</button></div>
-            </form>
-          </div>
-          <button id="businessflow-import-local-goals" type="button" class="small-button workspace-import-button" disabled>Import browser goals</button>
-          <p id="business-workspace-status" class="workspace-live-status" role="status" aria-live="polite">Sign in to load your connected business.</p>
-        </div>
-        <div class="workspace-upgrade-note" id="business-workspace-upgrade" hidden><strong>Business limit reached</strong><p>Your Starter plan includes 2 businesses. Upgrade your plan to add more.</p></div>
-      </article>
     </div>
-    <section class="panel billing-panel" id="businessflow-billing" aria-labelledby="billing-heading">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">BUSINESSFLOW BILLING</p>
-          <h2 id="billing-heading">Plan and subscription</h2>
-          <p class="muted">Manage the plan attached to your selected business workspace.</p>
-        </div>
-        <span class="workspace-plan-pill" id="billing-environment-label">SECURE BILLING</span>
-      </div>
-      <div class="billing-current" aria-live="polite">
-        <div>
-          <span class="billing-label">CURRENT PLAN</span>
-          <strong id="billing-current-plan">Starter</strong>
-          <p id="billing-current-status">Free workspace access. No payment method required.</p>
-        </div>
-        <button type="button" class="secondary-button" id="billing-portal-button" hidden>Manage subscription</button>
-      </div>
-      <p class="billing-feedback" id="billing-feedback" role="status" aria-live="polite">Sign in and select a workspace to load billing details.</p>
-      <div class="billing-plans-heading">
-        <div><h3>Available plans</h3><p class="muted">Prices and features appear here when plans are configured.</p></div>
-      </div>
-      <div class="billing-plan-grid" id="billing-plan-list">
-        <p class="empty-state">Loading available plans…</p>
-      </div>
-      <div class="billing-entitlements" id="billing-entitlements" hidden>
-        <h3>Included with your plan</h3>
-        <ul id="billing-entitlement-list"></ul>
-      </div>
-      <p class="billing-footnote">Payments are handled by Stripe Checkout. BusinessFlow does not store card details. Subscription access updates after Stripe confirms the payment through its signed webhook.</p>
-    </section>
-    <div class="account-data-note account-data-note-simple"><div class="data-note-icon" aria-hidden="true">✓</div><div><strong>Your existing business stays connected.</strong><p>Your current business workspace remains unchanged. Adding another business creates a separate workspace and does not move or delete existing goals or records.</p></div></div>
   </div>
 </section>
 
@@ -577,6 +518,67 @@
             <h1>Settings</h1>
             <p class="subtitle">Manage your workspace and protect your business information.</p>
           </div>
+          <section class="settings-section" aria-labelledby="settings-account-heading">
+            <div class="settings-section-heading">
+              <p class="eyebrow">ACCOUNT & WORKSPACE</p>
+              <h2 id="settings-account-heading">Business workspaces</h2>
+              <p class="muted">Select, create and manage the businesses connected to your account.</p>
+            </div>
+                  <article class="panel account-card workspace-card" aria-labelledby="business-workspace-heading">
+        <div class="account-card-heading"><div class="account-icon account-icon-green" aria-hidden="true">⌂</div><div><p class="eyebrow">YOUR BUSINESSES</p><h2 id="business-workspace-heading">Business workspaces</h2><p class="muted">Each business has its own goals, records and conversations.</p></div></div>
+        <div class="workspace-plan-summary"><div><strong id="business-workspace-count">0 of 2 businesses</strong><span>Included in your Starter plan</span></div><span class="workspace-plan-pill">STARTER</span></div>
+        <div id="business-workspace" class="workspace-form-area">
+          <label class="form-label">Connected workspace<select id="business-workspace-select" name="business_workspace" disabled><option value="">Sign in to load your businesses</option></select></label>
+          <button type="button" class="secondary-button workspace-add-button" id="business-workspace-add" disabled>+ Add another business</button>
+          <div id="business-workspace-create-area" hidden>
+            <div class="workspace-divider"><span>NEW BUSINESS</span></div>
+            <form id="business-workspace-form" class="form-grid workspace-create-form">
+              <label class="form-label full-span">Business name<input id="business-workspace-name" name="business_name" maxlength="160" placeholder="e.g. My business" required></label>
+              <label class="form-label full-span">What does the business do?<input id="business-workspace-basics" name="business_basics" maxlength="2000" placeholder="Describe your product or service" required></label>
+              <label class="form-label full-span">Main business goal<input id="business-workspace-goal" name="primary_goal" maxlength="2000" placeholder="e.g. Get more paying customers" required></label>
+              <div class="full-span workspace-actions"><button id="business-workspace-create" type="submit" class="primary-button" disabled>Create business</button><button id="business-workspace-cancel" type="button" class="small-button">Cancel</button></div>
+            </form>
+          </div>
+          <button id="businessflow-import-local-goals" type="button" class="small-button workspace-import-button" disabled>Import browser goals</button>
+          <p id="business-workspace-status" class="workspace-live-status" role="status" aria-live="polite">Sign in to load your connected business.</p>
+        </div>
+        <div class="workspace-upgrade-note" id="business-workspace-upgrade" hidden><strong>Business limit reached</strong><p>Your Starter plan includes 2 businesses. Upgrade your plan to add more.</p></div>
+      </article>
+
+          </section>
+              <section class="panel billing-panel" id="businessflow-billing" aria-labelledby="billing-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">BUSINESSFLOW BILLING</p>
+          <h2 id="billing-heading">Plan and subscription</h2>
+          <p class="muted">Manage the plan attached to your selected business workspace.</p>
+        </div>
+        <span class="workspace-plan-pill" id="billing-environment-label">SECURE BILLING</span>
+      </div>
+      <div class="billing-current" aria-live="polite">
+        <div>
+          <span class="billing-label">CURRENT PLAN</span>
+          <strong id="billing-current-plan">Starter</strong>
+          <p id="billing-current-status">Free workspace access. No payment method required.</p>
+        </div>
+        <button type="button" class="secondary-button" id="billing-portal-button" hidden>Manage subscription</button>
+      </div>
+      <p class="billing-feedback" id="billing-feedback" role="status" aria-live="polite">Sign in and select a workspace to load billing details.</p>
+      <div class="billing-plans-heading">
+        <div><h3>Available plans</h3><p class="muted">Prices and features appear here when plans are configured.</p></div>
+      </div>
+      <div class="billing-plan-grid" id="billing-plan-list">
+        <p class="empty-state">Loading available plans…</p>
+      </div>
+      <div class="billing-entitlements" id="billing-entitlements" hidden>
+        <h3>Included with your plan</h3>
+        <ul id="billing-entitlement-list"></ul>
+      </div>
+      <p class="billing-footnote">Payments are handled by Stripe Checkout. BusinessFlow does not store card details. Subscription access updates after Stripe confirms the payment through its signed webhook.</p>
+    </section>
+    <div class="account-data-note account-data-note-simple"><div class="data-note-icon" aria-hidden="true">✓</div><div><strong>Your existing business stays connected.</strong><p>Your current business workspace remains unchanged. Adding another business creates a separate workspace and does not move or delete existing goals or records.</p></div></div>
+
+
 
           
 
@@ -634,7 +636,7 @@
         <article class="onboarding-option onboarding-option-primary"><span class="onboarding-option-icon" aria-hidden="true">↗</span><h2>Set up my business</h2><p>Add your business name, what you do, and the goal that matters most right now.</p><button type="button" class="primary-button" id="onboarding-setup">Set up my business</button></article>
         <article class="onboarding-option"><span class="onboarding-option-icon" aria-hidden="true">⌂</span><h2>Skip for now</h2><p>Explore BusinessFlow first. We’ll remember your choice and won’t keep interrupting you.</p><button type="button" class="secondary-button" id="onboarding-skip">Explore without setup</button></article>
       </div>
-      <p class="onboarding-footnote">You can create or select a business workspace later from Account &amp; setup.</p>
+      <p class="onboarding-footnote">You can create or select a business workspace later from Settings.</p>
       <p id="onboarding-status" role="status" aria-live="polite"></p>
     </div>
   </section>
