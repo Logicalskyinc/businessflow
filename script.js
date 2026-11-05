@@ -608,19 +608,14 @@ async function handleGoalAction(action, id) {
       return;
     }
 
-    const previous = goal.current;
-    goal.current = value;
-
-    const cloud = window.BusinessFlowCloud?.getState?.();
-    if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
-      try {
-        await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
-      } catch (error) {
-        goal.current = previous;
-        showToast("Cloud update failed: " + error.message);
-        return;
-      }
+    const nextGoal = { ...goal, current: value };
+    try {
+      await window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal);
+    } catch (error) {
+      showToast("Cloud update failed: " + error.message);
+      return;
     }
+    Object.assign(goal, nextGoal);
     saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal progress updated", goal.title + ": " + value + " " + (goal.unit || "units"), id);
@@ -659,22 +654,14 @@ async function handleGoalAction(action, id) {
       return;
     }
 
-    const previous = { ...goal };
-
-    goal.title = title.trim();
-    goal.target = target;
-    goal.unit = unit.trim() || "units";
-
-    const cloud = window.BusinessFlowCloud?.getState?.();
-    if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
-      try {
-        await window.BusinessFlowCloud.updateGoal(cloud.businessId, goal);
-      } catch (error) {
-        Object.assign(goal, previous);
-        showToast("Cloud update failed: " + error.message);
-        return;
-      }
+    const nextGoal = { ...goal, title: title.trim(), target, unit: unit.trim() || "units" };
+    try {
+      await window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal);
+    } catch (error) {
+      showToast("Cloud update failed: " + error.message);
+      return;
     }
+    Object.assign(goal, nextGoal);
     saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal details updated", goal.title, id);
@@ -768,10 +755,11 @@ function saveExperiments() {
 
 async function loadCloudExperimentsForWorkspace(businessId) {
   const cloud = window.BusinessFlowCloud?.getState?.();
-  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
-    cloudExperimentWorkspaceId = null;
-    loadExperiments();
-    renderExperiments();
+  experiments = [];
+  cloudExperimentWorkspaceId = null;
+  renderExperiments();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId || cloud.businessId !== businessId) {
+    updateLegacyImportControls();
     updateStorageStatus();
     return;
   }
@@ -779,7 +767,8 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     preserveLegacyBackup(EXPERIMENTS_KEY, LOCAL_EXPERIMENTS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
-    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    const latest = window.BusinessFlowCloud?.getState?.();
+    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
     experiments = records.filter(record =>
       record && typeof record.id === "string" && typeof record.title === "string" &&
       EXPERIMENT_STATUSES.includes(record.status)
@@ -794,12 +783,15 @@ async function loadCloudExperimentsForWorkspace(businessId) {
       updatedAt: record.updated_at || record.created_at || new Date().toISOString()
     }));
     cloudExperimentWorkspaceId = businessId;
-    saveExperiments();
     renderExperiments();
     updateStorageStatus();
   } catch (error) {
     console.error("BusinessFlow cloud experiments could not load:", error);
-    showToast("Could not load cloud experiments: " + error.message);
+    experiments = [];
+    cloudExperimentWorkspaceId = null;
+    renderExperiments();
+    updateStorageStatus();
+    showToast("Could not load cloud experiments. No cached experiments were substituted.");
   }
 }
 
@@ -1029,14 +1021,13 @@ function setupExperimentForm() {
         return;
       }
 
-      const previous = { ...item };
       const next = { ...item, title, hypothesis, baseline, result, status, notes, updatedAt: now,
         completedAt: status === "completed" ? (item.completedAt || now) : null };
       try {
-        if (cloudReady && /^[0-9a-f-]{36}$/i.test(item.id)) await window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+        await window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
       } catch (error) {
-        Object.assign(item, previous); showToast("Cloud update failed: " + error.message); return;
-      } finally { if (cloudReady) cloudExperimentBusy = false; }
+        showToast("Cloud update failed: " + error.message); return;
+      } finally { cloudExperimentBusy = false; }
       Object.assign(item, next);
       saveExperiments();
       renderExperiments(); cancelExperimentEdit();
@@ -1546,38 +1537,38 @@ function setupNavigation() {
 
 async function loadCloudGoalsForWorkspace(businessId) {
   const cloud = window.BusinessFlowCloud?.getState?.();
-  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
-    cloudGoalWorkspaceId = null;
-    loadGoals();
-    renderGoals();
+  goals = [];
+  cloudGoalWorkspaceId = null;
+  renderGoals();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId || cloud.businessId !== businessId) {
+    updateLegacyImportControls();
+    updateStorageStatus();
     return;
   }
-
   try {
     preserveLegacyBackup(STORAGE_KEY, LOCAL_GOALS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadGoals(businessId);
+    const latest = window.BusinessFlowCloud?.getState?.();
+    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
     goals = records.filter(record =>
-      record && typeof record.id === "string" &&
-      typeof record.title === "string" &&
-      Number.isFinite(Number(record.current_value)) &&
-      Number(record.current_value) >= 0 &&
-      record.target_value !== null &&
-      Number.isFinite(Number(record.target_value)) &&
-      Number(record.target_value) > 0
+      record && typeof record.id === "string" && typeof record.title === "string" &&
+      Number.isFinite(Number(record.current_value)) && Number(record.current_value) >= 0 &&
+      record.target_value !== null && Number.isFinite(Number(record.target_value)) && Number(record.target_value) > 0
     ).map(record => ({
-      id: record.id,
-      title: record.title,
-      current: Number(record.current_value),
-      target: Number(record.target_value),
-      unit: record.metric_name || "units"
+      id: record.id, title: record.title, current: Number(record.current_value),
+      target: Number(record.target_value), unit: record.metric_name || "units"
     }));
     cloudGoalWorkspaceId = businessId;
     renderGoals();
-    showToast("Loaded " + goals.length + " cloud goal" + (goals.length === 1 ? "" : "s") + ".");
+    updateStorageStatus();
   } catch (error) {
     console.error("BusinessFlow cloud goals could not load:", error);
-    showToast("Could not load cloud goals: " + error.message);
+    goals = [];
+    cloudGoalWorkspaceId = null;
+    renderGoals();
+    updateStorageStatus();
+    showToast("Could not load cloud goals. No cached goals were substituted.");
   }
 }
 
