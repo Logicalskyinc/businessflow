@@ -1,53 +1,13 @@
 -- Move Grey conversation-state writes onto the authenticated user's JWT.
 -- Column-level grants plus RLS preserve ownership and prevent message-content edits.
 
-drop policy if exists "Business owners update their own user message context"
-  on public.businessflow_messages;
-
-create policy "Business owners update their own user message context"
-  on public.businessflow_messages
-  for update to authenticated
-  using (
-    role = 'user'
-    and created_by = (select auth.uid())
-    and exists (
-      select 1
-      from public.businessflow_conversations c
-      join public.businessflow_profiles p on p.id = c.business_id
-      where c.id = public.businessflow_messages.conversation_id
-        and c.created_by = (select auth.uid())
-        and p.owner_user_id = (select auth.uid())
-    )
-  )
-  with check (
-    role = 'user'
-    and created_by = (select auth.uid())
-    and exists (
-      select 1
-      from public.businessflow_conversations c
-      join public.businessflow_profiles p on p.id = c.business_id
-      where c.id = public.businessflow_messages.conversation_id
-        and c.created_by = (select auth.uid())
-        and p.owner_user_id = (select auth.uid())
-    )
-  );
-
--- The authenticated client may update only Grey's state columns.
--- It cannot change conversation ownership, title, or message content through these grants.
-grant update (grey_conversation_id, grey_initialization_token,
-              grey_initialization_expires_at, grey_initialization_message_id)
-  on public.businessflow_conversations to authenticated;
-
-grant update (workspace_context)
-  on public.businessflow_messages to authenticated;
-
 create or replace function public.businessflow_set_message_context(
   p_message_id uuid,
   p_context jsonb,
   p_user_id uuid
 ) returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $function$
 declare
@@ -93,7 +53,7 @@ create or replace function public.businessflow_claim_grey_initialization(
   p_user_id uuid
 ) returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $function$
 declare
@@ -164,7 +124,7 @@ create or replace function public.businessflow_complete_grey_initialization(
   p_user_id uuid
 ) returns boolean
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $function$
 begin
