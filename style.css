@@ -1,17 +1,24 @@
 
 :root {
-  --blue: #2457e6;
-  --blue-dark: #173db0;
+  /* Core brand palette */
+  --blue: #3563e9;
+  --blue-dark: #2449b8;
   --blue-light: #edf2ff;
   --green: #18a874;
-  --green-light: #e8f8f0;
-  --background: #f6f8fc;
-  --surface: #fff;
-  --border: #e4e9f2;
-  --text: #182230;
-  --muted: #748094;
-  --radius: 16px;
-  --shadow: 0 4px 18px rgba(25,45,85,.045);
+  --green-light: #e7f8f0;
+
+  /* Surfaces and typography */
+  --background: #f4f6fb;
+  --surface: #ffffff;
+  --border: #e3e8f2;
+  --text: #18243a;
+  --muted: #728096;
+
+  /* Shared component and motion tokens */
+  --radius: 17px;
+  --shadow: 0 10px 30px rgba(25, 42, 78, .055);
+  --bf-ease: cubic-bezier(.2,.75,.25,1);
+  --bf-nav-height: 68px;
 }
 
 * { box-sizing: border-box; }
@@ -242,12 +249,7 @@ textarea { min-height: 90px; resize: vertical; }
 
 
 /* BusinessFlow premium workspace layer */
-:root {
-  --blue: #3563e9; --blue-dark: #2449b8; --blue-light: #edf2ff;
-  --green: #18a874; --green-light: #e7f8f0; --background: #f4f6fb;
-  --surface: #ffffff; --border: #e3e8f2; --text: #18243a; --muted: #728096;
-  --radius: 17px; --shadow: 0 10px 30px rgba(25, 42, 78, .055);
-}
+
 body { letter-spacing: -.01em; }
 .sidebar { background: linear-gradient(180deg, #101b34 0%, #14213c 100%); border-right: 0; color: #edf3ff; }
 .brand { color: #fff; }
@@ -488,10 +490,7 @@ body.auth-required .account-page { max-width: 100%; }
 
 
 /* BusinessFlow app-shell refresh: mobile navigation, motion and responsive polish */
-:root {
-  --bf-ease: cubic-bezier(.2,.75,.25,1);
-  --bf-nav-height: 68px;
-}
+
 html { scroll-behavior: smooth; }
 body { -webkit-font-smoothing: antialiased; }
 button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
