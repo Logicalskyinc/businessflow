@@ -62,10 +62,22 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
     if (!isUuid(clientMessageId)) return res.status(400).json({ error: "invalid_client_message_id" });
 
     const { data: conversation, error: conversationError } = await req.supabase.from("businessflow_conversations")
-      .select("id,business_id,title,grey_conversation_id,grey_initialization_message_id")
+      .select("id,business_id,title,grey_conversation_id,grey_initialization_message_id,shared_improvement_excluded")
       .eq("id", conversationId).maybeSingle();
     if (conversationError) return next(conversationError);
     if (!conversation) return res.status(404).json({ error: "conversation_not_found" });
+
+    const { data: privacyPreferences, error: privacyError } = await req.supabase.rpc("businessflow_get_privacy_preferences");
+    if (privacyError) return next(privacyError);
+    if (!privacyPreferences || typeof privacyPreferences !== "object" || Array.isArray(privacyPreferences)) {
+      return res.status(503).json({ error: "privacy_preferences_unavailable" });
+    }
+    const privacyContext = {
+      personal_learning_enabled: privacyPreferences.personal_learning_enabled === true,
+      shared_improvement_enabled: privacyPreferences.shared_improvement_enabled === true,
+      conversation_history_enabled: privacyPreferences.conversation_history_enabled === true
+    };
+    const conversationExcluded = conversation.shared_improvement_excluded === true;
 
     let userMessage;
     const { data: inserted, error: insertError } = await req.supabase.from("businessflow_messages")
@@ -170,7 +182,9 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
               message: firstMessage.content,
               requestId: firstMessage.client_message_id,
               conversationId: undefined,
-              workspaceContext: firstMessage.workspace_context
+              workspaceContext: firstMessage.workspace_context,
+              privacy: privacyContext,
+              conversationExcluded
             });
             const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
               p_conversation_id: conversationId,
@@ -190,7 +204,9 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
               message: userMessage.content,
               requestId: clientMessageId,
               conversationId: undefined,
-              workspaceContext
+              workspaceContext,
+              privacy: privacyContext,
+              conversationExcluded
             });
             const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
               p_conversation_id: conversationId,
@@ -221,7 +237,9 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
           message: userMessage.content,
           requestId: clientMessageId,
           conversationId: isOriginalInitializationMessage ? undefined : greyConversationId,
-          workspaceContext
+          workspaceContext,
+          privacy: privacyContext,
+          conversationExcluded
         });
       }
 
