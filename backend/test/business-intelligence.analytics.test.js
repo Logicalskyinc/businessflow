@@ -62,3 +62,20 @@ test("reports missing data without fabricating metrics", () => {
   assert.equal(result.metrics.customers, null);
   assert.equal(result.insights[0].type, "data_needed");
 });
+
+test("does not call a unique job code the most frequent service", () => {
+  const result = buildBusinessInsights({
+    profile,
+    imports: [{ id: "i3", name: "Jobs", row_count: 3,
+      column_mapping: { "Job code": "product" },
+      rows: [
+        { "Job code": "ABC-JOB-001" },
+        { "Job code": "ABC-JOB-002" },
+        { "Job code": "ABC-JOB-003" }
+      ] }]
+  });
+  assert.equal(result.metrics.topProduct, null);
+  const finding = result.insights.find(item => item.type === "product_mix");
+  assert.ok(finding);
+  assert.match(finding.summary, /does not support naming a most frequent service/);
+});
