@@ -1565,7 +1565,11 @@ async function importLocalGoalsToCloud() {
 
 window.addEventListener("businessflow:auth-state", event => {
   const signedIn = Boolean(event.detail?.signedIn);
-  if (!signedIn) navigateTo("account");
+  if (!signedIn) {
+    navigateTo("account");
+  } else if (location.hash === "#account" || document.querySelector("#account")?.classList.contains("active")) {
+    navigateTo("settings");
+  }
 });
 
 window.addEventListener("businessflow:workspace-ready", event => {
