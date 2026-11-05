@@ -1372,7 +1372,10 @@ function navigateTo(pageId) {
   if (!page || !page.classList.contains("page")) return;
 
   const cloudState = window.BusinessFlowCloud?.getState?.();
-  if (pageId !== "account" && !cloudState?.signedIn) {
+  if (pageId === "account" && cloudState?.signedIn) {
+    pageId = "settings";
+    page = document.getElementById(pageId);
+  } else if (pageId !== "account" && !cloudState?.signedIn) {
     pageId = "account";
     page = document.getElementById(pageId);
   }
@@ -1577,7 +1580,7 @@ window.addEventListener("businessflow:workspace-ready", event => {
 document.querySelector("#onboarding-setup")?.addEventListener("click", () => {
   const gate = document.querySelector("#onboarding-gate");
   if (gate) gate.hidden = true;
-  navigateTo("account");
+  navigateTo("settings");
   document.querySelector("#business-workspace-name")?.focus({ preventScroll: true });
 });
 
