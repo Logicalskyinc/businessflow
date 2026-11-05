@@ -712,6 +712,41 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
 @media(max-width:760px){.analytics-goal-summary{gap:7px}.analytics-summary-tile{padding:10px}.analytics-summary-tile strong{font-size:20px}}
 
 
+/* Overview hierarchy: business signals first, secondary activity on demand */
+#overview > .notice { margin-bottom: 16px; }
+#overview > .overview-welcome { margin-bottom: 18px; }
+#overview > .section-heading { margin: 8px 0 13px; }
+#overview > .metrics-grid { margin-bottom: 20px; }
+#overview > .intelligence-panel,
+#overview > .workspace-pulse,
+#overview > .bf-chat-panel { margin-top: 18px; }
+#overview > .workspace-pulse { padding-top: 20px; }
+#overview > .activity-center { margin-top: 16px; }
+.activity-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; cursor: pointer; list-style: none;
+}
+.activity-summary::-webkit-details-marker { display: none; }
+.activity-summary::after {
+  content: "＋"; display: grid; place-items: center;
+  flex: 0 0 28px; width: 28px; height: 28px;
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); font-size: 17px;
+}
+.activity-center[open] > .activity-summary::after { content: "−"; }
+.activity-summary-copy { display: grid; gap: 3px; min-width: 0; }
+.activity-summary-copy .eyebrow { margin: 0; }
+.activity-summary-copy strong { color: var(--text); font-size: 14px; }
+.activity-center:not([open]) { padding-bottom: 17px; }
+@media (max-width: 760px) {
+  #overview > .notice { align-items: flex-start; gap: 7px; margin-bottom: 13px; }
+  #overview > .section-heading { align-items: flex-start; flex-wrap: wrap; }
+  #overview > .metrics-grid { gap: 9px; }
+  #overview > .metrics-grid .metric-card { padding: 13px; }
+  #overview > .bf-chat-panel { margin-top: 14px; }
+  .activity-summary { align-items: flex-start; }
+}
+
 /* Phase 5: activity centre and notification states */
 .activity-center{overflow:hidden}
 .activity-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
