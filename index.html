@@ -392,8 +392,8 @@
             <p class="subtitle">Organize important business knowledge.</p>
           </div>
           <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Notes are saved in this browser only. Do not store passwords, customer secrets, or sensitive company information here.</span>
+            <strong>CLOUD WORKSPACE</strong>
+            <span>Business Memory is saved to the selected BusinessFlow cloud workspace. Your browser backup is retained only for optional import.</span>
           </div>
 
           <article class="panel">
@@ -401,6 +401,7 @@
               <div><h2>Business knowledge</h2><p class="muted">Keep decisions, customer insights, lessons, and follow-ups in one place.</p></div>
               <span class="count-pill" id="memory-count">0</span>
             </div>
+            <button type="button" class="small-button" id="import-local-memories" hidden>Import browser memories</button>
             <label class="form-label">Search saved notes
               <input id="memory-search" type="search" maxlength="120" placeholder="Search titles, categories, or notes">
             </label>
@@ -596,8 +597,7 @@
           <article class="panel">
             <h2>Protect your workspace data</h2>
             <p class="muted">
-              Your goals, experiments, and business memory are currently stored in this browser on this device.
-              Download a backup so you have a copy before clearing browser data or changing devices.
+              Your goals, experiments, and Business Memory are stored in your selected cloud workspace. Download a separate browser backup when you need an offline copy.
             </p>
 
             <div class="form-grid">
@@ -618,8 +618,7 @@
           <article class="panel">
             <h2>Storage and connection status</h2>
             <p class="muted">
-              BusinessFlow supports account-based cloud workspaces and cloud goals. Experiments and Business Memory remain local to this browser until cloud sync is implemented for those records.
-              Downloading a backup does not upload your information to a server.
+              Goals, experiments, and Business Memory use the selected cloud workspace as their authoritative storage. Browser backups are optional local copies and are never treated as active cloud records.
             </p>
             <p class="muted" data-storage-status role="status"></p>
           </article>
