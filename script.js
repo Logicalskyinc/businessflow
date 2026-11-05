@@ -6,8 +6,11 @@ const STORAGE_KEY = "businessflow_goals_v1";
 const EXPERIMENTS_KEY = "businessflow_experiments_v1";
 const MEMORY_KEY = "businessflow_memory_v1";
 const LOCAL_GOALS_BACKUP_KEY = "businessflow_goals_local_backup_v1";
+const LOCAL_EXPERIMENTS_BACKUP_KEY = "businessflow_experiments_local_backup_v1";
 let cloudGoalWorkspaceId = null;
 let cloudGoalBusy = false;
+let cloudExperimentWorkspaceId = null;
+let cloudExperimentBusy = false;
 
 const DEFAULT_GOALS = [];
 
@@ -24,7 +27,8 @@ const EXPERIMENT_STATUSES = [
   "planned",
   "running",
   "review",
-  "completed"
+  "completed",
+  "cancelled"
 ];
 
 let goals = [];
@@ -249,11 +253,14 @@ function createId() {
 function updateStorageStatus() {
   document.querySelectorAll("[data-storage-status]").forEach(element => {
     const cloud = window.BusinessFlowCloud?.getState?.();
-    element.textContent = cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId
-      ? "Business goals saved to the selected cloud workspace"
-      : storageAvailable
-        ? "Saved locally in this browser · Not synced across devices"
-        : "Browser storage unavailable · Changes may not persist";
+    const goalsInCloud = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId);
+    const experimentsInCloud = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudExperimentWorkspaceId);
+    element.textContent = goalsInCloud && experimentsInCloud
+      ? "Goals and experiments saved to the selected cloud workspace"
+      : goalsInCloud ? "Goals synced to cloud · Experiments saved in this browser"
+      : experimentsInCloud ? "Experiments synced to cloud · Goals saved in this browser"
+      : storageAvailable ? "Saved locally in this browser · Not synced across devices"
+      : "Browser storage unavailable · Changes may not persist";
   });
 }
 
@@ -786,6 +793,79 @@ function saveExperiments() {
   return saveCollection(EXPERIMENTS_KEY, experiments);
 }
 
+async function loadCloudExperimentsForWorkspace(businessId) {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId) {
+    cloudExperimentWorkspaceId = null;
+    loadExperiments();
+    renderExperiments();
+    updateStorageStatus();
+    return;
+  }
+  try {
+    if (!localStorage.getItem(LOCAL_EXPERIMENTS_BACKUP_KEY)) {
+      const snapshot = localStorage.getItem(EXPERIMENTS_KEY);
+      if (snapshot !== null) localStorage.setItem(LOCAL_EXPERIMENTS_BACKUP_KEY, snapshot);
+    }
+    const records = await window.BusinessFlowCloud.loadExperiments(businessId);
+    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    experiments = records.filter(record =>
+      record && typeof record.id === "string" && typeof record.title === "string" &&
+      EXPERIMENT_STATUSES.includes(record.status)
+    ).map(record => ({
+      id: record.id, title: record.title, hypothesis: record.hypothesis || "",
+      successMetric: record.success_metric || "",
+      baseline: record.baseline_value == null ? null : Number(record.baseline_value),
+      result: record.result_value == null ? null : Number(record.result_value),
+      status: record.status, notes: record.learning_notes || record.result_summary || "",
+      startedAt: record.started_at || null, completedAt: record.completed_at || null,
+      createdAt: record.created_at || new Date().toISOString(),
+      updatedAt: record.updated_at || record.created_at || new Date().toISOString()
+    }));
+    cloudExperimentWorkspaceId = businessId;
+    saveExperiments();
+    renderExperiments();
+    updateStorageStatus();
+  } catch (error) {
+    console.error("BusinessFlow cloud experiments could not load:", error);
+    showToast("Could not load cloud experiments: " + error.message);
+  }
+}
+
+async function importLocalExperimentsToCloud() {
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
+    showToast("Sign in, connect the backend, and select a business workspace first.");
+    return;
+  }
+  let localRecords = [];
+  try {
+    const snapshot = localStorage.getItem(LOCAL_EXPERIMENTS_BACKUP_KEY) ?? localStorage.getItem(EXPERIMENTS_KEY);
+    const parsed = snapshot ? JSON.parse(snapshot) : [];
+    if (Array.isArray(parsed)) localRecords = parsed.filter(isValidExperiment);
+  } catch {
+    showToast("Could not read your browser experiment backup.");
+    return;
+  }
+  if (!localRecords.length) { showToast("No browser experiments are available to import."); return; }
+  if (!confirm("Import " + localRecords.length + " browser experiment(s) into this workspace? Existing cloud experiments with the same title will be skipped. Your browser backup will be retained.")) return;
+  try {
+    const remote = await window.BusinessFlowCloud.loadExperiments(cloud.businessId);
+    const titles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
+    let imported = 0, skipped = 0;
+    for (const item of localRecords) {
+      const key = item.title.trim().toLowerCase();
+      if (titles.has(key)) { skipped++; continue; }
+      await window.BusinessFlowCloud.createExperiment(cloud.businessId, item);
+      titles.add(key); imported++;
+    }
+    await loadCloudExperimentsForWorkspace(cloud.businessId);
+    showToast("Experiment import complete: " + imported + " imported, " + skipped + " skipped. Browser backup retained.");
+  } catch (error) {
+    showToast("Experiment import stopped: " + error.message + ". Browser backup retained.");
+  }
+}
+
 function renderOverviewExperiments() {
   const activeCount = experiments.filter(item => item.status === "running").length;
   document.querySelectorAll('[data-metric-value="active-experiments"]').forEach(node => { node.textContent = String(activeCount); });
@@ -958,6 +1038,12 @@ function setupExperimentForm() {
     }
 
     const now = new Date().toISOString();
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudReady = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId &&
+      cloud.businessId === cloudExperimentWorkspaceId &&
+      typeof window.BusinessFlowCloud?.createExperiment === "function");
+    if (cloudReady && cloudExperimentBusy) return;
+    if (cloudReady) cloudExperimentBusy = true;
 
     if (editingExperimentId !== null) {
       const item = experiments.find(entry => entry.id === editingExperimentId);
@@ -969,49 +1055,41 @@ function setupExperimentForm() {
       }
 
       const previous = { ...item };
-      Object.assign(item, {
-        title,
-        hypothesis,
-        baseline,
-        result,
-        status,
-        notes,
-        updatedAt: now
-      });
-
-      if (!saveExperiments()) {
-        Object.assign(item, previous);
-        return;
-      }
-
-      renderExperiments();
-      cancelExperimentEdit();
+      const next = { ...item, title, hypothesis, baseline, result, status, notes, updatedAt: now,
+        completedAt: status === "completed" ? (item.completedAt || now) : null };
+      try {
+        if (cloudReady && /^[0-9a-f-]{36}$/i.test(item.id)) await window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+      } catch (error) {
+        Object.assign(item, previous); showToast("Cloud update failed: " + error.message); return;
+      } finally { if (cloudReady) cloudExperimentBusy = false; }
+      Object.assign(item, next);
+      if (!saveExperiments()) { Object.assign(item, previous); return; }
+      renderExperiments(); cancelExperimentEdit();
       recordActivity("experiment_updated", "Experiment updated", title + " · " + status, item.id);
-      showToast("Experiment updated in this browser.");
+      showToast(cloudReady ? "Experiment updated in the cloud workspace." : "Experiment updated in this browser.");
       return;
     }
 
-    experiments.unshift({
-      id: createId(),
-      title,
-      hypothesis,
-      baseline,
-      result,
-      status,
-      notes,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveExperiments()) {
-      experiments.shift();
-      return;
+    const newItem = { id: createId(), title, hypothesis, baseline, result, status, notes,
+      successMetric: "", startedAt: status === "running" ? now : null,
+      completedAt: status === "completed" ? now : null, createdAt: now, updatedAt: now };
+    if (cloudReady) {
+      try {
+        const saved = await window.BusinessFlowCloud.createExperiment(cloud.businessId, newItem);
+        Object.assign(newItem, { id: saved.id, status: saved.status,
+          baseline: saved.baseline_value == null ? null : Number(saved.baseline_value),
+          result: saved.result_value == null ? null : Number(saved.result_value),
+          notes: saved.learning_notes || "", startedAt: saved.started_at || null,
+          completedAt: saved.completed_at || null, createdAt: saved.created_at || now,
+          updatedAt: saved.updated_at || now });
+      } catch (error) { showToast("Cloud save failed: " + error.message); return; }
+      finally { cloudExperimentBusy = false; }
     }
-
-    renderExperiments();
-    form.reset();
-    recordActivity("experiment_created", "Experiment created", title + " · " + status, experiments[0]?.id || "");
-    showToast("Experiment saved in this browser.");
+    experiments.unshift(newItem);
+    if (!saveExperiments()) { experiments.shift(); return; }
+    renderExperiments(); form.reset();
+    recordActivity("experiment_created", "Experiment created", title + " · " + status, newItem.id);
+    showToast(cloudReady ? "Experiment saved to your cloud workspace." : "Experiment saved in this browser. Cloud sync is not connected.");
   });
 }
 
@@ -1030,18 +1108,17 @@ function handleExperimentAction(action, id) {
       '"? This removes it from this browser only.'
     )) return;
 
-    const removed = experiments.splice(index, 1)[0];
-
-    if (!saveExperiments()) {
-      experiments.splice(index, 0, removed);
-      renderExperiments();
-      return;
+    const cloud = window.BusinessFlowCloud?.getState?.();
+    const cloudReady = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudExperimentWorkspaceId && /^[0-9a-f-]{36}$/i.test(id));
+    if (cloudReady) {
+      try { await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id); }
+      catch (error) { showToast("Cloud delete failed: " + error.message); return; }
     }
-
+    const removed = experiments.splice(index, 1)[0];
+    if (!saveExperiments()) { experiments.splice(index, 0, removed); renderExperiments(); return; }
     if (editingExperimentId === id) cancelExperimentEdit();
-    renderExperiments();
-    recordActivity("experiment_deleted", "Experiment deleted", item.title, id);
-    showToast("Experiment deleted.");
+    renderExperiments(); recordActivity("experiment_deleted", "Experiment deleted", item.title, id);
+    showToast(cloudReady ? "Experiment deleted from the cloud workspace." : "Experiment deleted from this browser.");
     return;
   }
 
@@ -1597,6 +1674,7 @@ window.addEventListener("businessflow:onboarding-skipped", () => {
 window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
+  void loadCloudExperimentsForWorkspace(businessId);
   void loadBusinessInsights(businessId);
 });
 
@@ -1815,12 +1893,19 @@ window.addEventListener("businessflow:cloud-state", event => {
   updateWorkspaceIdentity(state);
   if (!state.signedIn || !state.apiConnected) {
     cloudGoalWorkspaceId = null;
-    loadGoals();
-    renderGoals();
+    cloudExperimentWorkspaceId = null;
+    loadGoals(); loadExperiments();
+    renderGoals(); renderExperiments();
+  } else if (state.businessId) {
+    void loadCloudGoalsForWorkspace(state.businessId);
+    void loadCloudExperimentsForWorkspace(state.businessId);
   }
 });
 window.addEventListener("businessflow:import-local-goals-requested", () => {
   void importLocalGoalsToCloud();
+});
+window.addEventListener("businessflow:import-local-experiments-requested", () => {
+  void importLocalExperimentsToCloud();
 });
 
 /* ---------- Branded loading experience ---------- */
