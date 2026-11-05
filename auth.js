@@ -358,6 +358,8 @@ async function performSignOut() {
 signOut?.addEventListener("click", performSignOut);
 document.querySelector("#sidebar-signout")?.addEventListener("click", performSignOut);
 
+function memoryPayloadForApi(memory) { const categories={"Decision":"decision","Customer insight":"observation","Lesson learned":"lesson","Process":"business_context","Follow-up":"experiment_result","Other":"preference"}; return {category:categories[memory.category]||memory.category,content:{title:memory.title,date:memory.date,details:memory.content},source:"user"}; }
+
 window.BusinessFlowCloud = Object.freeze({
   getState: () => ({
     signedIn: Boolean(session?.user),
@@ -444,7 +446,11 @@ window.BusinessFlowCloud = Object.freeze({
   deleteExperiment: async (businessId, experimentId) => apiRequest(
     "/api/business-intelligence/experiments/" + encodeURIComponent(experimentId) + "?business_id=" + encodeURIComponent(businessId),
     { method: "DELETE" }
-  )
+  ),
+  loadMemories: async businessId => { const result=await apiRequest("/api/business-intelligence/memory?business_id="+encodeURIComponent(businessId)); return Array.isArray(result.memory)?result.memory:[]; },
+  createMemory: async (businessId,memory) => { const result=await apiRequest("/api/business-intelligence/memory",{method:"POST",body:JSON.stringify({business_id:businessId,...memoryPayloadForApi(memory)})}); if(!result.memory?.id)throw Error("Memory save did not return its ID."); return result.memory; },
+  updateMemory: async (businessId,memoryId,payload) => { const result=await apiRequest("/api/business-intelligence/memory/"+encodeURIComponent(memoryId),{method:"PATCH",body:JSON.stringify({business_id:businessId,...payload})}); if(!result.memory?.id)throw Error("Memory update did not return the updated record."); return result.memory; },
+  deleteMemory: async (businessId,memoryId) => apiRequest("/api/business-intelligence/memory/"+encodeURIComponent(memoryId)+"?business_id="+encodeURIComponent(businessId),{method:"DELETE"})
 });
 
 async function initialize() {
