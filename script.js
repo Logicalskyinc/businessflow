@@ -51,7 +51,10 @@ function getActivityCloudState() {
 async function loadWorkspaceActivity() {
   const cloud = getActivityCloudState();
   if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
+    activityItems = [];
     renderActivityCenter();
+    const status = document.querySelector("#activity-center-status");
+    if (status) status.textContent = "Connect to a cloud workspace to view activity.";
     return;
   }
   try {
@@ -64,21 +67,19 @@ async function loadWorkspaceActivity() {
       title: item.title, message: item.message, entityId: item.entity_id || "",
       createdAt: item.created_at, read: Boolean(item.is_read), cloud: true
     })) : [];
-    saveCollection(ACTIVITY_KEY, activityItems);
     renderActivityCenter();
   } catch (error) {
     console.error("BusinessFlow cloud activity could not be loaded:", error);
-    const status = document.querySelector("#activity-center-status");
-    if (status) status.textContent = "Cloud activity unavailable. Showing saved browser history.";
+    activityItems = [];
     renderActivityCenter();
+    const status = document.querySelector("#activity-center-status");
+    if (status) status.textContent = "Cloud activity is unavailable. No local activity history is being presented as cloud data.";
   }
 }
 
 function loadActivity() {
-  activityItems = loadCollection(ACTIVITY_KEY)
-    .filter(item => item && typeof item.id === "string" && typeof item.type === "string" &&
-      typeof item.title === "string" && typeof item.message === "string" && typeof item.createdAt === "string")
-    .slice(0, ACTIVITY_LIMIT);
+  // Do not hydrate the workspace feed from browser storage. The cloud loader owns this state.
+  activityItems = [];
   activityReady = true;
   renderActivityCenter();
 }
@@ -88,43 +89,32 @@ async function recordActivity(type, title, message, entityId = "") {
   const allowed = ["goal_created","goal_updated","goal_completed","goal_deleted",
     "experiment_created","experiment_updated","experiment_deleted","dataset_imported"];
   if (!allowed.includes(type)) return;
-  const item = {
-    id: createId(), eventKey: createId(), type,
-    title: String(title).slice(0,120), message: String(message).slice(0,300),
-    entityId: String(entityId).slice(0,100), createdAt: new Date().toISOString(),
-    read: false, cloud: false
-  };
-  activityItems.unshift(item);
-  activityItems = activityItems.slice(0, ACTIVITY_LIMIT);
-  if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems.shift(); return; }
-  renderActivityCenter();
-
   const cloud = getActivityCloudState();
-  if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") return;
+  if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
+    console.warn("Activity event was not recorded because no cloud workspace is connected:", type);
+    return;
+  }
+  const payload = {
+    business_id: cloud.businessId, event_key: createId(), event_type: type,
+    title: String(title).slice(0,120), message: String(message).slice(0,300),
+    entity_id: String(entityId).slice(0,100)
+  };
   try {
     const result = await window.BusinessFlowCloud.request("/api/business-intelligence/activity", {
-      method: "POST",
-      body: JSON.stringify({
-        business_id: cloud.businessId, event_key: item.eventKey, event_type: type,
-        title: item.title, message: item.message, entity_id: item.entityId
-      })
+      method: "POST", body: JSON.stringify(payload)
     });
     if (getActivityCloudState()?.businessId !== cloud.businessId || !result.activity) return;
-    const index = activityItems.findIndex(entry => entry.eventKey === item.eventKey);
-    if (index >= 0) {
-      const saved = result.activity;
-      activityItems[index] = {
-        id: saved.id, eventKey: saved.event_key, type: saved.event_type,
-        title: saved.title, message: saved.message, entityId: saved.entity_id || "",
-        createdAt: saved.created_at, read: Boolean(saved.is_read), cloud: true
-      };
-      saveCollection(ACTIVITY_KEY, activityItems);
-      renderActivityCenter();
-    }
+    const saved = result.activity;
+    activityItems = [{
+      id: saved.id, eventKey: saved.event_key, type: saved.event_type,
+      title: saved.title, message: saved.message, entityId: saved.entity_id || "",
+      createdAt: saved.created_at, read: Boolean(saved.is_read), cloud: true
+    }, ...activityItems.filter(entry => entry.id !== saved.id)].slice(0, ACTIVITY_LIMIT);
+    renderActivityCenter();
   } catch (error) {
-    console.error("BusinessFlow activity sync failed; local event retained:", error);
+    console.error("BusinessFlow cloud activity write failed:", error);
     const status = document.querySelector("#activity-center-status");
-    if (status) status.textContent = "Cloud sync failed. This event remains saved in this browser.";
+    if (status) status.textContent = "Activity could not be saved to the cloud. The business change remains saved.";
   }
 }
 
@@ -145,9 +135,8 @@ function renderActivityCenter() {
     ? "View notifications, " + unread + " unread"
     : "View notifications");
   if (status) status.textContent = cloud
-    ? activityItems.length + " workspace events · Cloud sync enabled"
-    : activityItems.length ? activityItems.length + " recent events · Stored in this browser"
-    : "Your workspace activity will appear here.";
+    ? activityItems.length + " workspace events · Loaded from cloud"
+    : "Connect to a cloud workspace to view activity.";
   if (!feed) return;
   if (!activityItems.length) {
     feed.innerHTML = '<p class="empty-state">No activity yet. Saving a goal, updating an experiment or importing data will appear here.</p>';
@@ -163,39 +152,43 @@ function renderActivityCenter() {
 
 function setupActivityCenter() {
   document.querySelector("#activity-mark-read")?.addEventListener("click", async () => {
-    const pending = activityItems.filter(item => !item.read);
-    if (!pending.length) return;
-    const previous = activityItems;
-    activityItems = activityItems.map(item => ({ ...item, read: true }));
-    if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems = previous; return; }
-    renderActivityCenter();
     const cloud = getActivityCloudState();
-    if (!cloud) return;
-    for (const item of pending.filter(entry => entry.cloud && entry.id)) {
-      try {
+    if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
+      showToast("Connect to a cloud workspace before updating activity.");
+      return;
+    }
+    const pending = activityItems.filter(item => !item.read && item.cloud && item.id);
+    if (!pending.length) return;
+    try {
+      for (const item of pending) {
         await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
           method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
         });
-      } catch (error) { console.error("Could not sync activity read state:", error); }
+      }
+      if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+      activityItems = activityItems.map(item => ({ ...item, read: true }));
+      renderActivityCenter();
+    } catch (error) {
+      console.error("Could not update cloud activity read state:", error);
+      showToast("Could not update activity in the cloud. No local-only change was made.");
     }
   });
 
   document.querySelector("#activity-clear")?.addEventListener("click", async () => {
-    if (!activityItems.length || !window.confirm("Clear this workspace's activity history? This does not delete goals, experiments or imported datasets.")) return;
-    const previous = activityItems;
     const cloud = getActivityCloudState();
-    activityItems = [];
-    if (!saveCollection(ACTIVITY_KEY, activityItems)) { activityItems = previous; return; }
-    renderActivityCenter();
-    if (cloud) {
-      try {
-        await window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" });
-      } catch (error) {
-        activityItems = previous;
-        saveCollection(ACTIVITY_KEY, activityItems);
-        renderActivityCenter();
-        showToast("Cloud history could not be cleared. Activity was restored.");
-      }
+    if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
+      showToast("Connect to a cloud workspace before clearing activity.");
+      return;
+    }
+    if (!activityItems.length || !window.confirm("Clear this workspace's cloud activity history? This does not delete goals, experiments or imported datasets.")) return;
+    try {
+      await window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" });
+      if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+      activityItems = [];
+      renderActivityCenter();
+    } catch (error) {
+      console.error("Could not clear cloud activity:", error);
+      showToast("Cloud activity could not be cleared. Existing activity was preserved.");
     }
   });
 }
@@ -320,7 +313,8 @@ function formatDate(dateString) {
 /* ---------- Goals ---------- */
 
 function saveGoals() {
-  return saveCollection(STORAGE_KEY, goals);
+  // Cloud is authoritative. Legacy browser data is read only by the explicit import flow.
+  return true;
 }
 
 function isValidGoal(goal) {
@@ -578,7 +572,7 @@ async function handleGoalAction(action, id) {
   if (action === "delete") {
     if (!confirm(
       'Delete "' + goal.title +
-      '"? This removes the goal from this browser only.'
+      '"? This permanently deletes the goal from the selected cloud workspace.'
     )) return;
 
     const cloud = window.BusinessFlowCloud?.getState?.();
@@ -595,7 +589,7 @@ async function handleGoalAction(action, id) {
     saveGoals();
     renderGoals();
     recordActivity("goal_deleted", "Goal deleted", goal.title, id);
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Goal deleted from this browser.");
+    showToast("Goal deleted from the cloud workspace.");
     return;
   }
 
@@ -630,7 +624,7 @@ async function handleGoalAction(action, id) {
     saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal progress updated", goal.title + ": " + value + " " + (goal.unit || "units"), id);
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated locally.");
+    showToast("Progress updated in the cloud workspace.");
     return;
   }
 
@@ -684,7 +678,7 @@ async function handleGoalAction(action, id) {
     saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal details updated", goal.title, id);
-    showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated locally.");
+    showToast("Goal updated in the cloud workspace.");
   }
 }
 
@@ -768,7 +762,8 @@ function loadExperiments() {
 }
 
 function saveExperiments() {
-  return saveCollection(EXPERIMENTS_KEY, experiments);
+  // Cloud is authoritative. Legacy browser data is read only by the explicit import flow.
+  return true;
 }
 
 async function loadCloudExperimentsForWorkspace(businessId) {
@@ -1046,7 +1041,7 @@ function setupExperimentForm() {
       saveExperiments();
       renderExperiments(); cancelExperimentEdit();
       recordActivity("experiment_updated", "Experiment updated", title + " · " + status, item.id);
-      showToast(cloudReady ? "Experiment updated in the cloud workspace." : "Experiment updated in this browser.");
+      showToast("Experiment updated in the cloud workspace.");
       return;
     }
 
@@ -1069,7 +1064,7 @@ function setupExperimentForm() {
     saveExperiments();
     renderExperiments(); form.reset();
     recordActivity("experiment_created", "Experiment created", title + " · " + status, newItem.id);
-    showToast(cloudReady ? "Experiment saved to your cloud workspace." : "Experiment saved in this browser. Cloud sync is not connected.");
+    showToast("Experiment saved to your cloud workspace.");
   });
 }
 
@@ -1104,7 +1099,7 @@ async function handleExperimentAction(action, id) {
     saveExperiments();
     if (editingExperimentId === id) cancelExperimentEdit();
     renderExperiments(); recordActivity("experiment_deleted", "Experiment deleted", item.title, id);
-    showToast(cloudReady ? "Experiment deleted from the cloud workspace." : "Experiment deleted from this browser.");
+    showToast("Experiment deleted from the cloud workspace.");
     return;
   }
 
