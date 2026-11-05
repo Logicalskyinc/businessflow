@@ -182,11 +182,11 @@
           <div class="content-grid">
             <article class="panel">
               <h2>Revenue performance</h2>
-              <p class="muted">Connect a revenue source to see your actual trend.</p>
+              <p class="muted">The imported revenue total is shown above. A time-series trend requires reliable date and revenue mappings.</p>
               <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
+                <p class="empty-state">No verified revenue trend is available yet. Check the date and revenue mappings in your imported dataset.</p>
               </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
+              <p class="chart-disclaimer">Imported snapshot only. This is not a live revenue feed.</p>
             </article>
 
             <article class="panel">
@@ -225,7 +225,7 @@
           <div class="section-heading">
             <div>
               <h2>Performance overview</h2>
-              <p class="muted">Connect a real source to populate business indicators</p>
+              <p class="muted">Verified imported fields populate the available business indicators</p>
             </div>
             <label class="period-control">Period
               <select id="analytics-period">
@@ -645,7 +645,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=26" defer></script>
+  <script src="script.js?v=27" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
