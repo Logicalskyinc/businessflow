@@ -477,3 +477,37 @@ body.auth-required .account-page { max-width: 100%; }
 .revenue-trend-label strong { font-variant-numeric: tabular-nums; text-align: right; }
 .revenue-trend-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--surface-soft, #edf1f7); }
 .revenue-trend-track span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #3268d5); }
+
+
+/* Phase 1: focused, professional Overview workspace heading */
+.overview-welcome {
+  align-items: center;
+  padding: 25px 27px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(120deg, #fff 0%, #f7f9ff 72%, #f3fbf7 100%);
+  box-shadow: var(--shadow);
+}
+.overview-welcome-copy { min-width: 0; }
+.overview-welcome .eyebrow { margin-bottom: 10px; }
+.overview-welcome h1 {
+  max-width: 850px;
+  font-size: clamp(25px, 3.1vw, 36px);
+  line-height: 1.18;
+  letter-spacing: -1.1px;
+  overflow-wrap: anywhere;
+}
+.workspace-context {
+  margin: 9px 0 0;
+  color: #52617a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.overview-welcome .subtitle { max-width: 680px; margin-top: 8px; }
+.overview-welcome .welcome-actions { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .overview-welcome { padding: 19px 16px; gap: 18px; }
+  .overview-welcome h1 { font-size: clamp(24px, 7vw, 31px); letter-spacing: -.7px; }
+  .overview-welcome .welcome-actions { width: 100%; }
+  .overview-welcome .welcome-actions button { flex: 1; min-width: 0; }
+}
