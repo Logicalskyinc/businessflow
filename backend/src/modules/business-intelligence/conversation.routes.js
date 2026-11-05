@@ -14,7 +14,7 @@ conversationRouter.get("/", async (req, res, next) => {
   try {
     if (!isUuid(req.query.business_id)) return res.status(400).json({ error: "invalid_business_id" });
     const { data, error } = await req.supabase.from("businessflow_conversations")
-      .select("id,business_id,title,created_at,updated_at")
+      .select("id,business_id,title,shared_improvement_excluded,created_at,updated_at")
       .eq("business_id", req.query.business_id).order("updated_at", { ascending: false }).limit(50);
     if (error) return next(error);
     return res.json({ conversations: data ?? [] });
