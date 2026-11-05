@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { createClient } from "@supabase/supabase-js";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { GreyIntegrationError, sendMessageToGrey } from "./grey-client.js";
 import { buildBusinessInsights } from "./business-intelligence.analytics.js";
@@ -8,18 +7,6 @@ export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isUuid = value => typeof value === "string" && UUID.test(value);
 const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
-
-let greyStateClient;
-function getGreyStateClient() {
-  const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) {
-    throw new GreyIntegrationError("Grey state storage is not configured on the server.", 503, true);
-  }
-  return greyStateClient ??= createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-  });
-}
 
 conversationRouter.use(requireAuthenticatedUser);
 
@@ -112,8 +99,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
 
     try {
       const contextCandidate = await buildWorkspaceContext(req.supabase, conversation.business_id);
-      const greyState = getGreyStateClient();
-      const { data: workspaceContext, error: contextError } = await greyState.rpc("businessflow_set_message_context", {
+      const { data: workspaceContext, error: contextError } = await req.supabase.rpc("businessflow_set_message_context", {
         p_message_id: userMessage.id,
         p_context: contextCandidate,
         p_user_id: req.user.id
@@ -147,7 +133,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       let grey;
 
       if (!greyConversationId) {
-        const { data: claim, error: claimError } = await greyState.rpc("businessflow_claim_grey_initialization", {
+        const { data: claim, error: claimError } = await req.supabase.rpc("businessflow_claim_grey_initialization", {
           p_conversation_id: conversationId,
           p_message_id: userMessage.id,
           p_user_id: req.user.id
@@ -186,7 +172,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
               conversationId: undefined,
               workspaceContext: firstMessage.workspace_context
             });
-            const { data: completed, error: completeError } = await greyState.rpc("businessflow_complete_grey_initialization", {
+            const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
               p_conversation_id: conversationId,
               p_token: claim.token,
               p_grey_conversation_id: recovered.conversationId,
@@ -206,7 +192,7 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
               conversationId: undefined,
               workspaceContext
             });
-            const { data: completed, error: completeError } = await greyState.rpc("businessflow_complete_grey_initialization", {
+            const { data: completed, error: completeError } = await req.supabase.rpc("businessflow_complete_grey_initialization", {
               p_conversation_id: conversationId,
               p_token: claim.token,
               p_grey_conversation_id: grey.conversationId,
