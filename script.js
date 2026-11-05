@@ -1432,7 +1432,9 @@ function setupNavigation() {
 
   document.querySelector("#topbar-notifications")?.addEventListener("click", () => {
     navigateTo("overview");
-    document.querySelector("#activity-center-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const activity = document.querySelector(".activity-center");
+    if (activity instanceof HTMLDetailsElement) activity.open = true;
+    document.querySelector(".activity-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.querySelector("#topbar-settings")?.addEventListener("click", () => {
     navigateTo("settings");
