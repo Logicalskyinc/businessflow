@@ -50,9 +50,9 @@ function getActivityCloudState() {
 
 async function loadWorkspaceActivity() {
   const cloud = getActivityCloudState();
+  activityItems = [];
+  renderActivityCenter();
   if (!cloud || typeof window.BusinessFlowCloud?.request !== "function") {
-    activityItems = [];
-    renderActivityCenter();
     const status = document.querySelector("#activity-center-status");
     if (status) status.textContent = "Connect to a cloud workspace to view activity.";
     return;
@@ -69,6 +69,7 @@ async function loadWorkspaceActivity() {
     })) : [];
     renderActivityCenter();
   } catch (error) {
+    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
     console.error("BusinessFlow cloud activity could not be loaded:", error);
     activityItems = [];
     renderActivityCenter();
@@ -786,6 +787,7 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     renderExperiments();
     updateStorageStatus();
   } catch (error) {
+    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
     console.error("BusinessFlow cloud experiments could not load:", error);
     experiments = [];
     cloudExperimentWorkspaceId = null;
@@ -1563,6 +1565,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     renderGoals();
     updateStorageStatus();
   } catch (error) {
+    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
     console.error("BusinessFlow cloud goals could not load:", error);
     goals = [];
     cloudGoalWorkspaceId = null;
