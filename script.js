@@ -1383,8 +1383,15 @@ function navigateTo(pageId) {
     item.classList.toggle("active", item === page);
   });
 
-  document.querySelectorAll(".nav-link[data-page], .mobile-tab[data-page]").forEach(link => {
+  document.querySelectorAll(".nav-link[data-page]").forEach(link => {
     const active = link.dataset.page === pageId;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+
+  document.querySelectorAll(".mobile-tab[data-page]").forEach(link => {
+    const active = link.dataset.page === pageId && !link.dataset.scrollTarget;
     link.classList.toggle("active", active);
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
@@ -1447,6 +1454,24 @@ function setupNavigation() {
   document.querySelectorAll(".mobile-tab[data-page]").forEach(link => {
     link.addEventListener("click", event => {
       event.preventDefault();
+      if (link.dataset.scrollTarget) {
+        navigateTo(link.dataset.page);
+        document.querySelectorAll(".mobile-tab").forEach(tab => {
+          const active = tab === link;
+          tab.classList.toggle("active", active);
+          if (active) tab.setAttribute("aria-current", "page");
+          else tab.removeAttribute("aria-current");
+        });
+        const target = document.getElementById(link.dataset.scrollTarget);
+        if (target) {
+          const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+          requestAnimationFrame(() => target.scrollIntoView({
+            behavior: reducedMotion ? "auto" : "smooth",
+            block: "start"
+          }));
+        }
+        return;
+      }
       navigateTo(link.dataset.page);
     });
   });
