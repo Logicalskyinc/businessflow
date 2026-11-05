@@ -330,6 +330,25 @@ body { letter-spacing: -.01em; }
 @media(max-width:680px){.account-page{padding-top:0}.account-intro{min-height:auto;padding:27px 22px;border-radius:19px}.account-intro h1{font-size:32px;letter-spacing:-1px}.account-intro .subtitle{font-size:13px}.account-hero-art{display:none}.account-steps{gap:8px;padding:18px 0 20px}.account-step{gap:7px}.step-number{width:29px;height:29px;flex-basis:29px;border-radius:9px}.account-step strong{font-size:10px}.account-step small{font-size:9px}.step-connector{width:10px;flex-basis:10px}.account-card{padding:20px 17px;border-radius:16px}.account-card h2{font-size:17px}.account-actions>button,.workspace-actions>button{flex:1 1 125px}.account-data-note{padding:16px}}
 
 
+/* Settings: account, workspace and billing management */
+.settings-account-panel { margin: 0 0 18px; }
+.settings-account-panel .panel-heading { align-items: center; }
+.settings-account-panel h2 { margin: 0 0 5px; font-size: 17px; }
+.settings-account-panel .muted { margin: 0; }
+.settings-section { margin: 18px 0 22px; }
+.settings-section-heading { margin: 0 0 12px; }
+.settings-section-heading h2 { margin: 0 0 5px; color: var(--text); font-size: 19px; letter-spacing: -.35px; }
+.settings-section-heading > .eyebrow { margin: 0 0 5px; }
+.settings-section-heading > .muted { margin: 0; }
+.settings-section > .account-card { max-width: 100%; }
+.settings-section > .account-card .account-card-heading { margin-bottom: 17px; }
+#settings #businessflow-billing { margin-top: 18px; }
+@media (max-width: 760px) {
+  .settings-account-panel .panel-heading { align-items: flex-start; flex-wrap: wrap; }
+  .settings-account-panel .panel-heading > button { width: 100%; }
+  .settings-section { margin-top: 14px; }
+}
+
 /* Authentication gate and first-run onboarding. */
 body.auth-pending .sidebar,
 body.auth-required .sidebar,
