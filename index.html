@@ -69,7 +69,7 @@
         <section class="page active" id="overview">
           <div class="notice">
             <strong>DATA STATUS</strong>
-            <span>BusinessFlow supports account-based cloud goals. Revenue and customer analytics remain empty until you connect a real data source. Browser records are preserved.</span>
+            <span id="overview-data-status">Imported datasets are analysed as saved snapshots. Live connections update only when a supported source is connected.</span>
           </div>
 
           <div class="welcome-row overview-welcome">
@@ -159,18 +159,18 @@
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="revenue">—</strong>
+              <p class="metric-note" data-business-metric-note="revenue">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="customers">—</strong>
+              <p class="metric-note" data-business-metric-note="customers">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="conversion">—</strong>
+              <p class="metric-note" data-business-metric-note="conversion">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
@@ -219,7 +219,7 @@
 
           <div class="notice">
             <strong>DATA STATUS</strong>
-            <span>Revenue, customer, and conversion metrics are not populated with sample values. Goal progress reflects the goals currently loaded in this workspace.</span>
+            <span id="analytics-data-status">Metrics are calculated only from imported fields that are mapped and verified. Imported snapshots are not live feeds.</span>
           </div>
 
           <div class="section-heading">
@@ -239,18 +239,18 @@
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="revenue">—</strong>
+              <p class="metric-note" data-business-metric-note="revenue">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="customers">—</strong>
+              <p class="metric-note" data-business-metric-note="customers">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value">—</strong>
-              <p class="metric-note">No data source connected</p>
+              <strong class="metric-value" data-business-metric="conversion">—</strong>
+              <p class="metric-note" data-business-metric-note="conversion">Awaiting mapped data</p>
             </article>
             <article class="metric-card">
               <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
