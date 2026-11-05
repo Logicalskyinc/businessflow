@@ -446,7 +446,7 @@
           <label class="form-label">Password<input id="account-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Enter your password" required></label>
           <div class="full-span account-actions"><button type="submit" class="primary-button" id="account-submit">Sign in</button><button type="button" class="small-button" id="account-signup">Create account</button></div>
         </form>
-        <div class="account-actions"><button type="button" class="small-button" id="account-signout" hidden>Sign out</button></div>
+        
         <p id="api-status" class="account-api-status" role="status" aria-live="polite">Checking BusinessFlow connection…</p>
       </article>
     </div>
@@ -518,6 +518,16 @@
             <h1>Settings</h1>
             <p class="subtitle">Manage your workspace and protect your business information.</p>
           </div>
+          <article class="panel settings-account-panel" aria-labelledby="settings-account-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">YOUR ACCOUNT</p>
+                <h2 id="settings-account-title">Account access</h2>
+                <p class="muted" id="settings-account-status" role="status" aria-live="polite">Checking your signed-in account…</p>
+              </div>
+              <button type="button" class="small-button" id="account-signout" hidden>Sign out</button>
+            </div>
+          </article>
           <section class="settings-section" aria-labelledby="settings-account-heading">
             <div class="settings-section-heading">
               <p class="eyebrow">ACCOUNT & WORKSPACE</p>
