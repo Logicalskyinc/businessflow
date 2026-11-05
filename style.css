@@ -836,3 +836,18 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
   .overview-welcome .welcome-actions { width: 100%; }
   .overview-welcome .welcome-actions button { flex: 1; min-width: 0; }
 }
+ 
+/* Step 7: compact decision-workspace refinements */
+#analytics .metrics-grid { margin-bottom: 20px; }
+#analytics-revenue-chart { min-height: 230px; display: grid; place-items: center; overflow: hidden; }
+#analytics-revenue-chart svg { display: block; width: 100%; height: auto; max-height: 260px; }
+#analytics-revenue-chart .chart-empty-message { padding: 24px; color: var(--muted); font-size: 12px; text-align: center; }
+#analytics-revenue-chart-note { min-height: 18px; }
+.record-heading-actions { display: flex; align-items: center; gap: 10px; }
+.record-heading-actions .small-button { white-space: nowrap; }
+.record-item .record-details { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 14px; }
+.record-item .record-details p { margin: 0; }
+@media(max-width:600px) {
+  .record-item .record-details { grid-template-columns: 1fr; }
+  .record-heading-actions { align-items: flex-start; flex-direction: column; }
+}
