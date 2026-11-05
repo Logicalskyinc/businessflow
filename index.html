@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=22">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -622,9 +622,9 @@
   <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation" tabindex="-1"></button>
   <nav class="mobile-tabbar" aria-label="Quick navigation">
     <a href="#overview" class="mobile-tab active" data-page="overview" aria-current="page"><span aria-hidden="true">⌂</span><small>Home</small></a>
-    <a href="#analytics" class="mobile-tab" data-page="analytics"><span aria-hidden="true">▥</span><small>Analytics</small></a>
+    <a href="#overview" class="mobile-tab" data-page="overview" data-scroll-target="businessflow-intelligence-panel"><span aria-hidden="true">✳</span><small>Grey</small></a>
     <a href="#goals" class="mobile-tab" data-page="goals"><span aria-hidden="true">◎</span><small>Goals</small></a>
-    <a href="#experiments" class="mobile-tab" data-page="experiments"><span aria-hidden="true">◇</span><small>Tests</small></a>
+    <a href="#analytics" class="mobile-tab" data-page="analytics"><span aria-hidden="true">▥</span><small>Analytics</small></a>
     <a href="#account" class="mobile-tab" data-page="account"><span aria-hidden="true">◉</span><small>Account</small></a>
   </nav>
   <div class="bf-route-progress" id="bf-route-progress" aria-hidden="true"><span></span></div>
@@ -645,7 +645,7 @@
   <div class="toast" role="status" aria-live="polite"></div>
   <script src="frontend-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-  <script src="script.js?v=26" defer></script>
+  <script src="script.js?v=27" defer></script>
   <script type="module" src="auth.js"></script>
 </body>
 </html>
