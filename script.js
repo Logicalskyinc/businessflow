@@ -129,7 +129,16 @@ function renderActivityCenter() {
   const status = document.querySelector("#activity-center-status");
   const unread = activityItems.filter(item => !item.read).length;
   const cloud = getActivityCloudState();
+  const topbarCount = document.querySelector("#topbar-notification-count");
+  const notificationButton = document.querySelector("#topbar-notifications");
   if (count) count.textContent = unread + " unread";
+  if (topbarCount) {
+    topbarCount.textContent = unread > 99 ? "99+" : String(unread);
+    topbarCount.hidden = unread === 0;
+  }
+  notificationButton?.setAttribute("aria-label", unread
+    ? "View notifications, " + unread + " unread"
+    : "View notifications");
   if (status) status.textContent = cloud
     ? activityItems.length + " workspace events · Cloud sync enabled"
     : activityItems.length ? activityItems.length + " recent events · Stored in this browser"
@@ -1419,6 +1428,14 @@ function setupNavigation() {
     button.addEventListener("click", () => {
       navigateTo(button.dataset.goTo);
     });
+  });
+
+  document.querySelector("#topbar-notifications")?.addEventListener("click", () => {
+    navigateTo("overview");
+    document.querySelector("#activity-center-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  document.querySelector("#topbar-settings")?.addEventListener("click", () => {
+    navigateTo("settings");
   });
 
   const menuButton = document.querySelector(".menu-button");
