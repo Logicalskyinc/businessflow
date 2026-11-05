@@ -62,6 +62,45 @@ revoke all on public.businessflow_privacy_preferences,
 grant select on public.businessflow_privacy_preferences,
   public.businessflow_privacy_consent_events to authenticated;
 
+
+create or replace function public.businessflow_get_privacy_preferences()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_preferences public.businessflow_privacy_preferences;
+begin
+  if v_user_id is null then
+    raise exception 'authentication_required' using errcode = '42501';
+  end if;
+
+  insert into public.businessflow_privacy_preferences (user_id)
+  values (v_user_id)
+  on conflict (user_id) do nothing;
+
+  select * into v_preferences
+  from public.businessflow_privacy_preferences
+  where user_id = v_user_id;
+
+  return jsonb_build_object(
+    'personal_learning_enabled', v_preferences.personal_learning_enabled,
+    'shared_improvement_enabled', v_preferences.shared_improvement_enabled,
+    'conversation_history_enabled', v_preferences.conversation_history_enabled,
+    'policy_version', v_preferences.policy_version,
+    'revision', v_preferences.revision,
+    'updated_at', v_preferences.updated_at
+  );
+end;
+$function$;
+
+revoke all on function public.businessflow_get_privacy_preferences()
+  from public, anon, authenticated, service_role;
+grant execute on function public.businessflow_get_privacy_preferences()
+  to authenticated;
+
 create or replace function public.businessflow_set_privacy_preference(
   p_setting text,
   p_enabled boolean,
@@ -80,7 +119,7 @@ begin
   if v_user_id is null then
     raise exception 'authentication_required' using errcode = '42501';
   end if;
-  if p_enabled is null or p_setting not in (
+  if p_enabled is null or p_setting is null or p_setting not in (
     'personal_learning_enabled',
     'shared_improvement_enabled',
     'conversation_history_enabled'
@@ -145,6 +184,7 @@ as $function$
 declare
   v_user_id uuid := auth.uid();
   v_revision integer;
+  v_policy_version integer := 1;
 begin
   if v_user_id is null then
     raise exception 'authentication_required' using errcode = '42501';
