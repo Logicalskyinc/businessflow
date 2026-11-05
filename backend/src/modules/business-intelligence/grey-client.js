@@ -7,7 +7,7 @@ function base64url(value) {
   return Buffer.from(value).toString("base64url");
 }
 
-export function createBusinessFlowToken({ userId, businessId, secret, now = Math.floor(Date.now() / 1000) }) {
+export function createBusinessFlowToken({ userId, businessId, secret, privacy, conversationExcluded = false, now = Math.floor(Date.now() / 1000) }) {
   if (!secret || Buffer.byteLength(secret) < 32) {
     throw new Error("GREY_BUSINESSFLOW_JWT_SECRET must contain at least 32 bytes.");
   }
@@ -20,6 +20,12 @@ export function createBusinessFlowToken({ userId, businessId, secret, now = Math
     role: "business",
     sub: String(userId),
     business_id: String(businessId),
+    privacy: {
+      personal_learning_enabled: privacy?.personal_learning_enabled === true,
+      shared_improvement_enabled: privacy?.shared_improvement_enabled === true,
+      conversation_history_enabled: privacy?.conversation_history_enabled === true
+    },
+    shared_improvement_excluded: conversationExcluded === true,
     jti: randomUUID(),
     iat: now,
     exp: now + 90
@@ -44,7 +50,9 @@ export async function sendMessageToGrey({
   message,
   requestId,
   conversationId,
-  workspaceContext
+  workspaceContext,
+  privacy,
+  conversationExcluded = false
 }) {
   const baseUrl = process.env.GREY_API_URL?.trim();
   const secret = process.env.GREY_BUSINESSFLOW_JWT_SECRET;
@@ -68,7 +76,7 @@ export async function sendMessageToGrey({
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
-    const token = createBusinessFlowToken({ userId, businessId, secret });
+    const token = createBusinessFlowToken({ userId, businessId, secret, privacy, conversationExcluded });
     const body = { message, request_id: requestId, workspace_context: workspaceContext };
     if (conversationId) body.conversation_id = conversationId;
 
