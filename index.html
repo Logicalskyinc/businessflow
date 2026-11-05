@@ -70,43 +70,12 @@
       </header>
 
       <div class="page-container">
-                  <div class="notice">
+        <section class="page active" id="overview">          <div class="notice">
             <strong>DATA STATUS</strong>
             <span id="overview-data-status">Imported datasets are analysed as saved snapshots. Live connections update only when a supported source is connected.</span>
           </div>
 
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue performance</h2>
-              <p class="muted">The imported revenue total is shown above. A time-series trend requires reliable date and revenue mappings.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No verified revenue trend is available yet. Check the date and revenue mappings in your imported dataset.</p>
-              </div>
-              <p class="chart-disclaimer">Imported snapshot only. This is not a live revenue feed.</p>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
-                <button type="button" class="text-button" data-go-to="goals">View all</button>
-              </div>
-              <div id="goal-list" class="goal-list"></div>
-              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-            </article>
-          </div>
-
-          <article class="panel">
-            <h2>Recent experiments</h2>
-            <p class="muted">Your saved experiments, not sample records.</p>
-            <div id="overview-experiment-list" class="simple-list">
-              <p class="empty-state">Loading saved experiments…</p>
-            </div>
-          </article>
-
-          <footer class="app-footer">BusinessFlow · Business workspace</footer>
-        </section>
-
-                 <div class="welcome-row overview-welcome">
+          <div class="welcome-row overview-welcome">
             <div class="overview-welcome-copy">
               <p class="eyebrow">BUSINESSFLOW · OVERVIEW</p>
               <h1 id="overview-greeting">Welcome to your business workspace.</h1>
@@ -114,18 +83,25 @@
               <p class="subtitle">Your business, clearly understood. Make confident decisions with reliable information.</p>
             </div>
             <div class="welcome-actions">
-              <button type="button" class="secondary-button" data-go-to="account" id="manage-workspace-button">Manage workspace</button>
+              <button type="button" class="secondary-button" data-go-to="settings" id="manage-workspace-button">Manage workspace</button>
               <button type="button" class="primary-button" id="goal-button">+ Create a goal</button>
             </div>
           </div>
 
-          <div class="insight-banner">
-            <div class="insight-icon">✳</div>
+          <div class="section-heading">
             <div>
-              <strong>Business intelligence is ready to work.</strong>
-              <p>BusinessFlow examines your imported records, goals, experiments and business memory to surface evidence-based next steps.</p>
+              <h2>Business overview</h2>
+              <p class="muted">Live indicators appear when you connect business data.</p>
             </div>
+            <label class="period-control">Period
+              <select id="period-select">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
           </div>
+
           <div class="metrics-grid">
             <article class="metric-card">
               <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
@@ -187,20 +163,6 @@
             <p class="bf-chat-disclaimer">Grey-powered conversations use your saved workspace context. External actions still require separate authorization.</p>
           </article>
 
-          <div class="section-heading">
-            <div>
-              <h2>Business overview</h2>
-              <p class="muted">Live indicators appear when you connect business data.</p>
-            </div>
-            <label class="period-control">Period
-              <select id="period-select">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-            </label>
-          </div>
-
           <details class="panel activity-center">
             <summary class="activity-summary">
               <span class="activity-summary-copy"><span class="eyebrow">WORKSPACE UPDATES</span><strong id="activity-center-title">Activity and notifications</strong></span>
@@ -212,12 +174,6 @@
             </div>
             <div id="activity-feed" class="activity-feed" aria-live="polite"><p class="empty-state">No activity yet. Saving a goal, updating an experiment or importing data will appear here.</p></div>
           </details>
-
-<section class="page active" id="overview">
-          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span id="overview-data-status">Imported datasets are analysed as saved snapshots. Live connections update only when a supported source is connected.</span>
-          </div>
 
           <div class="content-grid">
             <article class="panel">
