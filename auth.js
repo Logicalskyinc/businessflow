@@ -384,7 +384,8 @@ window.BusinessFlowCloud = Object.freeze({
         metric_name: goal.unit || "units",
         current_value: Number(goal.current),
         target_value: Number(goal.target),
-        status: "active"
+        due_date: goal.dueDate || null,
+        status: goal.status || "active"
       })
     });
     if (!result.goal?.id) throw new Error("Goal was saved but the response did not contain its ID.");
@@ -399,6 +400,7 @@ window.BusinessFlowCloud = Object.freeze({
         metric_name: goal.unit || "units",
         current_value: Number(goal.current),
         target_value: Number(goal.target),
+        due_date: goal.dueDate || null,
         status: goal.status || "active"
       })
     });
@@ -406,6 +408,41 @@ window.BusinessFlowCloud = Object.freeze({
   },
   deleteGoal: async (businessId, goalId) => apiRequest(
     "/api/business-intelligence/goals/" + encodeURIComponent(goalId) + "?business_id=" + encodeURIComponent(businessId),
+    { method: "DELETE" }
+  ),
+  loadExperiments: async businessId => {
+    const result = await apiRequest("/api/business-intelligence/experiments?business_id=" + encodeURIComponent(businessId));
+    return Array.isArray(result.experiments) ? result.experiments : [];
+  },
+  createExperiment: async (businessId, experiment) => {
+    const result = await apiRequest("/api/business-intelligence/experiments", {
+      method: "POST",
+      body: JSON.stringify({
+        business_id: businessId, title: experiment.title, hypothesis: experiment.hypothesis,
+        success_metric: experiment.successMetric || null, baseline_value: experiment.baseline,
+        result_value: experiment.result, learning_notes: experiment.notes || null,
+        status: experiment.status, started_at: experiment.startedAt || null,
+        completed_at: experiment.completedAt || null
+      })
+    });
+    if (!result.experiment?.id) throw new Error("Experiment save did not return its ID.");
+    return result.experiment;
+  },
+  updateExperiment: async (businessId, experiment) => {
+    const result = await apiRequest("/api/business-intelligence/experiments/" + encodeURIComponent(experiment.id), {
+      method: "PATCH",
+      body: JSON.stringify({
+        business_id: businessId, title: experiment.title, hypothesis: experiment.hypothesis,
+        success_metric: experiment.successMetric || null, baseline_value: experiment.baseline,
+        result_value: experiment.result, learning_notes: experiment.notes || null,
+        status: experiment.status, started_at: experiment.startedAt || null,
+        completed_at: experiment.completedAt || null
+      })
+    });
+    return result.experiment;
+  },
+  deleteExperiment: async (businessId, experimentId) => apiRequest(
+    "/api/business-intelligence/experiments/" + encodeURIComponent(experimentId) + "?business_id=" + encodeURIComponent(businessId),
     { method: "DELETE" }
   )
 });
