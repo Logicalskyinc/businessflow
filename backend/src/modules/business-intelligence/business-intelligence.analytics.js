@@ -85,7 +85,8 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const activeGoals = goals.filter(goal => goal.status === "active");
   const activeExperiments = experiments.filter(experiment => ["planned", "running"].includes(experiment.status));
   const repeatCustomers = [...customerFrequency.values()].filter(count => count > 1).length;
-  const topProduct = [...productFrequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+  const topProductCandidate = [...productFrequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+  const topProduct = topProductCandidate && topProductCandidate[1] > 1 ? topProductCandidate : null;
   const progressGoals = activeGoals.map(goal => {
     const target = Number(goal.target_value), current = Number(goal.current_value);
     return { id: goal.id, title: goal.title, status: goal.status, metric: goal.metric_name,
@@ -141,6 +142,12 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       summary: topProduct[0] + " appears most often in the imported records.",
       evidence: topProduct[1] + " records for this product or service",
       recommendedAction: "Compare its revenue and repeat-customer contribution before prioritising it."
+    });
+    else if (productMapped && productFrequency.size) insights.push({
+      type: "product_mix", priority: "low", title: "No repeat-leading service identified",
+      summary: "No product or service appears more than once in the imported records, so the dataset does not support naming a most frequent service.",
+      evidence: productFrequency.size + " distinct product or service values were found; the highest frequency is " + topProductCandidate[1] + ".",
+      recommendedAction: "Check whether the mapped column contains a service name or a unique job/invoice code. Map the actual service category before comparing service popularity."
     });
   }
   if (activeGoals.length) {
