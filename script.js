@@ -7,10 +7,13 @@ const EXPERIMENTS_KEY = "businessflow_experiments_v1";
 const MEMORY_KEY = "businessflow_memory_v1";
 const LOCAL_GOALS_BACKUP_KEY = "businessflow_goals_local_backup_v1";
 const LOCAL_EXPERIMENTS_BACKUP_KEY = "businessflow_experiments_local_backup_v1";
+const LOCAL_MEMORY_BACKUP_KEY = "businessflow_memory_local_backup_v1";
 let cloudGoalWorkspaceId = null;
 let cloudGoalBusy = false;
 let cloudExperimentWorkspaceId = null;
 let cloudExperimentBusy = false;
+let cloudMemoryWorkspaceId = null;
+let cloudMemoryBusy = false;
 
 const DEFAULT_GOALS = [];
 
@@ -254,9 +257,10 @@ function updateStorageStatus() {
   else {
     const goalsReady = cloudGoalWorkspaceId === cloud.businessId;
     const experimentsReady = cloudExperimentWorkspaceId === cloud.businessId;
-    message = goalsReady && experimentsReady
-      ? "Goals and experiments are saved in your selected cloud workspace."
-      : "Loading goals and experiments from your cloud workspace…";
+    const memoriesReady = cloudMemoryWorkspaceId === cloud.businessId;
+    message = goalsReady && experimentsReady && memoriesReady
+      ? "Goals, experiments, and Business Memory are saved in your selected cloud workspace."
+      : "Loading goals, experiments, and Business Memory from your cloud workspace…";
   }
   document.querySelectorAll("[data-storage-status]").forEach(element => { element.textContent = message; });
 }
@@ -351,8 +355,10 @@ function updateLegacyImportControls() {
   };
   const goalsButton = document.querySelector("#businessflow-import-local-goals");
   const experimentsButton = document.querySelector("#import-local-experiments");
+  const memoryButton = document.querySelector("#import-local-memories");
   if (goalsButton) goalsButton.hidden = !hasRecords(LOCAL_GOALS_BACKUP_KEY, STORAGE_KEY, isValidGoal);
   if (experimentsButton) experimentsButton.hidden = !hasRecords(LOCAL_EXPERIMENTS_BACKUP_KEY, EXPERIMENTS_KEY, isValidExperiment);
+  if (memoryButton) memoryButton.hidden = !hasRecords(LOCAL_MEMORY_BACKUP_KEY, MEMORY_KEY, isValidMemory);
 }
 
 function loadGoals() {
@@ -1137,288 +1143,22 @@ function setupExperimentActions() {
 }
 
 /* ---------- Business Memory ---------- */
-
-function isValidMemory(item) {
-  return Boolean(
-    item &&
-    typeof item.id === "string" &&
-    typeof item.title === "string" &&
-    item.title.trim() &&
-    MEMORY_CATEGORIES.includes(item.category) &&
-    typeof item.date === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(item.date) &&
-    typeof item.content === "string" &&
-    item.content.trim()
-  );
-}
-
-function loadMemories() {
-  memories = loadCollection(MEMORY_KEY)
-    .filter(isValidMemory)
-    .map(item => ({
-      id: item.id,
-      title: item.title.trim().slice(0, 120),
-      category: item.category,
-      date: item.date,
-      content: item.content.trim().slice(0, 4000),
-      createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-    }));
-}
-
-function saveMemories() {
-  return saveCollection(MEMORY_KEY, memories);
-}
-
-function renderMemories() {
-  const container = document.querySelector("#memory-list");
-  const count = document.querySelector("#memory-count");
-  const searchInput = document.querySelector("#memory-search");
-  const query = (searchInput?.value || "").trim().toLowerCase();
-
-  if (count) count.textContent = String(memories.length);
-  if (!container) return;
-
-  const filtered = memories.filter(item => {
-    const searchable = [
-      item.title,
-      item.category,
-      item.content,
-      item.date
-    ].join(" ").toLowerCase();
-
-    return searchable.includes(query);
-  });
-
-  if (filtered.length === 0) {
-    container.innerHTML = query
-      ? '<p class="empty-state">No matching business memory found.</p>'
-      : '<p class="empty-state">No business knowledge saved yet. Add your first note.</p>';
-    return;
-  }
-
-  container.innerHTML = filtered.map(item => {
-    const id = escapeHTML(item.id);
-
-    return `
-      <article class="record-item panel">
-        <div class="record-heading">
-          <div>
-            <h3>${escapeHTML(item.title)}</h3>
-            <span class="count-pill">${escapeHTML(item.category)}</span>
-          </div>
-          <small>${formatDate(item.date)}</small>
-        </div>
-
-        <p>${formatText(item.content)}</p>
-
-        <div class="record-actions">
-          <button class="small-button" type="button"
-            data-memory-action="edit" data-id="${id}">
-            Edit
-          </button>
-          <button class="small-button danger" type="button"
-            data-memory-action="delete" data-id="${id}">
-            Delete
-          </button>
-        </div>
-      </article>
-    `;
-  }).join("");
-}
-
-function setupMemoryForm() {
-  const form = document.querySelector("#memory-form");
-  if (!form) return;
-
-  const dateInput = document.querySelector("#memory-date");
-
-  if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().slice(0, 10);
-  }
-
-  form.addEventListener("submit", event => {
-    event.preventDefault();
-    if (!form.reportValidity()) return;
-
-    const title = document.querySelector("#memory-title").value.trim();
-    const category = document.querySelector("#memory-category").value;
-    const date = document.querySelector("#memory-date").value;
-    const content = document.querySelector("#memory-content").value.trim();
-
-    if (!title || title.length > 120) {
-      showToast("Title must contain 1–120 characters.");
-      return;
-    }
-
-    if (!MEMORY_CATEGORIES.includes(category)) {
-      showToast("Choose a valid memory category.");
-      return;
-    }
-
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      showToast("Choose a valid date.");
-      return;
-    }
-
-    const parsedDate = new Date(date + "T00:00:00");
-    if (
-      Number.isNaN(parsedDate.getTime()) ||
-      parsedDate.toISOString().slice(0, 10) !== date
-    ) {
-      showToast("Choose a valid calendar date.");
-      return;
-    }
-
-    if (!content || content.length > 4000) {
-      showToast("Details must contain 1–4,000 characters.");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    memories.unshift({
-      id: createId(),
-      title,
-      category,
-      date,
-      content,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    if (!saveMemories()) {
-      memories.shift();
-      return;
-    }
-
-    renderMemories();
-    form.reset();
-
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
-
-    showToast("Business memory saved in this browser.");
-  });
-}
-
-function handleMemoryAction(action, id) {
-  const index = memories.findIndex(item => item.id === id);
-  if (index < 0) {
-    showToast("Memory entry not found.");
-    return;
-  }
-
-  const item = memories[index];
-
-  if (action === "delete") {
-    if (!confirm(
-      'Delete "' + item.title +
-      '"? This removes it from this browser only.'
-    )) return;
-
-    const removed = memories.splice(index, 1)[0];
-
-    if (!saveMemories()) {
-      memories.splice(index, 0, removed);
-      renderMemories();
-      return;
-    }
-
-    renderMemories();
-    showToast("Memory entry deleted.");
-    return;
-  }
-
-  if (action !== "edit") return;
-
-  const title = prompt("Memory title:", item.title);
-  if (title === null) return;
-
-  const category = prompt(
-    "Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",
-    item.category
-  );
-  if (category === null) return;
-
-  const date = prompt("Date (YYYY-MM-DD):", item.date);
-  if (date === null) return;
-
-  const content = prompt("Details:", item.content);
-  if (content === null) return;
-
-  const cleanCategory = category.trim();
-
-  if (!title.trim() || title.trim().length > 120) {
-    showToast("Title must contain 1–120 characters.");
-    return;
-  }
-
-  if (!MEMORY_CATEGORIES.includes(cleanCategory)) {
-    showToast("Use one of the listed memory categories.");
-    return;
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-    showToast("Date must use YYYY-MM-DD.");
-    return;
-  }
-
-  const parsedDate = new Date(date.trim() + "T00:00:00");
-  if (
-    Number.isNaN(parsedDate.getTime()) ||
-    parsedDate.toISOString().slice(0, 10) !== date.trim()
-  ) {
-    showToast("Choose a valid calendar date.");
-    return;
-  }
-
-  if (!content.trim() || content.trim().length > 4000) {
-    showToast("Details must contain 1–4,000 characters.");
-    return;
-  }
-
-  const previous = { ...item };
-
-  Object.assign(item, {
-    title: title.trim(),
-    category: cleanCategory,
-    date: date.trim(),
-    content: content.trim(),
-    updatedAt: new Date().toISOString()
-  });
-
-  if (!saveMemories()) {
-    Object.assign(item, previous);
-    return;
-  }
-
-  renderMemories();
-  showToast("Memory entry updated.");
-}
-
-function setupMemoryActions() {
-  document.addEventListener("click", event => {
-    if (!(event.target instanceof Element)) return;
-
-    const button = event.target.closest("[data-memory-action]");
-    if (!button) return;
-
-    handleMemoryAction(
-      button.dataset.memoryAction,
-      button.dataset.id
-    );
-  });
-}
-
-function setupMemorySearch() {
-  const search = document.querySelector("#memory-search");
-  if (!search) return;
-
-  search.addEventListener("input", renderMemories);
-}
-
+const MEMORY_CATEGORY_TO_API={"Decision":"decision","Customer insight":"observation","Lesson learned":"lesson","Process":"business_context","Follow-up":"experiment_result","Other":"preference"};
+const MEMORY_CATEGORY_FROM_API=Object.fromEntries(Object.entries(MEMORY_CATEGORY_TO_API).map(([k,v])=>[v,k]));
+function isValidMemory(x){return Boolean(x&&typeof x.id==="string"&&typeof x.title==="string"&&x.title.trim()&&MEMORY_CATEGORIES.includes(x.category)&&typeof x.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(x.date)&&typeof x.content==="string"&&x.content.trim());}
+function loadMemories(){preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);memories=[];cloudMemoryWorkspaceId=null;updateLegacyImportControls();}
+function saveMemories(){return true;}
+function memoryFromCloud(r){const c=r?.content&&typeof r.content==="object"?r.content:{};const category=MEMORY_CATEGORY_FROM_API[r?.category];if(!r?.id||!category||typeof c.title!=="string"||typeof c.date!=="string"||typeof c.details!=="string")return null;const x={id:r.id,title:c.title,category,date:c.date,content:c.details,createdAt:r.created_at||new Date().toISOString(),updatedAt:r.updated_at||r.created_at||new Date().toISOString()};return isValidMemory(x)?x:null;}
+async function loadCloudMemoriesForWorkspace(businessId){const cloud=window.BusinessFlowCloud?.getState?.();memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateLegacyImportControls();if(!cloud?.signedIn||!cloud.apiConnected||!businessId||cloud.businessId!==businessId){updateStorageStatus();return;}try{preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);const records=await window.BusinessFlowCloud.loadMemories(businessId);const latest=window.BusinessFlowCloud?.getState?.();if(!latest?.signedIn||!latest.apiConnected||latest.businessId!==businessId)return;memories=records.map(memoryFromCloud).filter(Boolean);cloudMemoryWorkspaceId=businessId;renderMemories();updateLegacyImportControls();updateStorageStatus();}catch(e){if(window.BusinessFlowCloud?.getState?.()?.businessId!==businessId)return;console.error("BusinessFlow cloud memory could not load:",e);memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateStorageStatus();showToast("Could not load cloud Business Memory. No browser cache was substituted.");}}
+function renderMemories(){const box=document.querySelector("#memory-list"),count=document.querySelector("#memory-count"),q=(document.querySelector("#memory-search")?.value||"").trim().toLowerCase();if(count)count.textContent=String(memories.length);if(!box)return;const rows=memories.filter(x=>[x.title,x.category,x.content,x.date].join(" ").toLowerCase().includes(q));if(!rows.length){box.innerHTML=q?'<p class="empty-state">No matching business memory found.</p>':'<p class="empty-state">No business knowledge saved in this cloud workspace yet. Add your first note.</p>';return;}box.innerHTML=rows.map(x=>{const id=escapeHTML(x.id);return `<article class="record-item panel"><div class="record-heading"><div><h3>${escapeHTML(x.title)}</h3><span class="count-pill">${escapeHTML(x.category)}</span></div><small>${formatDate(x.date)}</small></div><p>${formatText(x.content)}</p><div class="record-actions"><button class="small-button" type="button" data-memory-action="edit" data-id="${id}">Edit</button><button class="small-button danger" type="button" data-memory-action="delete" data-id="${id}">Delete</button></div></article>`;}).join("");}
+function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();return c?.signedIn&&c.apiConnected&&c.businessId&&c.businessId===cloudMemoryWorkspaceId&&typeof window.BusinessFlowCloud?.createMemory==="function"?c:null;}
+function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
+function memoryPayload(x){return {category:MEMORY_CATEGORY_TO_API[x.category],content:{title:x.title,date:x.date,details:x.content},source:"user"};}
+function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');if(button)button.disabled=true;try{const saved=await window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;if(button)button.disabled=false;}});}
+async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next));if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
+async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await window.BusinessFlowCloud.loadMemories(cloud.businessId),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await window.BusinessFlowCloud.createMemory(cloud.businessId,x);titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
+function setupMemoryActions(){document.querySelector("#import-local-memories")?.addEventListener("click",()=>void importLocalMemoriesToCloud());document.addEventListener("click",e=>{if(!(e.target instanceof Element))return;const b=e.target.closest("[data-memory-action]");if(b)void handleMemoryAction(b.dataset.memoryAction,b.dataset.id);});}
+function setupMemorySearch(){document.querySelector("#memory-search")?.addEventListener("input",renderMemories);}
 /* ---------- Navigation ---------- */
 
 function navigateTo(pageId) {
@@ -1651,6 +1391,7 @@ window.addEventListener("businessflow:workspace-changed", event => {
   const businessId = event.detail?.businessId ?? null;
   void loadCloudGoalsForWorkspace(businessId);
   void loadCloudExperimentsForWorkspace(businessId);
+  void loadCloudMemoriesForWorkspace(businessId);
   void loadBusinessInsights(businessId);
 });
 
