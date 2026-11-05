@@ -63,6 +63,21 @@ test("reports missing data without fabricating metrics", () => {
   assert.equal(result.insights[0].type, "data_needed");
 });
 
+
+test("uses the explicit source currency suffix instead of relabelling USD amounts as workspace currency", () => {
+  const result = buildBusinessInsights({
+    profile: { ...profile, currency_code: "XOF" },
+    imports: [{ id: "currency-1", name: "USD sales", row_count: 1,
+      column_mapping: { Total_Amount_USD: "revenue", Service_Date: "order_date" },
+      rows: [{ Total_Amount_USD: "125.50", Service_Date: "2026-10-01" }] }]
+  });
+  assert.equal(result.metrics.revenueTotal, 125.5);
+  assert.equal(result.metrics.revenueCurrency, "USD");
+  assert.equal(result.metrics.revenueCurrencyFromColumn, true);
+  assert.ok(result.dataQuality.notes.some(note => note.includes("workspace currency is XOF")));
+  assert.equal(result.metrics.monthlyRevenue[0].total, 125.5);
+});
+
 test("does not call a unique job code the most frequent service", () => {
   const result = buildBusinessInsights({
     profile,
