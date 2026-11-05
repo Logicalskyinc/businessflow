@@ -251,9 +251,9 @@ function createId() {
 function updateStorageStatus() {
   const cloud = window.BusinessFlowCloud?.getState?.();
   let message;
-  if (!cloud?.signedIn) message = "Sign in to access your cloud goals and experiments.";
+  if (!cloud?.signedIn) message = "Sign in to access your cloud goals, experiments, and Business Memory.";
   else if (!cloud.apiConnected) message = "Cloud connection unavailable. Changes are paused; existing cloud records are preserved.";
-  else if (!cloud.businessId) message = "Select a business workspace to load cloud goals and experiments.";
+  else if (!cloud.businessId) message = "Select a business workspace to load cloud goals, experiments, and Business Memory.";
   else {
     const goalsReady = cloudGoalWorkspaceId === cloud.businessId;
     const experimentsReady = cloudExperimentWorkspaceId === cloud.businessId;
