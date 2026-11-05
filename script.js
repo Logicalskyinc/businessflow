@@ -1660,11 +1660,49 @@ function renderGreyWorkspaceBrief() {
     '<p class="grey-brief-disclaimer">This briefing uses saved workspace records and rule-based analysis. Recommendations are not completed actions.</p>';
 }
 
+function renderDashboardMetrics(result) {
+  const metrics = result?.metrics || {};
+  const coverage = result?.coverage || {};
+  const records = Number(coverage.recordsAnalysed || 0);
+  const currency = String(metrics.revenueCurrency || result?.business?.currencyCode || "XOF");
+  const format = value => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+
+  document.querySelectorAll('[data-business-metric="revenue"]').forEach(node => {
+    node.textContent = metrics.revenueTotal == null ? "—" : format(metrics.revenueTotal) + " " + currency;
+  });
+  document.querySelectorAll('[data-business-metric-note="revenue"]').forEach(node => {
+    node.textContent = metrics.revenueTotal == null
+      ? "No verified revenue field mapped"
+      : records.toLocaleString() + " imported rows · snapshot";
+  });
+  document.querySelectorAll('[data-business-metric="customers"]').forEach(node => {
+    node.textContent = metrics.customers == null ? "—" : Number(metrics.customers).toLocaleString();
+  });
+  document.querySelectorAll('[data-business-metric-note="customers"]').forEach(node => {
+    node.textContent = metrics.customers == null
+      ? "Map a customer ID, email or name"
+      : Number(metrics.repeatCustomers || 0).toLocaleString() + " repeat customers · imported snapshot";
+  });
+  document.querySelectorAll('[data-business-metric="conversion"]').forEach(node => { node.textContent = "—"; });
+  document.querySelectorAll('[data-business-metric-note="conversion"]').forEach(node => {
+    node.textContent = "Not calculated: conversion events are not mapped";
+  });
+
+  const status = records
+    ? records.toLocaleString() + " imported records analysed. These figures describe the saved dataset, not a live connection."
+    : "No imported records are available for this workspace yet.";
+  ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = status;
+  });
+}
+
 function renderBusinessInsights() {
   const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
   const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
+  renderDashboardMetrics(result);
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
