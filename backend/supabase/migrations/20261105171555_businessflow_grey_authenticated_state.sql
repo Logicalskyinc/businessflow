@@ -157,9 +157,9 @@ end;
 $function$;
 
 -- These RPCs require a verified authenticated JWT. They are not public APIs.
-revoke all on function public.businessflow_set_message_context(uuid, jsonb, uuid) from public, anon;
-revoke all on function public.businessflow_claim_grey_initialization(uuid, uuid, uuid) from public, anon;
-revoke all on function public.businessflow_complete_grey_initialization(uuid, uuid, text, uuid) from public, anon;
+revoke all on function public.businessflow_set_message_context(uuid, jsonb, uuid) from public, anon, service_role;
+revoke all on function public.businessflow_claim_grey_initialization(uuid, uuid, uuid) from public, anon, service_role;
+revoke all on function public.businessflow_complete_grey_initialization(uuid, uuid, text, uuid) from public, anon, service_role;
 
 grant execute on function public.businessflow_set_message_context(uuid, jsonb, uuid) to authenticated;
 grant execute on function public.businessflow_claim_grey_initialization(uuid, uuid, uuid) to authenticated;
