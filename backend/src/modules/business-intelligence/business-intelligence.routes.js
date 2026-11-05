@@ -6,7 +6,7 @@ import { buildBusinessInsights } from "./business-intelligence.analytics.js";
 export const businessIntelligenceRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const goalStatuses = ["active", "paused", "completed", "archived"];
-const experimentStatuses = ["draft", "planned", "running", "completed", "cancelled"];
+const experimentStatuses = ["draft", "planned", "running", "review", "completed", "cancelled"];
 const memoryCategories = ["business_context", "decision", "observation", "preference", "lesson", "experiment_result"];
 const singularResource = { goals: "goal", experiments: "experiment", memory: "memory" };
 
@@ -264,6 +264,9 @@ function validateExperiment(input, partial = false) {
   return record(input, {
     title: v => text(v, 1, 200), hypothesis: v => nullableText(v, 4000),
     success_metric: v => nullableText(v, 500), status: v => enumeration(v, experimentStatuses),
+    baseline_value: v => v === null ? pass(null) : numeric(v),
+    result_value: v => v === null ? pass(null) : numeric(v),
+    learning_notes: v => nullableText(v, 2000),
     result_summary: v => nullableText(v, 8000), started_at: timestamp(v), completed_at: timestamp(v)
   }, ["title"], partial, { status: "draft" });
 }
