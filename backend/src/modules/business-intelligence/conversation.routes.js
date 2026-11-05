@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { GreyIntegrationError, sendMessageToGrey } from "./grey-client.js";
+import { buildBusinessInsights } from "./business-intelligence.analytics.js";
 
 export const conversationRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -121,6 +122,23 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
       if (!workspaceContext || typeof workspaceContext !== "object") {
         throw new GreyIntegrationError("Business workspace context could not be saved.", 503, true);
       }
+
+      if (/\b(analy[sz](?:e|es|ed|ing|is)|based on (?:my )?(?:dataset|data)|analyse? (?:my )?(?:dataset|data))\b/i.test(userMessage.content)) {
+        const answer = buildDatasetAnalysisReply(workspaceContext);
+        const { data: assistantMessage, error: assistantError } = await req.supabase.rpc("businessflow_append_assistant_message", {
+          p_conversation_id: conversationId,
+          p_reply_to_message_id: userMessage.id,
+          p_content: answer,
+          p_assistant_mode: "grey"
+        });
+        if (assistantError) throw assistantError;
+        const nextTitle = conversation.title === "New conversation" ? userMessage.content.slice(0, 80) : conversation.title;
+        const { error: titleError } = await req.supabase.from("businessflow_conversations")
+          .update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", conversationId);
+        if (titleError) throw titleError;
+        return res.status(201).json({ user_message: userMessage, assistant_message: assistantMessage, replayed: false });
+      }
+
       let greyConversationId = conversation.grey_conversation_id;
       // The first Grey request must always be replayed with the same payload:
       // its original request omitted conversation_id because Grey created it.
@@ -252,13 +270,58 @@ conversationRouter.post("/:conversationId/messages", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+
+function buildDatasetAnalysisReply(context) {
+  const analysis = context.analysis || {};
+  const coverage = analysis.coverage || {};
+  const metrics = analysis.metrics || {};
+  const business = context.profile || {};
+  const currency = metrics.revenueCurrency || business.currency_code || "XOF";
+  const lines = [
+    "Here is the evidence-based analysis of " + (business.name || "your business") + ".",
+    "",
+    "DATA COVERAGE",
+    Number(coverage.recordsAnalysed || 0).toLocaleString() + " imported records across " +
+      Number(coverage.datasetCount || 0).toLocaleString() + " dataset(s). This is an imported snapshot, not a live feed."
+  ];
+  if (metrics.revenueTotal !== null && metrics.revenueTotal !== undefined) {
+    lines.push("", "REVENUE", Number(metrics.revenueTotal).toLocaleString("en-US", { maximumFractionDigits: 2 }) +
+      " " + currency + " across " + Number(metrics.revenueRecords || 0).toLocaleString() + " readable revenue records.");
+    if (metrics.averageOrderValue !== null && metrics.averageOrderValue !== undefined) {
+      lines.push("Average recorded revenue per row: " + Number(metrics.averageOrderValue).toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + currency + ".");
+    }
+  } else {
+    lines.push("", "REVENUE", "No verified revenue total is available because a revenue field is not mapped or contains no readable values.");
+  }
+  lines.push("", "CUSTOMERS", metrics.customers === null || metrics.customers === undefined
+    ? "Customer count is unavailable because no customer identifier is mapped."
+    : Number(metrics.customers).toLocaleString() + " distinct customers; " + Number(metrics.repeatCustomers || 0).toLocaleString() + " appear more than once.");
+  lines.push("", "SERVICE MIX", metrics.topProduct
+    ? metrics.topProduct.name + " is the most frequent mapped service/product (" + metrics.topProduct.records + " records)."
+    : "No leading service can be identified reliably. Check that the mapped field contains a service category rather than a unique job or invoice code.");
+  if (analysis.dataQuality && Array.isArray(analysis.dataQuality.notes) && analysis.dataQuality.notes.length) {
+    lines.push("", "DATA QUALITY");
+    for (const note of analysis.dataQuality.notes) lines.push("• " + note);
+  }
+  const findings = (analysis.insights || []).filter(item => item.type !== "coverage");
+  if (findings.length) {
+    lines.push("", "FINDINGS");
+    for (const item of findings.slice(0, 7)) {
+      lines.push("• " + item.title + ": " + item.summary);
+      if (item.recommendedAction) lines.push("  Next step: " + item.recommendedAction);
+    }
+  }
+  lines.push("", "LIMITATIONS", "These results describe imported records only. They do not establish profit, cash collected, conversion rate, or current live performance unless those fields are present and correctly mapped. Verify column mappings before making financial decisions.");
+  return lines.join("\n");
+}
+
 async function buildWorkspaceContext(supabase, businessId) {
   const [profileResult, goalsResult, experimentsResult, memoryResult, importsResult, activityResult] = await Promise.all([
-    supabase.from("businessflow_profiles").select("name,primary_goal,business_description").eq("id", businessId).maybeSingle(),
+    supabase.from("businessflow_profiles").select("id,name,primary_goal,business_description,currency_code").eq("id", businessId).maybeSingle(),
     supabase.from("businessflow_goals").select("title,status,current_value,target_value,metric_name").eq("business_id", businessId).limit(30),
     supabase.from("businessflow_experiments").select("title,status,success_metric,result_summary").eq("business_id", businessId).limit(20),
     supabase.from("businessflow_memory").select("category,content").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12),
-    supabase.from("businessflow_imports").select("name,source_filename,columns,column_mapping,row_count,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(10),
+    supabase.from("businessflow_imports").select("id,name,source_filename,columns,column_mapping,rows,row_count,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(10),
     supabase.from("businessflow_activity").select("event_type,title,message,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(12)
   ]);
   for (const result of [profileResult, goalsResult, experimentsResult, memoryResult, importsResult, activityResult]) {
@@ -269,6 +332,13 @@ async function buildWorkspaceContext(supabase, businessId) {
   const context = {
     source: "BusinessFlow workspace records",
     profile: profileResult.data,
+    analysis: buildBusinessInsights({
+      profile: { id: businessId, ...profileResult.data },
+      imports: importsResult.data ?? [],
+      goals: goalsResult.data ?? [],
+      experiments: experimentsResult.data ?? [],
+      memory: memoryResult.data ?? []
+    }),
     goals: goalsResult.data ?? [],
     experiments: experimentsResult.data ?? [],
     importedDatasets: (importsResult.data ?? []).map(item => ({
