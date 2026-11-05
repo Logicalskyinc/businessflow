@@ -6,7 +6,7 @@
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
   <meta name="theme-color" content="#f6f8fc">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=24">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -259,10 +259,10 @@
             <article class="panel">
               <h2>Revenue trend</h2>
               <p class="muted">Connect a revenue source to see your actual trend.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No revenue records connected yet. Your chart will appear here when a real data source is connected.</p>
+              <div class="chart chart-empty" id="analytics-revenue-chart" role="status" aria-live="polite">
+                <p class="empty-state">A verified date and amount mapping is required to show a trend.</p>
               </div>
-              <p class="chart-disclaimer">No live revenue source connected.</p>
+              <p class="chart-disclaimer" id="analytics-revenue-chart-note">Imported snapshot only. Not a live feed.</p>
             </article>
 
             <article class="panel analytics-goal-panel">
@@ -293,14 +293,14 @@
             <p class="subtitle">Test business ideas and record what you learn.</p>
           </div>
           <div class="notice">
-            <strong>LOCAL STORAGE</strong>
-            <span>Experiments are saved in this browser only. They are not synced across devices or connected to live business data.</span>
+            <strong>WORKSPACE STORAGE</strong>
+            <span>When a business workspace is connected, experiments are saved to its cloud database. Browser-only records remain backed up until you choose to import them.</span>
           </div>
 
           <article class="panel">
             <div class="panel-heading">
               <div><h2>Your experiments</h2><p class="muted">Track a hypothesis, baseline, outcome, and what you learned.</p></div>
-              <span class="count-pill" id="experiment-count">0</span>
+              <div class="record-heading-actions"><span class="count-pill" id="experiment-count">0</span><button type="button" class="small-button" id="import-local-experiments" hidden>Import browser experiments</button></div>
             </div>
             <div id="experiment-list" class="record-list">
               <p class="empty-state">Loading experiments…</p>
@@ -324,12 +324,14 @@
               <label class="form-label">Test result (optional)
                 <input id="experiment-result" name="result" type="number" min="0" step="any" placeholder="Leave blank until measured">
               </label>
+              <label class="form-label full-span">Success measure (optional)
+                <input id="experiment-success-metric" name="success_metric" maxlength="500" placeholder="e.g. Repeat bookings within 30 days">
+              </label>
               <label class="form-label full-span">Status
                 <select id="experiment-status" name="status" required>
-                  <option value="planned">Planned</option>
-                  <option value="running">Running</option>
-                  <option value="review">Review</option>
-                  <option value="completed">Completed</option>
+                  <option value="planned">Planned</option><option value="running">Running</option>
+                  <option value="review">Review</option><option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
               </label>
               <label class="form-label full-span">Learning notes (optional)
