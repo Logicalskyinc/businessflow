@@ -26,8 +26,6 @@
 
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
-        <a href="#account" class="nav-link" data-page="account"><span>↗</span> Account</a>
-        <a href="#overview" class="nav-link" data-page="overview"><span>✳</span> Intelligence</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
@@ -62,7 +60,13 @@
       <header class="topbar">
         <button type="button" class="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
         <div class="breadcrumb">Workspace / <strong id="current-section">Overview</strong></div>
-        <span class="prototype-badge">BUSINESS INTELLIGENCE</span>
+        <div class="topbar-actions" aria-label="Workspace controls">
+          <button type="button" class="topbar-icon-button" id="topbar-notifications" aria-label="View notifications" title="Notifications">
+            <span aria-hidden="true">♧</span>
+            <span class="topbar-notification-count" id="topbar-notification-count" hidden>0</span>
+          </button>
+          <button type="button" class="topbar-icon-button" id="topbar-settings" aria-label="Open settings" title="Settings">⚙</button>
+        </div>
       </header>
 
       <div class="page-container">
@@ -625,7 +629,7 @@
     <a href="#analytics" class="mobile-tab" data-page="analytics"><span aria-hidden="true">▥</span><small>Analytics</small></a>
     <a href="#goals" class="mobile-tab" data-page="goals"><span aria-hidden="true">◎</span><small>Goals</small></a>
     <a href="#experiments" class="mobile-tab" data-page="experiments"><span aria-hidden="true">◇</span><small>Tests</small></a>
-    <a href="#account" class="mobile-tab" data-page="account"><span aria-hidden="true">◉</span><small>Account</small></a>
+    <a href="#settings" class="mobile-tab" data-page="settings"><span aria-hidden="true">⚙</span><small>Settings</small></a>
   </nav>
   <div class="bf-route-progress" id="bf-route-progress" aria-hidden="true"><span></span></div>
 
