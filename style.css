@@ -761,3 +761,26 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
   .overview-welcome .welcome-actions { width: 100%; }
   .overview-welcome .welcome-actions button { flex: 1; min-width: 0; }
 }
+
+
+/* BusinessFlow mobile app refinement */
+#businessflow-intelligence-panel { scroll-margin-top: 82px; }
+@media (max-width: 760px) {
+  html, body { max-width: 100%; overflow-x: clip; }
+  .page-container { padding-right: 12px; padding-left: 12px; }
+  .topbar { gap: 10px; }
+  .menu-button { width: 42px; height: 42px; border-radius: 12px; }
+  .mobile-tabbar { min-height: calc(var(--bf-nav-height) + env(safe-area-inset-bottom)); }
+  .mobile-tab { min-height: 48px; gap: 4px; font-size: 20px; }
+  .mobile-tab small { font-size: 10px; font-weight: 700; }
+  .mobile-tab.active { color: var(--blue); background: #edf2ff; }
+  .bf-chat-panel { scroll-margin-top: 76px; }
+  .bf-chat-layout, .bf-chat-main, .bf-chat-history { min-width: 0; }
+  .bf-chat-composer textarea,
+  .form-label input, .form-label select, .form-label textarea,
+  .period-control select { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .mobile-tab small { font-size: 9px; }
+  .page-container { padding-right: 10px; padding-left: 10px; }
+}
