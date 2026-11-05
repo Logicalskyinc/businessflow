@@ -65,7 +65,13 @@ function setSession(next) {
   if (signUp) signUp.hidden = signedIn;
   if (signOut) signOut.hidden = !signedIn;
   const sidebarSignOut = document.querySelector("#sidebar-signout");
+  const settingsAccountStatus = document.querySelector("#settings-account-status");
   if (sidebarSignOut) sidebarSignOut.hidden = !signedIn;
+  if (settingsAccountStatus) {
+    settingsAccountStatus.textContent = signedIn
+      ? "Signed in as " + (session.user.email ?? "your account") + "."
+      : "You are not signed in on this device.";
+  }
   if (email) email.disabled = signedIn;
   if (password) password.disabled = signedIn;
   if (workspaceSelect) workspaceSelect.disabled = !(signedIn && apiConnected);
