@@ -1578,15 +1578,27 @@ function updateWorkspaceIdentity(state = {}) {
   const caption = document.querySelector("#workspace-profile-caption");
   const syncLabel = document.querySelector("#workspace-sync-label");
   const greeting = document.querySelector("#overview-greeting");
+  const workspaceContext = document.querySelector("#overview-workspace-context");
   const manageButton = document.querySelector("#manage-workspace-button");
   if (profileName) profileName.textContent = name || (signedIn ? "Choose a workspace" : "Your business");
   if (avatar) avatar.textContent = name ? name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() : "BF";
   if (caption) caption.textContent = name ? "Active business workspace" : "Business workspace";
   if (syncLabel) syncLabel.textContent = !signedIn ? "Sign in to sync your workspace" : !connected ? "Connection unavailable" : name ? "Connected · " + name : "Connected · Select a workspace";
   if (greeting) {
-    const hour = new Date().getHours();
-    const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-    greeting.textContent = name ? salutation + ", " + name + "." : salutation + ".";
+    const hour = Number(new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Abidjan",
+      hour: "2-digit",
+      hourCycle: "h23"
+    }).format(new Date()));
+    const salutation = hour >= 5 && hour < 12 ? "Good morning"
+      : hour >= 12 && hour < 17 ? "Good afternoon"
+      : hour >= 17 && hour < 21 ? "Good evening"
+      : "Welcome back";
+    greeting.textContent = name ? salutation + ", " + name + "." : salutation + " to BusinessFlow.";
+  }
+  if (workspaceContext) {
+    workspaceContext.textContent = name ? "Business workspace · XOF"
+      : signedIn ? "Choose a business workspace" : "Business workspace · XOF";
   }
   if (manageButton) manageButton.textContent = name ? "Manage workspace" : "Set up workspace";
   document.body.classList.toggle("workspace-ready", Boolean(signedIn && connected && state.businessId));
