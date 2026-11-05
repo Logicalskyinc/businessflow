@@ -1,5 +1,5 @@
 
-/* BusinessFlow workspace UI. Cloud goals use the authenticated API; experiments and business memory remain browser-local for now. */
+/* BusinessFlow workspace UI. Goals and experiments are cloud-first; browser storage is limited to cache and legacy migration backups. */
 "use strict";
 
 const STORAGE_KEY = "businessflow_goals_v1";
@@ -24,6 +24,7 @@ const MEMORY_CATEGORIES = [
 ];
 
 const EXPERIMENT_STATUSES = [
+  "draft",
   "planned",
   "running",
   "review",
@@ -251,17 +252,19 @@ function createId() {
 }
 
 function updateStorageStatus() {
-  document.querySelectorAll("[data-storage-status]").forEach(element => {
-    const cloud = window.BusinessFlowCloud?.getState?.();
-    const goalsInCloud = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId);
-    const experimentsInCloud = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudExperimentWorkspaceId);
-    element.textContent = goalsInCloud && experimentsInCloud
-      ? "Goals and experiments saved to the selected cloud workspace"
-      : goalsInCloud ? "Goals synced to cloud · Experiments saved in this browser"
-      : experimentsInCloud ? "Experiments synced to cloud · Goals saved in this browser"
-      : storageAvailable ? "Saved locally in this browser · Not synced across devices"
-      : "Browser storage unavailable · Changes may not persist";
-  });
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  let message;
+  if (!cloud?.signedIn) message = "Sign in to access your cloud goals and experiments.";
+  else if (!cloud.apiConnected) message = "Cloud connection unavailable. Changes are paused; existing cloud records are preserved.";
+  else if (!cloud.businessId) message = "Select a business workspace to load cloud goals and experiments.";
+  else {
+    const goalsReady = cloudGoalWorkspaceId === cloud.businessId;
+    const experimentsReady = cloudExperimentWorkspaceId === cloud.businessId;
+    message = goalsReady && experimentsReady
+      ? "Goals and experiments are saved in your selected cloud workspace."
+      : "Loading goals and experiments from your cloud workspace…";
+  }
+  document.querySelectorAll("[data-storage-status]").forEach(element => { element.textContent = message; });
 }
 
 function saveCollection(key, collection) {
@@ -334,36 +337,33 @@ function isValidGoal(goal) {
   );
 }
 
-function loadGoals() {
+function preserveLegacyBackup(sourceKey, backupKey) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (saved === null) {
-      goals = [];
-      saveGoals();
-      return;
+    if (localStorage.getItem(backupKey) === null) {
+      const snapshot = localStorage.getItem(sourceKey);
+      if (snapshot !== null) localStorage.setItem(backupKey, snapshot);
     }
+  } catch (error) { console.warn("Could not preserve legacy BusinessFlow data:", error); }
+}
 
-    const parsed = JSON.parse(saved);
+function updateLegacyImportControls() {
+  const hasRecords = (backupKey, sourceKey, validator) => {
+    try {
+      const raw = localStorage.getItem(backupKey) ?? localStorage.getItem(sourceKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) && parsed.some(validator);
+    } catch { return false; }
+  };
+  const goalsButton = document.querySelector("#businessflow-import-local-goals");
+  const experimentsButton = document.querySelector("#import-local-experiments");
+  if (goalsButton) goalsButton.hidden = !hasRecords(LOCAL_GOALS_BACKUP_KEY, STORAGE_KEY, isValidGoal);
+  if (experimentsButton) experimentsButton.hidden = !hasRecords(LOCAL_EXPERIMENTS_BACKUP_KEY, EXPERIMENTS_KEY, isValidExperiment);
+}
 
-    if (!Array.isArray(parsed)) {
-      throw new Error("Saved goals must be an array.");
-    }
-
-    goals = parsed.filter(isValidGoal).map(goal => ({
-      id: goal.id,
-      title: goal.title.trim().slice(0, 120),
-      current: Number(goal.current),
-      target: Number(goal.target),
-      unit: typeof goal.unit === "string"
-        ? goal.unit.slice(0, 40)
-        : "units"
-    }));
-  } catch (error) {
-    storageAvailable = false;
-    goals = DEFAULT_GOALS.map(goal => ({ ...goal }));
-    console.error("BusinessFlow could not load goals:", error);
-  }
+function loadGoals() {
+  preserveLegacyBackup(STORAGE_KEY, LOCAL_GOALS_BACKUP_KEY);
+  goals = [];
+  updateLegacyImportControls();
 }
 
 function getProgress(goal) {
@@ -525,11 +525,15 @@ async function createGoal(title, current, target, unit) {
   }
 
   const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId) {
+    showToast("Connect and select a cloud workspace before saving a goal. No browser-only goal was created.");
+    return false;
+  }
+  if (cloudGoalWorkspaceId !== cloud.businessId) {
+    showToast("Cloud goals are still loading for this workspace. Try again in a moment.");
+    return false;
+  }
   if (cloud?.signedIn && cloud.apiConnected) {
-    if (!cloud.businessId) {
-      showToast("Create or select a business workspace before saving a cloud goal.");
-      return false;
-    }
     if (cloudGoalBusy) return false;
     cloudGoalBusy = true;
     try {
@@ -553,18 +557,7 @@ async function createGoal(title, current, target, unit) {
     }
   }
 
-  goals.push({
-    id: createId(), title: cleanTitle, current: currentValue,
-    target: targetValue, unit: cleanUnit || "units"
-  });
-  if (!saveGoals()) {
-    goals.pop();
-    return false;
-  }
-  renderGoals();
-  recordActivity("goal_created", "Goal created", cleanTitle, goals[goals.length - 1]?.id || "");
-  showToast("Goal saved in this browser. Cloud sync is not connected.");
-  return true;
+  return false;
 }
 
 async function handleGoalAction(action, id) {
@@ -572,6 +565,13 @@ async function handleGoalAction(action, id) {
 
   if (!goal) {
     showToast("Goal not found. Refresh and try again.");
+    return;
+  }
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud.apiConnected || !cloud.businessId ||
+      cloud.businessId !== cloudGoalWorkspaceId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    showToast("This goal is not ready for cloud editing. Load or import it into the selected workspace first.");
     return;
   }
 
@@ -592,11 +592,7 @@ async function handleGoalAction(action, id) {
     }
     const index = goals.findIndex(item => item.id === id);
     const removed = goals.splice(index, 1)[0];
-    if (!saveGoals()) {
-      goals.splice(index, 0, removed);
-      renderGoals();
-      return;
-    }
+    saveGoals();
     renderGoals();
     recordActivity("goal_deleted", "Goal deleted", goal.title, id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Goal deleted." : "Goal deleted from this browser.");
@@ -631,10 +627,7 @@ async function handleGoalAction(action, id) {
         return;
       }
     }
-    if (!saveGoals()) {
-      goal.current = previous;
-      return;
-    }
+    saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal progress updated", goal.title + ": " + value + " " + (goal.unit || "units"), id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Progress updated in the cloud." : "Progress updated locally.");
@@ -688,10 +681,7 @@ async function handleGoalAction(action, id) {
         return;
       }
     }
-    if (!saveGoals()) {
-      Object.assign(goal, previous);
-      return;
-    }
+    saveGoals();
     renderGoals();
     recordActivity("goal_updated", "Goal details updated", goal.title, id);
     showToast(cloud?.signedIn && cloud.apiConnected ? "Goal updated in the cloud." : "Goal updated locally.");
@@ -772,21 +762,9 @@ function isValidExperiment(item) {
 }
 
 function loadExperiments() {
-  experiments = loadCollection(EXPERIMENTS_KEY)
-    .filter(isValidExperiment)
-    .map(item => ({
-      id: item.id,
-      title: item.title.trim().slice(0, 120),
-      hypothesis: item.hypothesis.trim().slice(0, 1000),
-      baseline: item.baseline === null || item.baseline === undefined ? null : Number(item.baseline),
-      result: item.result === null || item.result === undefined
-        ? null
-        : Number(item.result),
-      status: item.status,
-      notes: String(item.notes ?? "").slice(0, 2000),
-      createdAt: item.createdAt || new Date().toISOString(),
-      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-    }));
+  preserveLegacyBackup(EXPERIMENTS_KEY, LOCAL_EXPERIMENTS_BACKUP_KEY);
+  experiments = [];
+  updateLegacyImportControls();
 }
 
 function saveExperiments() {
@@ -803,10 +781,8 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     return;
   }
   try {
-    if (!localStorage.getItem(LOCAL_EXPERIMENTS_BACKUP_KEY)) {
-      const snapshot = localStorage.getItem(EXPERIMENTS_KEY);
-      if (snapshot !== null) localStorage.setItem(LOCAL_EXPERIMENTS_BACKUP_KEY, snapshot);
-    }
+    preserveLegacyBackup(EXPERIMENTS_KEY, LOCAL_EXPERIMENTS_BACKUP_KEY);
+    updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
     if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
     experiments = records.filter(record =>
@@ -981,7 +957,7 @@ function setupExperimentForm() {
   const cancelButton = document.querySelector("#experiment-cancel-edit");
   cancelButton?.addEventListener("click", cancelExperimentEdit);
 
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
 
@@ -1042,7 +1018,11 @@ function setupExperimentForm() {
     const cloudReady = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId &&
       cloud.businessId === cloudExperimentWorkspaceId &&
       typeof window.BusinessFlowCloud?.createExperiment === "function");
-    if (cloudReady && cloudExperimentBusy) return;
+    if (!cloudReady) {
+      showToast("Connect and select a cloud workspace before saving an experiment. No browser-only experiment was created.");
+      return;
+    }
+    if (cloudExperimentBusy) return;
     if (cloudReady) cloudExperimentBusy = true;
 
     if (editingExperimentId !== null) {
@@ -1063,7 +1043,7 @@ function setupExperimentForm() {
         Object.assign(item, previous); showToast("Cloud update failed: " + error.message); return;
       } finally { if (cloudReady) cloudExperimentBusy = false; }
       Object.assign(item, next);
-      if (!saveExperiments()) { Object.assign(item, previous); return; }
+      saveExperiments();
       renderExperiments(); cancelExperimentEdit();
       recordActivity("experiment_updated", "Experiment updated", title + " · " + status, item.id);
       showToast(cloudReady ? "Experiment updated in the cloud workspace." : "Experiment updated in this browser.");
@@ -1086,14 +1066,14 @@ function setupExperimentForm() {
       finally { cloudExperimentBusy = false; }
     }
     experiments.unshift(newItem);
-    if (!saveExperiments()) { experiments.shift(); return; }
+    saveExperiments();
     renderExperiments(); form.reset();
     recordActivity("experiment_created", "Experiment created", title + " · " + status, newItem.id);
     showToast(cloudReady ? "Experiment saved to your cloud workspace." : "Experiment saved in this browser. Cloud sync is not connected.");
   });
 }
 
-function handleExperimentAction(action, id) {
+async function handleExperimentAction(action, id) {
   const index = experiments.findIndex(item => item.id === id);
   if (index < 0) {
     showToast("Experiment not found.");
@@ -1101,21 +1081,27 @@ function handleExperimentAction(action, id) {
   }
 
   const item = experiments[index];
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  const cloudReady = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId &&
+    cloud.businessId === cloudExperimentWorkspaceId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id));
+  if (!cloudReady) {
+    showToast("This experiment is not ready for cloud editing. Load or import it into the selected workspace first.");
+    return;
+  }
 
   if (action === "delete") {
     if (!confirm(
       'Delete "' + item.title +
-      '"? This removes it from this browser only.'
+      '" from the selected cloud workspace?'
     )) return;
 
-    const cloud = window.BusinessFlowCloud?.getState?.();
-    const cloudReady = Boolean(cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudExperimentWorkspaceId && /^[0-9a-f-]{36}$/i.test(id));
     if (cloudReady) {
       try { await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id); }
       catch (error) { showToast("Cloud delete failed: " + error.message); return; }
     }
     const removed = experiments.splice(index, 1)[0];
-    if (!saveExperiments()) { experiments.splice(index, 0, removed); renderExperiments(); return; }
+    saveExperiments();
     if (editingExperimentId === id) cancelExperimentEdit();
     renderExperiments(); recordActivity("experiment_deleted", "Experiment deleted", item.title, id);
     showToast(cloudReady ? "Experiment deleted from the cloud workspace." : "Experiment deleted from this browser.");
@@ -1146,6 +1132,9 @@ function handleExperimentAction(action, id) {
 }
 
 function setupExperimentActions() {
+  document.querySelector("#import-local-experiments")?.addEventListener("click", () => {
+    void importLocalExperimentsToCloud();
+  });
   document.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;
 
@@ -1570,10 +1559,8 @@ async function loadCloudGoalsForWorkspace(businessId) {
   }
 
   try {
-    if (!localStorage.getItem(LOCAL_GOALS_BACKUP_KEY)) {
-      const localSnapshot = localStorage.getItem(STORAGE_KEY);
-      if (localSnapshot !== null) localStorage.setItem(LOCAL_GOALS_BACKUP_KEY, localSnapshot);
-    }
+    preserveLegacyBackup(STORAGE_KEY, LOCAL_GOALS_BACKUP_KEY);
+    updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadGoals(businessId);
     goals = records.filter(record =>
       record && typeof record.id === "string" &&
@@ -1801,12 +1788,52 @@ function renderDashboardMetrics(result) {
   });
 }
 
+function renderAnalyticsRevenueTrend(result) {
+  const selectors = ["#analytics-revenue-chart", "#overview-revenue-chart"];
+  const metrics = result?.metrics || {};
+  const points = Array.isArray(metrics.monthlyRevenue)
+    ? metrics.monthlyRevenue.filter(point =>
+        point && /^\\d{4}-\\d{2}$/.test(String(point.month)) &&
+        Number.isFinite(Number(point.total)) && Number(point.total) >= 0)
+    : [];
+  selectors.forEach(selector => {
+    const root = document.querySelector(selector);
+    if (!root) return;
+    root.classList.remove("chart-empty");
+    if (points.length < 2) {
+      root.classList.add("chart-empty");
+      root.innerHTML = '<p class="empty-state">A verified date and revenue mapping across at least two months is required to show a trend.</p>';
+      return;
+    }
+    const maximum = Math.max(...points.map(point => Number(point.total)), 0);
+    const rows = points.map(point => {
+      const date = new Date(String(point.month) + "-01T00:00:00");
+      const label = Number.isNaN(date.getTime()) ? String(point.month)
+        : date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+      const total = Number(point.total);
+      const width = maximum > 0 ? Math.max(1, Math.round(total / maximum * 100)) : 0;
+      const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(total);
+      return '<div class="revenue-trend-row"><div class="revenue-trend-label"><span>' +
+        escapeHTML(label) + '</span><strong>' + escapeHTML(formatted) + ' ' +
+        escapeHTML(metrics.revenueCurrency || result?.business?.currencyCode || "XOF") +
+        '</strong></div><div class="revenue-trend-track" role="img" aria-label="' +
+        escapeHTML(label + ": " + formatted) + '"><span style="width:' + width + '%"></span></div></div>';
+    }).join("");
+    root.innerHTML = '<div class="revenue-trend-list">' + rows + '</div>';
+  });
+  const note = document.querySelector("#analytics-revenue-chart-note");
+  if (note) note.textContent = points.length >= 2
+    ? "Monthly totals calculated from saved imported records. This is not a live feed."
+    : "Imported snapshot only. A trend requires verified date and revenue mappings.";
+}
+
 function renderBusinessInsights() {
   const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
   const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
   renderDashboardMetrics(result);
+  renderAnalyticsRevenueTrend(result);
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
