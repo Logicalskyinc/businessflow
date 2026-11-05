@@ -284,6 +284,14 @@ function buildDatasetAnalysisReply(context) {
     Number(coverage.recordsAnalysed || 0).toLocaleString() + " imported records across " +
       Number(coverage.datasetCount || 0).toLocaleString() + " dataset(s). This is an imported snapshot, not a live feed."
   ];
+  lines.push("", "BUSINESS OBJECTIVE",
+    business.primary_goal
+      ? String(business.primary_goal) + " (the onboarding objective; this is separate from a saved, tracked goal)."
+      : "No primary business objective has been recorded.");
+  lines.push("", "SAVED GOALS",
+    Number(coverage.goalsCount || 0).toLocaleString() + " saved goal(s), including " +
+    Number(coverage.activeGoalsCount || 0).toLocaleString() + " active goal(s).");
+
   if (metrics.revenueTotal !== null && metrics.revenueTotal !== undefined) {
     lines.push("", "REVENUE", Number(metrics.revenueTotal).toLocaleString("en-US", { maximumFractionDigits: 2 }) +
       " " + currency + " across " + Number(metrics.revenueRecords || 0).toLocaleString() + " readable revenue records.");
