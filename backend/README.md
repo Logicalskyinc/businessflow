@@ -47,9 +47,21 @@ Copy `.env.example` to your local environment and set:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY` (the project's publishable/anon key, never a service-role key)
-- optionally `PORT` and `NODE_ENV`
+- `GREY_API_URL`
+- `GREY_BUSINESSFLOW_JWT_SECRET` (at least 32 bytes; server-only and must match Grey's integration secret)
+- optionally `PORT`, `NODE_ENV`, and `BUSINESSFLOW_ALLOWED_ORIGINS`
+
+Grey conversation state uses the authenticated user's Supabase JWT with owner-checked database RPCs. The BusinessFlow API does not need a Supabase service-role key for conversation persistence. Never expose a service-role key in the frontend.
 
 The deployed backend will need the same values in its hosting provider's secret/environment settings. No production hosting variables have been changed by this commit.
+
+## Grey conversation persistence
+
+Conversation history and messages are stored in `businessflow_conversations` and `businessflow_messages`. The API verifies the user's Supabase bearer token, then uses that request-scoped Supabase client for conversation reads, user-message inserts, and Grey state RPC calls.
+
+The Grey state migration grants execution of three narrowly scoped RPCs to the `authenticated` role. Each function is `SECURITY DEFINER`, uses an empty search path with schema-qualified objects, verifies `auth.uid()` matches the supplied user ID, and checks conversation creator and business owner identity before writing. The functions are not executable by `anon` or `PUBLIC`. This avoids a service-role database client for conversation state.
+
+Apply the new `backend/supabase/migrations/20261105171555_businessflow_grey_authenticated_state.sql` migration before deploying the matching backend code. The migration is additive; existing conversations and messages are retained. Do not deploy only the migration or only the backend code because the old backend expects the previous service-role RPC path.
 
 ## Run locally
 
