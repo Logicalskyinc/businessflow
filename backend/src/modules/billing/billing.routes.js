@@ -190,7 +190,8 @@ billingRouter.get("/entitlements", async (request, response, next) => {
   } catch (error) { return respondError(error, response, next); }
 });
 
-export async function handleStripeWebhook(request, response) {
+export function createStripeWebhookHandler({ getStripe, getBillingClient, logger = console }) {
+  return async function handleStripeWebhook(request, response) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) return response.status(503).json({ error: "webhook_not_configured" });
   if (!Buffer.isBuffer(request.body)) return response.status(400).json({ error: "raw_body_required" });
@@ -203,8 +204,9 @@ export async function handleStripeWebhook(request, response) {
   }
 
   const object = event.data?.object;
+  let db;
   try {
-    const db = getBillingClient();
+    db = getBillingClient();
     let subscription = null;
     if (event.type === "checkout.session.completed" && object.subscription) {
       subscription = await getStripe().subscriptions.retrieve(object.subscription);
@@ -224,16 +226,24 @@ export async function handleStripeWebhook(request, response) {
     if (error) throw error;
     return response.json({ received: true });
   } catch (error) {
-    try {
-      await db.rpc("billing_mark_stripe_event_failed", {
-        p_event_id: event.id,
-        p_event_type: event.type,
-        p_livemode: event.livemode,
-        p_object_id: object?.id ?? null,
-        p_error: String(error?.message ?? "Webhook processing failed").slice(0, 1000)
-      });
-    } catch { /* Preserve the processing error; Stripe will retry the webhook. */ }
-    console.error("BusinessFlow Stripe webhook failed:", error);
+    if (db) {
+      try {
+        await db.rpc("billing_mark_stripe_event_failed", {
+          p_event_id: event.id,
+          p_event_type: event.type,
+          p_livemode: event.livemode,
+          p_object_id: object?.id ?? null,
+          p_error: String(error?.message ?? "Webhook processing failed").slice(0, 1000)
+        });
+      } catch { /* Preserve the processing error; Stripe will retry the webhook. */ }
+    }
+    logger.error("BusinessFlow Stripe webhook failed:", error);
     return response.status(500).json({ error: "webhook_processing_failed" });
   }
+  };
 }
+
+export const handleStripeWebhook = createStripeWebhookHandler({
+  getStripe,
+  getBillingClient
+});
