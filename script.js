@@ -1494,7 +1494,7 @@ function renderDashboardMetrics(result) {
   });
   document.querySelectorAll('[data-business-metric-note="revenue"]').forEach(node => {
     node.textContent = metrics.revenueTotal == null
-      ? "No verified revenue field mapped"
+      ? (result?.dataQuality?.revenueMapped ? "No readable revenue values in this period" : "No verified revenue field mapped")
       : records.toLocaleString() + " records · selected period";
   });
   document.querySelectorAll('[data-business-metric="customers"]').forEach(node => {
