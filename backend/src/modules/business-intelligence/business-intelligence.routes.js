@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { getOnboardingQuestions, validateOnboardingAnswers } from "./business-intelligence.service.js";
-import { buildBusinessInsights } from "./business-intelligence.analytics.js";
+import { buildBusinessInsights, filterImportsToPeriod } from "./business-intelligence.analytics.js";
 
 export const businessIntelligenceRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -130,30 +130,9 @@ businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req
 
     const periodEnd = new Date();
     const periodStart = new Date(periodEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
-    let excludedUndatedRecords = 0;
-    const periodImports = (importsResult.data || []).map(dataset => {
-      const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
-      const dateColumn = Object.entries(mapping).find(([, field]) => field === "order_date")?.[0];
-      const rows = Array.isArray(dataset.rows) ? dataset.rows : [];
-      if (!dateColumn) {
-        excludedUndatedRecords += rows.length;
-        return { ...dataset, rows: [] };
-      }
-      const filteredRows = rows.filter(row => {
-        const rawDate = row?.[dateColumn];
-        if (rawDate === null || rawDate === undefined || String(rawDate).trim() === "") {
-          excludedUndatedRecords++;
-          return false;
-        }
-        const parsed = new Date(String(rawDate).trim());
-        if (Number.isNaN(parsed.getTime())) {
-          excludedUndatedRecords++;
-          return false;
-        }
-        return parsed >= periodStart && parsed <= periodEnd;
-      });
-      return { ...dataset, rows: filteredRows };
-    });
+    const { imports: periodImports, excludedUndatedRecords } = filterImportsToPeriod(
+      importsResult.data || [], { start: periodStart, end: periodEnd }
+    );
     const result = buildBusinessInsights({
       profile: profileResult.data, imports: periodImports, goals: goalsResult.data || [],
       experiments: experimentsResult.data || [], memory: memoryResult.data || []
