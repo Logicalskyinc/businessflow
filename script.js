@@ -1503,16 +1503,20 @@ function renderDashboardMetrics(result) {
   document.querySelectorAll('[data-business-metric-note="customers"]').forEach(node => {
     node.textContent = metrics.customers == null
       ? "Map a customer ID, email or name"
-      : Number(metrics.repeatCustomers || 0).toLocaleString() + " repeat customers · imported snapshot";
+      : Number(metrics.repeatCustomers || 0).toLocaleString() + " repeat customers · selected period";
   });
   document.querySelectorAll('[data-business-metric="conversion"]').forEach(node => { node.textContent = "—"; });
   document.querySelectorAll('[data-business-metric-note="conversion"]').forEach(node => {
     node.textContent = "Not calculated: conversion events are not mapped";
   });
 
+  const excluded = Number(result?.period?.excludedUndatedRecords || 0);
+  const periodLabel = result?.period?.start && result?.period?.end
+    ? new Date(result.period.start).toLocaleDateString() + " – " + new Date(result.period.end).toLocaleDateString()
+    : "selected reporting period";
   const status = records
-    ? records.toLocaleString() + " imported records in the selected period. These figures describe saved datasets, not a live connection."
-    : Number(result?.period?.excludedUndatedRecords || 0) > 0
+    ? records.toLocaleString() + " imported records in " + periodLabel + ". " + (excluded ? excluded.toLocaleString() + " additional records were excluded because their date was missing or invalid, or no date mapping exists." : "These figures describe saved datasets, not a live connection.")
+    : excluded > 0
       ? "Records exist, but they cannot be included in this period because their order date is missing or invalid, or the dataset has no date mapping."
       : "No imported records fall within the selected reporting period.";
   ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
