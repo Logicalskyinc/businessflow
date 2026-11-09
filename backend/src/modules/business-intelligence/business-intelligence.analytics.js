@@ -5,6 +5,40 @@ const numericValue = value => {
   const number = Number(normalized);
   return Number.isFinite(number) ? number : null;
 };
+
+export function filterImportsToPeriod(imports = [], { start, end }) {
+  const periodStart = new Date(start);
+  const periodEnd = new Date(end);
+  if (Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime()) || periodStart > periodEnd) {
+    throw new TypeError("A valid reporting period start and end are required.");
+  }
+  let excludedUndatedRecords = 0;
+  const filteredImports = imports.map(dataset => {
+    const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
+    const dateColumn = Object.entries(mapping).find(([, field]) => field === "order_date")?.[0];
+    const rows = Array.isArray(dataset.rows) ? dataset.rows : [];
+    if (!dateColumn) {
+      excludedUndatedRecords += rows.length;
+      return { ...dataset, rows: [] };
+    }
+    const filteredRows = rows.filter(row => {
+      const rawDate = row?.[dateColumn];
+      if (rawDate === null || rawDate === undefined || String(rawDate).trim() === "") {
+        excludedUndatedRecords++;
+        return false;
+      }
+      const parsed = new Date(String(rawDate).trim());
+      if (Number.isNaN(parsed.getTime())) {
+        excludedUndatedRecords++;
+        return false;
+      }
+      return parsed >= periodStart && parsed <= periodEnd;
+    });
+    return { ...dataset, rows: filteredRows };
+  });
+  return { imports: filteredImports, excludedUndatedRecords };
+}
+
 const uniqueText = value => String(value ?? "").trim().toLowerCase();
 
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
@@ -192,6 +226,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     },
     dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, invalidRevenueValues,
       notes: !rows.length ? ["No imported records are available."] : [
+        ...(imports.length > 1 ? ["Metrics aggregate imported datasets independently. If multiple datasets contain overlapping snapshots or transactions, totals and customer counts may be duplicated because no stable cross-import transaction key is available."] : []),
         ...(!revenueMapped ? ["Revenue field is not mapped."] : []),
         ...(!customerMapped ? ["Customer identity is not mapped."] : []),
         ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : []),
