@@ -155,3 +155,38 @@ test("returns 500 without attempting failure recording when billing client initi
     assert.equal(loggerCalled, true);
   });
 });
+
+test("preserves the 500 retry response when failure recording also throws", async () => {
+  await withWebhookSecret(async () => {
+    const calls = [];
+    const logged = [];
+    const db = {
+      async rpc(name) {
+        calls.push(name);
+        if (name === "billing_process_stripe_event") {
+          return { error: new Error("Primary processing failed") };
+        }
+        if (name === "billing_mark_stripe_event_failed") {
+          throw new Error("Failure recording unavailable");
+        }
+        return { error: null };
+      }
+    };
+    const handler = createStripeWebhookHandler({
+      getStripe: () => createStripe(createEvent()),
+      getBillingClient: () => db,
+      logger: { error(...args) { logged.push(args); } }
+    });
+    const response = createResponse();
+    await handler(createRequest(), response);
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.body, { error: "webhook_processing_failed" });
+    assert.deepEqual(calls, [
+      "billing_process_stripe_event",
+      "billing_mark_stripe_event_failed"
+    ]);
+    assert.equal(logged.length, 1);
+    assert.match(logged[0][1].message, /Primary processing failed/);
+  });
+});
+
