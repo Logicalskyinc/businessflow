@@ -1396,6 +1396,7 @@ window.addEventListener("businessflow:workspace-changed", event => {
 });
 
 let latestBusinessInsights = null;
+let businessInsightsRequestId = 0;
 /* ---------- Workspace pulse: derived only from saved records ---------- */
 function renderWorkspacePulse() {
   const goalCount = document.querySelector("#pulse-goals-count");
@@ -1404,7 +1405,7 @@ function renderWorkspacePulse() {
   const experimentFeed = document.querySelector("#pulse-experiment-activity");
   const goalFocus = document.querySelector("#pulse-goal-focus");
   const caption = document.querySelector("#workspace-pulse-caption");
-  const running = experiments.filter(item => item.status === "running").length;
+  const running = experiments.filter(item => ["planned", "running"].includes(item.status)).length;
   const insights = Array.isArray(latestBusinessInsights?.insights) ? latestBusinessInsights.insights : [];
 
   if (goalCount) goalCount.textContent = String(goals.length);
@@ -1511,7 +1512,9 @@ function renderDashboardMetrics(result) {
 
   const status = records
     ? records.toLocaleString() + " imported records in the selected period. These figures describe saved datasets, not a live connection."
-    : "No imported records are available for this workspace yet.";
+    : Number(result?.period?.excludedUndatedRecords || 0) > 0
+      ? "Records exist, but they cannot be included in this period because their order date is missing or invalid, or the dataset has no date mapping."
+      : "No imported records fall within the selected reporting period.";
   ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
     const node = document.querySelector(selector);
     if (node) node.textContent = status;
@@ -1553,8 +1556,8 @@ function renderAnalyticsRevenueTrend(result) {
   });
   const note = document.querySelector("#analytics-revenue-chart-note");
   if (note) note.textContent = points.length >= 2
-    ? "Monthly totals calculated from saved imported records. This is not a live feed."
-    : "Imported snapshot only. A trend requires verified date and revenue mappings.";
+    ? "Monthly totals calculated from saved imported records in the selected reporting period. This is not a live feed."
+    : "Selected-period snapshot only. A trend requires verified date and revenue mappings across at least two months.";
 }
 
 function renderBusinessInsights() {
@@ -1588,6 +1591,7 @@ function renderBusinessInsights() {
   renderGreyWorkspaceBrief();
 }
 async function loadBusinessInsights(businessId, periodDays = Number(document.querySelector("#analytics-period")?.value || 30)) {
+  const requestId = ++businessInsightsRequestId;
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
@@ -1599,11 +1603,12 @@ async function loadBusinessInsights(businessId, periodDays = Number(document.que
   if (status) status.textContent = "Analysing your business records…";
   try {
     const result = await cloud.loadInsights(businessId, periodDays);
-    if (cloud.getBusinessId() !== businessId) return;
+    if (requestId !== businessInsightsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   } catch (error) {
+    if (requestId !== businessInsightsRequestId) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
     renderBusinessInsights();
