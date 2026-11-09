@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBusinessInsights } from "../src/modules/business-intelligence/business-intelligence.analytics.js";
+import { buildBusinessInsights, filterImportsToPeriod } from "../src/modules/business-intelligence/business-intelligence.analytics.js";
 
 const profile = { id: "business-1", name: "AB Cleaning Services", currency_code: "XOF" };
 
@@ -93,4 +93,58 @@ test("does not call a unique job code the most frequent service", () => {
   const finding = result.insights.find(item => item.type === "product_mix");
   assert.ok(finding);
   assert.match(finding.summary, /does not support naming a most frequent service/);
+});
+
+
+test("filters imported records to the selected reporting period and counts invalid dates", () => {
+  const source = [{
+    id: "period-1", name: "Orders", row_count: 5,
+    column_mapping: { Amount: "revenue", Customer: "customer_name", Date: "order_date" },
+    rows: [
+      { Amount: "100", Customer: "A", Date: "2026-10-01" },
+      { Amount: "200", Customer: "B", Date: "2026-10-15" },
+      { Amount: "300", Customer: "C", Date: "2026-11-01" },
+      { Amount: "400", Customer: "D", Date: "not-a-date" },
+      { Amount: "500", Customer: "E", Date: "" }
+    ]
+  }];
+  const result = filterImportsToPeriod(source, {
+    start: "2026-10-10T00:00:00.000Z",
+    end: "2026-10-31T23:59:59.999Z"
+  });
+  assert.equal(result.imports[0].rows.length, 1);
+  assert.equal(result.imports[0].rows[0].Amount, "200");
+  assert.equal(result.excludedUndatedRecords, 2);
+  assert.equal(source[0].rows.length, 5, "filter must not mutate the source dataset");
+});
+
+test("excludes every record in datasets without a mapped order date", () => {
+  const result = filterImportsToPeriod([{
+    id: "undated", row_count: 2, column_mapping: {}, rows: [{ Amount: "10" }, { Amount: "20" }]
+  }], {
+    start: "2026-10-01T00:00:00.000Z",
+    end: "2026-10-31T23:59:59.999Z"
+  });
+  assert.deepEqual(result.imports[0].rows, []);
+  assert.equal(result.excludedUndatedRecords, 2);
+});
+
+test("rejects invalid reporting period boundaries", () => {
+  assert.throws(() => filterImportsToPeriod([], {
+    start: "invalid", end: "2026-10-31T23:59:59.999Z"
+  }), /valid reporting period/);
+  assert.throws(() => filterImportsToPeriod([], {
+    start: "2026-11-01T00:00:00.000Z", end: "2026-10-01T00:00:00.000Z"
+  }), /valid reporting period/);
+});
+
+test("warns when multiple imported datasets may contain overlapping records", () => {
+  const result = buildBusinessInsights({
+    profile,
+    imports: [
+      { id: "one", name: "October snapshot", row_count: 1, column_mapping: { Amount: "revenue" }, rows: [{ Amount: "100" }] },
+      { id: "two", name: "November snapshot", row_count: 1, column_mapping: { Amount: "revenue" }, rows: [{ Amount: "100" }] }
+    ]
+  });
+  assert.ok(result.dataQuality.notes.some(note => note.includes("overlapping snapshots or transactions")));
 });
