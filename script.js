@@ -1494,7 +1494,7 @@ function renderDashboardMetrics(result) {
   document.querySelectorAll('[data-business-metric-note="revenue"]').forEach(node => {
     node.textContent = metrics.revenueTotal == null
       ? "No verified revenue field mapped"
-      : records.toLocaleString() + " imported rows · snapshot";
+      : records.toLocaleString() + " records · selected period";
   });
   document.querySelectorAll('[data-business-metric="customers"]').forEach(node => {
     node.textContent = metrics.customers == null ? "—" : Number(metrics.customers).toLocaleString();
@@ -1510,7 +1510,7 @@ function renderDashboardMetrics(result) {
   });
 
   const status = records
-    ? records.toLocaleString() + " imported records analysed. These figures describe the saved dataset, not a live connection."
+    ? records.toLocaleString() + " imported records in the selected period. These figures describe saved datasets, not a live connection."
     : "No imported records are available for this workspace yet.";
   ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
     const node = document.querySelector(selector);
@@ -1587,7 +1587,7 @@ function renderBusinessInsights() {
   renderAnalyticsDataReadiness();
   renderGreyWorkspaceBrief();
 }
-async function loadBusinessInsights(businessId) {
+async function loadBusinessInsights(businessId, periodDays = Number(document.querySelector("#analytics-period")?.value || 30)) {
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
@@ -1598,7 +1598,7 @@ async function loadBusinessInsights(businessId) {
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
   try {
-    const result = await cloud.loadInsights(businessId);
+    const result = await cloud.loadInsights(businessId, periodDays);
     if (cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
@@ -1610,6 +1610,17 @@ async function loadBusinessInsights(businessId) {
     renderGreyWorkspaceBrief();
   }
 }
+document.querySelectorAll("#period-select, #analytics-period").forEach(control => {
+  control.addEventListener("change", () => {
+    const selected = String(control.value);
+    document.querySelectorAll("#period-select, #analytics-period").forEach(other => {
+      if (other !== control) other.value = selected;
+    });
+    const businessId = window.BusinessFlowCloud?.getBusinessId?.();
+    if (businessId) void loadBusinessInsights(businessId, Number(selected));
+  });
+});
+
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
   const signedIn = Boolean(state.signedIn);
