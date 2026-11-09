@@ -369,7 +369,7 @@ window.BusinessFlowCloud = Object.freeze({
     userId: session?.user?.id ?? null
   }),
   request: apiRequest,
-  loadInsights: async businessId => apiRequest("/api/business-intelligence/insights?business_id=" + encodeURIComponent(businessId)),
+  loadInsights: async (businessId, periodDays = 30) => apiRequest("/api/business-intelligence/insights?business_id=" + encodeURIComponent(businessId) + "&period_days=" + encodeURIComponent(periodDays)),
   listBusinesses: () => [...businesses],
   loadBusinesses,
   getBusinessId: () => activeBusinessId,
