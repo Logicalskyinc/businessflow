@@ -113,7 +113,9 @@ businessIntelligenceRouter.get("/businesses", requireAuthenticatedUser, async (r
 businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req, res, next) => {
   try {
     const businessId = req.query.business_id;
-    if (!uuid(businessId)) return bad(res, ["business_id must be a valid UUID."]);
+    if (!uuid(businessId)) return bad(res, ["A valid business_id is required."]);
+    const periodDays = Number(req.query.period_days ?? 30);
+    if (![7, 30, 90].includes(periodDays)) return bad(res, ["period_days must be 7, 30, or 90."]);
     const [profileResult, importsResult, goalsResult, experimentsResult, memoryResult] = await Promise.all([
       req.supabase.from("businessflow_profiles").select("id,name,currency_code,primary_goal").eq("id", businessId).maybeSingle(),
       req.supabase.from("businessflow_imports").select("id,name,source_filename,column_mapping,rows,row_count").eq("business_id", businessId).order("created_at", { ascending: false }).limit(25),
@@ -125,13 +127,44 @@ businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req
       if (result.error) return next(result.error);
     }
     if (!profileResult.data) return res.status(404).json({ error: "business_not_found", message: "This business workspace is unavailable to your account." });
-    return res.json(buildBusinessInsights({
-      profile: profileResult.data, imports: importsResult.data || [], goals: goalsResult.data || [],
+
+    const periodEnd = new Date();
+    const periodStart = new Date(periodEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    let excludedUndatedRecords = 0;
+    const periodImports = (importsResult.data || []).map(dataset => {
+      const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
+      const dateColumn = Object.entries(mapping).find(([, field]) => field === "order_date")?.[0];
+      const rows = Array.isArray(dataset.rows) ? dataset.rows : [];
+      if (!dateColumn) {
+        excludedUndatedRecords += rows.length;
+        return { ...dataset, rows: [] };
+      }
+      const filteredRows = rows.filter(row => {
+        const rawDate = row?.[dateColumn];
+        if (rawDate === null || rawDate === undefined || String(rawDate).trim() === "") {
+          excludedUndatedRecords++;
+          return false;
+        }
+        const parsed = new Date(String(rawDate).trim());
+        if (Number.isNaN(parsed.getTime())) {
+          excludedUndatedRecords++;
+          return false;
+        }
+        return parsed >= periodStart && parsed <= periodEnd;
+      });
+      return { ...dataset, rows: filteredRows };
+    });
+    const result = buildBusinessInsights({
+      profile: profileResult.data, imports: periodImports, goals: goalsResult.data || [],
       experiments: experimentsResult.data || [], memory: memoryResult.data || []
-    }));
+    });
+    result.period = {
+      days: periodDays, start: periodStart.toISOString(), end: periodEnd.toISOString(),
+      excludedUndatedRecords
+    };
+    return res.json(result);
   } catch (error) { return next(error); }
 });
-
 businessIntelligenceRouter.get("/imports/:id", requireAuthenticatedUser, async (req, res, next) => {
   try {
     if (!uuid(req.params.id) || !uuid(req.query.business_id)) return bad(res, ["A valid import id and business_id are required."]);
