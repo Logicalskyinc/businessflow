@@ -140,11 +140,18 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       recommendedAction: "Confirm what these columns represent, then map useful fields to the appropriate BusinessFlow metric. These exploratory patterns are not automatically treated as revenue, customers, or sales."
     });
   }
-  if (!rows.length) insights.push({
-    type: "data_needed", priority: "high", title: "Connect your first business dataset",
-    summary: "BusinessFlow has no imported business records to analyse yet. Your saved goals and workspace context remain available, but revenue and customer conclusions would be guesses.",
-    evidence: "0 imported records", recommendedAction: "Import a CSV or Excel file containing sales, orders, or customer records."
-  });
+  if (!rows.length) insights.push(imports.length
+    ? {
+        type: "period_data", priority: "normal", title: "No records in this reporting period",
+        summary: "Imported datasets exist, but none of their records fall within the selected reporting period. Revenue and customer totals are therefore unavailable for this period.",
+        evidence: imports.length + " saved dataset" + (imports.length === 1 ? "" : "s") + " checked; 0 records matched the selected dates.",
+        recommendedAction: "Choose a wider reporting period or verify that each dataset has the correct order-date column mapped."
+      }
+    : {
+        type: "data_needed", priority: "high", title: "Connect your first business dataset",
+        summary: "BusinessFlow has no imported business records to analyse yet. Your saved goals and workspace context remain available, but revenue and customer conclusions would be guesses.",
+        evidence: "0 imported records", recommendedAction: "Import a CSV or Excel file containing sales, orders, or customer records."
+      });
   else {
     insights.push({ type: "coverage", priority: "normal", title: "Business data is available for analysis",
       summary: "BusinessFlow analysed " + rows.length + " imported records across " + imports.length + " dataset" + (imports.length === 1 ? "" : "s") + ".",
