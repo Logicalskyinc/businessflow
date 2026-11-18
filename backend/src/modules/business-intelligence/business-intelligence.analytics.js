@@ -210,6 +210,12 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       evidence: topProduct[1] + " records for this product or service",
       recommendedAction: "Compare its revenue and repeat-customer contribution before prioritising it."
     });
+    else if (productMapped && productFrequency.size) insights.push({
+      type: "product_mix", priority: "low", title: "No repeat-leading service identified",
+      summary: "No product or service appears more than once in the imported records, so the dataset does not support naming a most frequent service.",
+      evidence: productFrequency.size + " distinct product or service values were found; the highest frequency is " + topProductCandidate[1] + ".",
+      recommendedAction: "Check whether the mapped column contains a service name or a unique job/invoice code. Map the actual service category before comparing service popularity."
+    });
   }
   if (activeGoals.length) {
     const measurable = progressGoals.filter(goal => goal.progressPercent !== null);
