@@ -309,6 +309,18 @@ function buildDatasetAnalysisReply(context) {
   return lines.join("\n");
 }
 
+/**
+ * Prevent unmapped-column profiling from forwarding representative raw values
+ * (which may be names, emails, phone numbers, or other sensitive fields) to Grey.
+ */
+export function sanitizeGreyAnalysisForPrompt(analysis) {
+  if (!analysis || typeof analysis !== "object") return null;
+  const insights = Array.isArray(analysis.insights)
+    ? analysis.insights.filter(item => item && item.type !== "column_patterns").slice(0, 8)
+    : [];
+  return { ...analysis, insights };
+}
+
 async function buildWorkspaceContext(supabase, businessId) {
   const [profileResult, goalsResult, experimentsResult, memoryResult, importsResult, activityResult] = await Promise.all([
     supabase.from("businessflow_profiles").select("id,name,primary_goal,business_description,currency_code").eq("id", businessId).maybeSingle(),
@@ -326,13 +338,13 @@ async function buildWorkspaceContext(supabase, businessId) {
   const context = {
     source: "BusinessFlow workspace records",
     profile: profileResult.data,
-    analysis: buildBusinessInsights({
+    analysis: sanitizeGreyAnalysisForPrompt(buildBusinessInsights({
       profile: { id: businessId, ...profileResult.data },
       imports: importsResult.data ?? [],
       goals: goalsResult.data ?? [],
       experiments: experimentsResult.data ?? [],
       memory: memoryResult.data ?? []
-    }),
+    })),
     goals: goalsResult.data ?? [],
     experiments: experimentsResult.data ?? [],
     importedDatasets: (importsResult.data ?? []).map(item => ({

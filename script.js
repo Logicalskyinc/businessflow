@@ -1562,6 +1562,7 @@ function renderBusinessInsights() {
   const analytics = document.querySelector("#analytics-insights");
   const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
+  renderDatasetExplorer(result);
   renderDashboardMetrics(result);
   renderAnalyticsRevenueTrend(result);
   if (!result) {
@@ -1587,25 +1588,305 @@ function renderBusinessInsights() {
   renderAnalyticsDataReadiness();
   renderGreyWorkspaceBrief();
 }
-async function loadBusinessInsights(businessId) {
+function getAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period")?.value || "all";
+  const datasetId = document.querySelector("#analytics-dataset")?.value || "";
+  let from = "", to = "";
+  const localDate = value => [value.getFullYear(), String(value.getMonth() + 1).padStart(2, "0"), String(value.getDate()).padStart(2, "0")].join("-");
+  if (period === "custom") {
+    from = document.querySelector("#analytics-from")?.value || "";
+    to = document.querySelector("#analytics-to")?.value || "";
+  } else if (["7", "30", "90"].includes(period)) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (Number(period) - 1));
+    from = localDate(start);
+    to = localDate(end);
+  }
+  return { datasetId, from, to };
+}
+function updateAnalyticsFilterStatus(filters = {}, message = "") {
+  const status = document.querySelector("#analytics-filter-status");
+  if (!status) return;
+  const dataset = importedDatasets.find(item => item.id === filters.datasetId);
+  const parts = [dataset ? dataset.name : "All datasets"];
+  if (filters.from || filters.to) parts.push((filters.from || "Beginning") + " to " + (filters.to || "Today"));
+  else parts.push("All available dates");
+  status.textContent = (message ? message + " " : "Showing ") + parts.join(" · ");
+}
+function syncAnalyticsDatasetOptions() {
+  const select = document.querySelector("#analytics-dataset");
+  if (!select) return;
+  const selected = select.value;
+  select.replaceChildren();
+  const all = document.createElement("option");
+  all.value = ""; all.textContent = "All datasets"; select.append(all);
+  importedDatasets.forEach(dataset => {
+    const option = document.createElement("option");
+    option.value = dataset.id;
+    option.textContent = dataset.name + " · " + Number(dataset.row_count || 0).toLocaleString() + " rows";
+    select.append(option);
+  });
+  select.value = importedDatasets.some(item => item.id === selected) ? selected : "";
+}
+function setupAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period");
+  const dataset = document.querySelector("#analytics-dataset");
+  const from = document.querySelector("#analytics-from");
+  const to = document.querySelector("#analytics-to");
+  const reset = document.querySelector("#analytics-reset");
+  if (!period || period.dataset.bound) return;
+  period.dataset.bound = "true";
+  const update = () => {
+    const custom = period.value === "custom";
+    if (from) from.disabled = !custom;
+    if (to) to.disabled = !custom;
+    const filters = getAnalyticsFilters();
+    if (filters.from && filters.to && filters.from > filters.to) {
+      updateAnalyticsFilterStatus(filters, "The start date must be before the end date.");
+      return;
+    }
+    const businessId = window.BusinessFlowCloud?.getBusinessId?.();
+    if (businessId) void loadBusinessInsights(businessId, filters);
+    else updateAnalyticsFilterStatus(filters);
+  };
+  [period, dataset, from, to].forEach(control => control?.addEventListener("change", update));
+  reset?.addEventListener("click", () => {
+    period.value = "all";
+    if (dataset) dataset.value = "";
+    if (from) from.value = "";
+    if (to) to.value = "";
+    update();
+  });
+  update();
+}
+let analyticsRequestId = 0;
+function renderImportQualitySummary() {
+  const host = document.querySelector("#import-quality-summary");
+  if (!host || !pendingImport) return;
+  const columns = pendingImport.columns || [];
+  const rows = pendingImport.rows || [];
+  const mapped = [...document.querySelectorAll("[data-import-column]")].filter(select => select.value);
+  const numericFields = new Set(["revenue", "cost", "quantity"]);
+  const cards = [
+    { label: "Rows to import", value: String(rows.length), note: "Within the 250-row limit" },
+    { label: "Source columns", value: String(columns.length), note: "All source columns are retained" },
+    { label: "Mapped fields", value: mapped.length + " / " + columns.length, note: "Business meaning assigned" }
+  ];
+  const issues = [];
+  ["revenue", "order_date"].forEach(field => {
+    if (![...document.querySelectorAll("[data-import-column]")].some(item => item.value === field)) {
+      issues.push("No " + field.replace("_", " ") + " column mapped. Related analytics will remain unavailable.");
+    }
+  });
+  const hasCustomerIdentity = ["customer_id", "customer_name", "email", "phone"].some(field =>
+    [...document.querySelectorAll("[data-import-column]")].some(item => item.value === field)
+  );
+  if (!hasCustomerIdentity) issues.push("No customer identifier mapped. Customer counts will remain unavailable.");
+  for (const select of mapped) {
+    const field = select.value, column = select.dataset.importColumn;
+    const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+    if (numericFields.has(field)) {
+      const valid = nonEmpty.filter(value => {
+        const normalized = value.replace(/,/g, "").replace(/[^0-9.\-]/g, "");
+        return normalized && normalized !== "-" && normalized !== "." && normalized !== "-." && Number.isFinite(Number(normalized));
+      });
+      if (nonEmpty.length !== valid.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " of " + nonEmpty.length + " non-empty values are not numeric.");
+      if (!nonEmpty.length) issues.push(column + ": no non-empty values found.");
+    }
+    if (field === "order_date") {
+      const valid = nonEmpty.filter(value => !Number.isNaN(new Date(value).getTime()));
+      if (nonEmpty.length !== valid.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " date values could not be parsed.");
+      if (!valid.length) issues.push(column + ": no valid dates found.");
+    }
+  }
+  host.replaceChildren();
+  const heading = document.createElement("div"); heading.className = "import-quality-heading";
+  const title = document.createElement("strong"); title.textContent = "Pre-import data quality";
+  const note = document.createElement("span"); note.textContent = "Checks run on this file before saving";
+  heading.append(title,note); host.append(heading);
+  const grid = document.createElement("div"); grid.className = "import-quality-grid";
+  cards.forEach(item => {
+    const card=document.createElement("article");card.className="import-quality-card";
+    const label=document.createElement("span");label.textContent=item.label;
+    const value=document.createElement("strong");value.textContent=item.value;
+    const detail=document.createElement("small");detail.textContent=item.note;
+    card.append(label,value,detail);grid.append(card);
+  });
+  host.append(grid);
+  const message=document.createElement("p");
+  message.className="import-quality-message "+(issues.length?"has-warnings":"is-ready");
+  message.textContent=issues.length
+    ? issues.length+" item(s) to review. Import is still allowed, but unmapped or invalid fields limit related analytics."
+    : "No mapping or value-format warnings detected in the checked fields.";
+  host.append(message);
+  if(issues.length){
+    const list=document.createElement("ul");list.className="import-quality-issues";
+    issues.slice(0,8).forEach(issue=>{const item=document.createElement("li");item.textContent=issue;list.append(item);});
+    host.append(list);
+  }
+}
+function renderDatasetPortfolio() {
+  const metrics=document.querySelector("#dataset-portfolio-metrics");
+  const coverage=document.querySelector("#dataset-portfolio-coverage");
+  const status=document.querySelector("#dataset-portfolio-status");
+  if(!metrics||!coverage||!status)return;
+  const cloud=window.BusinessFlowCloud?.getState?.();
+  const summary=document.querySelector("#overview-dataset-summary");
+  const detail=document.querySelector("#overview-dataset-detail");
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){
+    status.textContent="Workspace not connected";
+    metrics.innerHTML='<p class="empty-state">Connect and select a workspace to view dataset coverage.</p>';
+    coverage.replaceChildren();
+    if(summary)summary.textContent="No connected dataset portfolio";
+    if(detail)detail.textContent="Connect a business workspace to view imported records.";
+    return;
+  }
+  const datasets=Array.isArray(importedDatasets)?importedDatasets:[];
+  const rows=datasets.reduce((sum,item)=>sum+Math.max(0,Number(item.row_count)||0),0);
+  const fields=new Set();
+  datasets.forEach(item=>{
+    const mapping=item.column_mapping&&typeof item.column_mapping==="object"?item.column_mapping:{};
+    Object.values(mapping).forEach(field=>{if(typeof field==="string"&&field)fields.add(field);});
+  });
+  metrics.replaceChildren();
+  [
+    {label:"Saved datasets",value:String(datasets.length),note:"In this workspace"},
+    {label:"Imported records",value:rows.toLocaleString(),note:"Across saved datasets"},
+    {label:"Business fields mapped",value:String(fields.size),note:"Unique standard fields covered"}
+  ].forEach(item=>{
+    const card=document.createElement("article");card.className="dataset-portfolio-card";
+    const label=document.createElement("span");label.textContent=item.label;
+    const value=document.createElement("strong");value.textContent=item.value;
+    const note=document.createElement("small");note.textContent=item.note;
+    card.append(label,value,note);metrics.append(card);
+  });
+  coverage.replaceChildren();
+  const heading=document.createElement("div");heading.className="dataset-coverage-heading";
+  const title=document.createElement("strong");title.textContent="Analytics field coverage";
+  const caption=document.createElement("span");caption.textContent="Based on saved column mappings";
+  heading.append(title,caption);coverage.append(heading);
+  [["Revenue","revenue"],["Cost","cost"],["Customer identity","customer_id"],["Transaction date","order_date"],["Product / service","product"],["Status","status"]].forEach(([label,field])=>{
+    const count=datasets.filter(item=>Object.values(item.column_mapping||{}).includes(field)).length;
+    const row=document.createElement("div");row.className="dataset-coverage-row";
+    const name=document.createElement("span");name.textContent=label;
+    const track=document.createElement("div");track.className="dataset-coverage-track";
+    const fill=document.createElement("div");fill.className="dataset-coverage-fill";
+    fill.style.width=datasets.length?Math.round(count/datasets.length*100)+"%":"0%";
+    track.append(fill);
+    const value=document.createElement("small");value.textContent=count+" / "+datasets.length;
+    row.append(name,track,value);coverage.append(row);
+  });
+  status.textContent=datasets.length?"Workspace portfolio":"No datasets yet";
+  if(summary)summary.textContent=datasets.length?datasets.length+" dataset"+(datasets.length===1?"":"s")+" · "+rows.toLocaleString()+" imported records":"No datasets imported yet";
+  if(detail)detail.textContent=fields.size+" standard business fields mapped across this workspace.";
+}
+function renderDatasetExplorer(result) {
+  const selectors=["#explorer-customer-segments","#explorer-product-performance","#explorer-period-comparison","#explorer-profitability","#explorer-customer-retention","#explorer-data-quality","#explorer-value-coverage"];
+  const hosts=selectors.map(selector=>document.querySelector(selector));
+  if(!result){
+    hosts.forEach(host=>{if(host)host.textContent="Select a connected business workspace to load verified analytics.";});
+    return;
+  }
+  const metrics=result.metrics||{},quality=result.dataQuality||{};
+  const currency=String(metrics.revenueCurrency||result.business?.currencyCode||"XOF").toUpperCase();
+  const money=value=>value==null?"Unavailable":Number(value).toLocaleString(undefined,{maximumFractionDigits:2})+" "+currency;
+  const lines=(host,items)=>{
+    if(!host)return;host.replaceChildren();
+    items.forEach(([label,value])=>{
+      const row=document.createElement("div");row.className="explorer-value-line";
+      const name=document.createElement("span");name.textContent=label;
+      const amount=document.createElement("strong");amount.textContent=String(value);
+      row.append(name,amount);host.append(row);
+    });
+  };
+  const customers=hosts[0];
+  if(customers){
+    const total=Number(metrics.customers||0),repeat=Number(metrics.repeatCustomers||0);
+    lines(customers,quality.customerMapped?[
+      ["Distinct customers",total.toLocaleString()],
+      ["Repeat customers",repeat.toLocaleString()],
+      ["One-time customers",Math.max(0,total-repeat).toLocaleString()],
+      ["Repeat share",total?(repeat/total*100).toFixed(1)+"%":"0%"]
+    ]:[["Customer identity","Not mapped"]]);
+    const bands=Array.isArray(metrics.customerValueDistribution)?metrics.customerValueDistribution:[];
+    if(bands.length)bands.forEach(band=>{const row=document.createElement("p");row.className="explorer-footnote";row.textContent=band.label+": "+band.customers+" customers · "+money(band.revenue);customers.append(row);});
+    const note=document.createElement("small");note.className="explorer-footnote";note.textContent="Repeat customer counts are based on repeated mapped identifiers, not a lifetime-retention forecast.";customers.append(note);
+  }
+  const products=hosts[1];
+  if(products){
+    const items=Array.isArray(metrics.productPerformance)?metrics.productPerformance:[];
+    if(!quality.productMapped)lines(products,[["Product / service","Not mapped"]]);
+    else{
+      lines(products,items.slice(0,8).map(item=>[item.name,Number(item.records).toLocaleString()+" records · "+money(item.revenue)]));
+      if(!items.length)products.textContent="No mapped product or service values found.";
+      const note=document.createElement("small");note.className="explorer-footnote";note.textContent=metrics.topProduct?"Most frequent: "+metrics.topProduct.name+". Frequency is not revenue or profitability.":"No repeat-leading product or service was identified.";products.append(note);
+    }
+  }
+  const periods=hosts[2];
+  if(periods){
+    const items=Array.isArray(metrics.monthlyPerformance)?metrics.monthlyPerformance:[];
+    lines(periods,items.slice(-8).map(item=>[item.month,(item.revenue==null?"No revenue":money(item.revenue))+" · "+(item.revenueChangePercent==null?"No prior calendar month":(item.revenueChangePercent>0?"+":"")+item.revenueChangePercent.toFixed(1)+"%")]));
+    if(!items.length)periods.textContent="Map transaction dates and revenue to compare calendar months.";
+  }
+  const profitability=hosts[3];
+  if(profitability){
+    if(!quality.revenueMapped||!quality.costMapped)lines(profitability,[["Profitability","Map both revenue and cost"]]);
+    else lines(profitability,[
+      ["Comparable revenue",money(metrics.profitabilityRevenue)],
+      ["Comparable cost",money(metrics.profitabilityCost)],
+      ["Gross profit",money(metrics.grossProfit)],
+      ["Gross margin",metrics.grossMarginPercent==null?"Unavailable":metrics.grossMarginPercent.toFixed(1)+"%"],
+      ["Comparable transactions",Number(metrics.profitabilityRecords||0).toLocaleString()]
+    ]);
+    const note=document.createElement("small");note.className="explorer-footnote";note.textContent="Gross profit uses only records with both valid revenue and cost. It is not net profit.";profitability.append(note);
+  }
+  const retention=hosts[4];
+  if(retention){
+    const items=Array.isArray(metrics.monthlyRetention)?metrics.monthlyRetention:[];
+    if(!quality.customerMapped||!quality.dateMapped)lines(retention,[["Retention","Map customer identity and transaction date"]]);
+    else lines(retention,items.map(item=>[item.month,Number(item.returningCustomers).toLocaleString()+" returning · "+Number(item.returningRate).toFixed(1)+"%"]));
+    const note=document.createElement("small");note.className="explorer-footnote";note.textContent="Returning customers were also active in the immediately preceding calendar month.";retention.append(note);
+  }
+  const dataQuality=hosts[5];
+  if(dataQuality){
+    const checks=[["Revenue",quality.revenueMapped],["Cost",quality.costMapped],["Customer",quality.customerMapped],["Product",quality.productMapped],["Date",quality.dateMapped]];
+    lines(dataQuality,checks.map(([label,ok])=>[label,ok?"Mapped":"Missing"]));
+    const note=document.createElement("small");note.className="explorer-footnote";note.textContent=Number(quality.invalidRevenueValues||0)+" invalid revenue values · "+Number(quality.invalidCostValues||0)+" invalid cost values.";dataQuality.append(note);
+  }
+  const value=hosts[6];
+  if(value)lines(value,[
+    ["Revenue records",Number(metrics.revenueRecords||0).toLocaleString()],
+    ["Average mapped amount",money(metrics.averageOrderValue)],
+    ["Date coverage",metrics.dateRange?.from&&metrics.dateRange?.to?metrics.dateRange.from.slice(0,10)+" to "+metrics.dateRange.to.slice(0,10):"Unavailable"]
+  ]);
+}
+
+async function loadBusinessInsights(businessId, filters = getAnalyticsFilters()) {
+  const requestId = ++analyticsRequestId;
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
+    updateAnalyticsFilterStatus(filters);
     return;
   }
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
+  updateAnalyticsFilterStatus(filters, "Updating analysis…");
   try {
-    const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    const result = await cloud.loadInsights(businessId, filters);
+    if (requestId !== analyticsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
+    updateAnalyticsFilterStatus(filters, "Showing");
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   } catch (error) {
+    if (requestId !== analyticsRequestId) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
+    updateAnalyticsFilterStatus(filters, "Analysis could not be refreshed.");
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   }
@@ -1704,6 +1985,7 @@ function initializeBusinessFlow() {
   loadActivity();
 
   setupNavigation();
+  setupAnalyticsFilters();
   setupActivityCenter();
   setupConnections();
   setupDataImport();
@@ -1816,9 +2098,11 @@ function setupConnections() {
 }
 
 /* CSV / Excel dataset import */
-const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
+const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["cost","Transaction cost"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
 let pendingImport = null;
 let importedDatasets = [];
+let savedImportsRequestId = 0;
+let savedImportDetailRequestId = 0;
 
 function parseCsvText(source) {
   const rows=[]; let row=[], cell="", quoted=false;
@@ -1868,7 +2152,8 @@ function inferImportBusinessField(column, rows) {
   if (/customer.?name|client.?name|buyer.?name|full.?name/.test(name)) return "customer_name";
   if (/customer.?id|client.?id|buyer.?id|account.?id/.test(name)) return "customer_id";
   if (/date|day|created|transaction.?time|timestamp/.test(name) || samples.filter(value => /^\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}/.test(value) || /^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "order_date";
-  if (/revenue|amount|price|cost|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
+  if (/cost|expense|cogs|purchase.?cost|unit.?cost/.test(name)) return "cost";
+  if (/revenue|amount|price|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
   if (/quantity|qty|units|items.?count/.test(name)) return "quantity";
   if (/product|item|service|job|package|offering/.test(name)) return "product";
   if (/status|progress|state/.test(name)) return "status";
@@ -1894,15 +2179,17 @@ function renderImportReview(){
     select.value=guess;
     select.addEventListener("change",()=>{
       const selected=select.value;
-      if(!selected)return;
+      if(!selected){renderImportQualitySummary();return;}
       const duplicate=[...mappings.querySelectorAll("[data-import-column]")].find(other=>other!==select&&other.value===selected);
       if(duplicate){
         duplicate.value="";
         document.querySelector("#import-review-status").textContent="BusinessFlow kept both source columns. Only one is mapped to each standard field; the other remains available for Intelligence analysis.";
       }
+      renderImportQualitySummary();
     });
     label.append(title,select);mappings.append(label);
   });
+  renderImportQualitySummary();
   head.replaceChildren();body.replaceChildren();
   const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
   pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
@@ -1920,16 +2207,52 @@ function currentImportMapping(){
   return mapping;
 }
 async function loadSavedImports(){
-  const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
+  const requestId=++savedImportsRequestId;
+  const list=document.querySelector("#saved-imports-list");
+  const status=document.querySelector("#saved-imports-status");
+  const cloud=window.BusinessFlowCloud?.getState?.();
+  if(!list||!status)return;
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){
+    list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';
+    status.textContent="";
+    importedDatasets=[];
+    syncAnalyticsDatasetOptions();
+    renderDatasetPortfolio();
+    const detail=document.querySelector("#saved-import-detail");
+    if(detail){detail.hidden=true;detail.replaceChildren();}
+    return;
+  }
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
-    if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
-    importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportsRequestId||!latest?.signedIn||!latest.apiConnected||latest.userId!==cloud.userId||latest.businessId!==cloud.businessId)return;
+    importedDatasets=Array.isArray(result.imports)?result.imports:[];
+    syncAnalyticsDatasetOptions();
+    renderDatasetPortfolio();
+    void loadBusinessInsights(cloud.businessId,getAnalyticsFilters());
+    list.replaceChildren();
+    if(!importedDatasets.length){
+      const empty=document.createElement("p");empty.className="empty-state";
+      empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);
+    }
+    importedDatasets.forEach(item=>{
+      const row=document.createElement("div");row.className="record-item import-record";
+      const content=document.createElement("div");content.className="record-content";
+      const title=document.createElement("strong");title.textContent=item.name;
+      const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();
+      content.append(title,detail);
+      const button=document.createElement("button");button.className="small-button";button.type="button";
+      button.textContent="View data";button.dataset.importId=item.id;
+      row.append(content,button);list.append(row);
+    });
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
-  }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
+  }catch(error){
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportsRequestId||latest?.businessId!==cloud.businessId||latest?.userId!==cloud.userId)return;
+    status.textContent=error.message||"Could not load saved datasets.";
+    renderDatasetPortfolio();
+  }
 }
 function buildDatasetReadout(dataset){
   const mapping=dataset.column_mapping&&typeof dataset.column_mapping==="object"?dataset.column_mapping:{};
@@ -1953,16 +2276,24 @@ function buildDatasetReadout(dataset){
   return {cards,notes};
 }
 async function viewSavedImport(id){
-  const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
+  const requestId=++savedImportDetailRequestId;
+  const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");
+  if(!cloud?.signedIn||!cloud.apiConnected||!cloud.businessId||!panel)return;
   panel.hidden=false;panel.textContent="Loading dataset…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportDetailRequestId||!latest?.signedIn||!latest.apiConnected||latest.userId!==cloud.userId||latest.businessId!==cloud.businessId)return;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
     const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
     dataset.rows.slice(0,25).forEach(row=>{const line=document.createElement("tr");dataset.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";line.append(td);});tbody.append(line);});
     table.append(thead,tbody);wrap.append(table);panel.append(title,meta,wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
-  }catch(error){panel.textContent=error.message||"Could not load this dataset.";}
+  }catch(error){
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportDetailRequestId||latest?.businessId!==cloud.businessId||latest?.userId!==cloud.userId)return;
+    panel.textContent=error.message||"Could not load this dataset.";
+  }
 }
 function setupDataImport(){
   const input=document.querySelector("#import-file");
@@ -1993,6 +2324,7 @@ function setupDataImport(){
     }
     if(processingFile===file)return;
     processingFile=file;
+    chooseButton.disabled=true;
     pendingImport=null;
     review.hidden=true;
     fileStatus.textContent="File selected: "+file.name+". Reading file…";
@@ -2008,7 +2340,9 @@ function setupDataImport(){
     }catch(error){
       fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
     }finally{
+      if(input.files?.[0]===file)input.value="";
       processingFile=null;
+      chooseButton.disabled=false;
       window.BusinessFlowLoading?.hide();
     }
   };
@@ -2051,7 +2385,12 @@ function setupDataImport(){
       document.querySelector("#saved-import-detail")?.setAttribute("hidden","");
       navigateTo("overview");
       status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
-    }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
+    }catch(error){
+      // A network failure can happen after the server commits the import.
+      // Refresh the cloud list and never imply that the dataset definitely failed.
+      try{await loadSavedImports();}catch{}
+      status.textContent="The save could not be confirmed. Check Saved datasets before retrying; the server may already have stored this import.";
+    }
     finally{button.disabled=false;window.BusinessFlowLoading?.hide();}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
