@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBusinessInsights } from "./business-intelligence.analytics.js";
+import { buildBusinessInsights } from "../src/modules/business-intelligence/business-intelligence.analytics.js";
 
 const profile = { id: "business-1", name: "Test business", currency_code: "XOF" };
 
@@ -63,4 +63,24 @@ test("product profitability exposes comparable record coverage", () => {
   assert.equal(serviceA.cost, 40);
   assert.equal(serviceA.grossProfit, 60);
   assert.equal(serviceA.comparableRecords, 1);
+});
+
+
+test("monthly revenue comparison does not skip missing calendar months", () => {
+  const result = analyse([
+    { customer: "customer-a", date: "2026-01-10", item: "Service A", sales: "100", expense: "40" },
+    { customer: "customer-a", date: "2026-03-10", item: "Service A", sales: "120", expense: "50" }
+  ]);
+
+  const march = result.metrics.monthlyPerformance.find(item => item.month === "2026-03");
+  assert.equal(march.previousRevenue, null);
+  assert.equal(march.revenueChangePercent, null);
+});
+
+test("a single occurrence is not promoted as the top product", () => {
+  const result = analyse([
+    { customer: "customer-a", date: "2026-01-10", item: "One-off", sales: "100", expense: "40" }
+  ]);
+
+  assert.equal(result.metrics.topProduct, null);
 });
