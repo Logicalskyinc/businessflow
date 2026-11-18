@@ -268,7 +268,7 @@ function validateExperiment(input, partial = false) {
     baseline_value: v => v === null ? pass(null) : numeric(v),
     result_value: v => v === null ? pass(null) : numeric(v),
     learning_notes: v => nullableText(v, 2000),
-    result_summary: v => nullableText(v, 8000), started_at: v => timestamp(v), completed_at: timestamp(v)
+    result_summary: v => nullableText(v, 8000), started_at: v => timestamp(v), completed_at: v => timestamp(v)
   }, ["title"], partial, { status: "draft" });
 }
 function validateMemory(input, partial = false) {
