@@ -45,8 +45,8 @@ async function inspectMobileViewport(browser, device, width, height) {
     isMobile: true,
     hasTouch: true
   });
+  await context.setJavaScriptEnabled(false);
   const page = await context.newPage();
-  await page.setJavaScriptEnabled(false);
   // Layout tests do not need application bundles or third-party scripts.
   await page.route("**/*", route => {
     const hostname = new URL(route.request().url()).hostname;
@@ -132,9 +132,10 @@ test("iPhone Safari and Android Chrome mobile layouts stay usable at narrow widt
 test("tablet viewport does not show the mobile bottom navigation", { timeout: 30_000 }, async () => {
   const { server, url } = await startStaticServer();
   try {
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 768, height: 1024 } });
-    await page.setJavaScriptEnabled(false);
+    const browser = await chromium.launch({ headless: true, timeout: 30_000 });
+    const context = await browser.newContext({ viewport: { width: 768, height: 1024 } });
+    await context.setJavaScriptEnabled(false);
+    const page = await context.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
     await page.locator("body").evaluate(body => body.classList.remove("auth-pending", "auth-required"));
     const layout = await page.evaluate(() => ({
@@ -142,6 +143,7 @@ test("tablet viewport does not show the mobile bottom navigation", { timeout: 30
       documentWidth: document.documentElement.scrollWidth,
       mobileNavDisplay: getComputedStyle(document.querySelector(".mobile-tabbar")).display
     }));
+    await context.close();
     await browser.close();
     assert.ok(layout.documentWidth <= layout.width + 1, "tablet layout has horizontal page overflow");
     assert.equal(layout.mobileNavDisplay, "none", "mobile bottom navigation should be hidden at tablet width");
