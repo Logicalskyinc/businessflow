@@ -284,7 +284,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       notes: !rows.length ? ["No imported records are available."] : [
         ...(!revenueMapped ? ["Revenue field is not mapped."] : []),
         ...(!customerMapped ? ["Customer identity is not mapped."] : []),
-        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : [])
+        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : []),
+        ...(invalidCostValues ? [invalidCostValues + " cost cells are blank or non-numeric."] : []),
+        ...(currencyMismatch ? ["Mapped amount column indicates " + sourceCurrency + " but the workspace currency is " + profile.currency_code + ". Confirm the source currency before comparing totals."] : [])
       ] },
     goals: progressGoals, insights
   };
