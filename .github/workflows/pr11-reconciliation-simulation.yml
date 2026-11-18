@@ -1,0 +1,138 @@
+name: PR #11 reconciliation simulation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pr11-reconciliation-simulation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr11-reconciliation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulate-reconciliation:
+    name: Validate PR #11 and simulate reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out simulation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch current main and PR #11 syntax-corrected candidate branch
+        run: |
+          git fetch origin main fix/pr11-feature-syntax
+
+      - name: Configure temporary Git identity
+        run: |
+          git config user.name "BusinessFlow Reconciliation Runner"
+          git config user.email "reconciliation-runner@users.noreply.github.com"
+
+      - name: Create isolated syntax-corrected feature worktree
+        run: git worktree add --detach /tmp/pr11-validation origin/fix/pr11-feature-syntax
+
+      - name: Check syntax-corrected feature JavaScript syntax
+        id: feature_syntax
+        continue-on-error: true
+        shell: bash
+        run: |
+          cd /tmp/pr11-validation
+          failed=0
+          for file in script.js auth.js frontend-config.js backend/src/modules/business-intelligence/business-intelligence.analytics.js backend/src/modules/business-intelligence/business-intelligence.routes.js backend/src/modules/business-intelligence/conversation.routes.js backend/src/modules/business-intelligence/business-intelligence.analytics.test.js; do
+            if [ -f "$file" ]; then
+              echo "Checking $file"
+              node --check "$file" || failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: Install syntax-corrected feature backend dependencies
+        id: feature_install
+        continue-on-error: true
+        run: npm install --no-audit --no-fund
+        working-directory: /tmp/pr11-validation/backend
+
+      - name: Run syntax-corrected feature backend regression tests independently
+        id: feature_tests
+        if: always() && steps.feature_install.outcome == 'success'
+        continue-on-error: true
+        run: npm test
+        working-directory: /tmp/pr11-validation/backend
+
+      - name: Simulate merge without changing remote branches
+        id: merge
+        shell: bash
+        run: |
+          set +e
+          git checkout -B reconciliation origin/main
+          git merge --no-commit --no-ff origin/fix/pr11-feature-syntax
+          merge_status=$?
+          if [ "$merge_status" -ne 0 ]; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ -n "$conflicts" ]; then
+              result="CONFLICTS DETECTED"
+            else
+              result="MERGE ERROR (not a content conflict)"
+            fi
+            {
+              echo "## PR #11 reconciliation simulation"
+              echo
+              echo "Result: **$result**"
+              echo
+              echo "The merge was attempted in an isolated runner. No remote branch was changed."
+              echo
+              if [ -n "$conflicts" ]; then
+                echo "### Conflicting files"
+                echo '~~~'
+                printf '%s\\n' "$conflicts"
+                echo '~~~'
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+            git merge --abort || true
+            exit 1
+          fi
+          echo "merge_ok=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "## PR #11 reconciliation simulation"
+            echo
+            echo "Result: **MERGE CLEAN**"
+            echo
+            echo "The merge completed in an isolated runner. No remote branch was changed."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check reconciled JavaScript syntax
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: |
+          node --check script.js
+          node --check auth.js
+          node --check frontend-config.js
+
+      - name: Install reconciled backend dependencies
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: npm install --no-audit --no-fund
+        working-directory: backend
+
+      - name: Run reconciled backend regression tests
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: npm test
+        working-directory: backend
+
+      - name: Summarize independent PR #11 checks
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Independent syntax-corrected feature checks"
+            echo
+            echo "- JavaScript syntax: **${{ steps.feature_syntax.outcome }}**"
+            echo "- Backend dependency install: **${{ steps.feature_install.outcome }}**"
+            echo "- Backend regression tests: **${{ steps.feature_tests.outcome || 'not run' }}**"
+            echo
+            echo "These checks run against an isolated worktree of the syntax-corrected feature candidate. No source branch is modified."
+          } >> "$GITHUB_STEP_SUMMARY"
