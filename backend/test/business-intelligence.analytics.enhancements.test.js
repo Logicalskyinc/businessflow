@@ -84,3 +84,18 @@ test("a single occurrence is not promoted as the top product", () => {
 
   assert.equal(result.metrics.topProduct, null);
 });
+
+
+test("impossible transaction dates are excluded from dated analytics", () => {
+  const result = analyse([
+    { customer: "customer-a", date: "2026-02-28", item: "Service A", sales: "100", expense: "40" },
+    { customer: "customer-b", date: "2026-02-31", item: "Service B", sales: "200", expense: "80" }
+  ]);
+
+  assert.deepEqual(result.metrics.dateRange, {
+    from: "2026-02-28T00:00:00.000Z",
+    to: "2026-02-28T00:00:00.000Z"
+  });
+  assert.deepEqual(result.metrics.monthlyRevenue, [{ month: "2026-02", total: 100 }]);
+  assert.equal(result.metrics.monthlyRetention.length, 1);
+});
