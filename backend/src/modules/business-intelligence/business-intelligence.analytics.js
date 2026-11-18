@@ -239,7 +239,6 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
-    const [year, monthNumber] = month.split("-").map(Number);
     const previousMonth = previousCalendarMonth(month);
     const previous = monthlyCustomerActivity.get(previousMonth) || new Set();
     const returning = [...customers].filter(customer => previous.has(customer)).length;
