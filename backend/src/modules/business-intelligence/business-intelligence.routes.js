@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuthenticatedUser } from "../../middleware/require-authenticated-user.js";
 import { getOnboardingQuestions, validateOnboardingAnswers } from "./business-intelligence.service.js";
 import { buildBusinessInsights } from "./business-intelligence.analytics.js";
+import { isValidCalendarDate } from "./calendar-date.js";
 
 export const businessIntelligenceRouter = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -320,18 +321,9 @@ function numeric(v) { return typeof v === "number" && Number.isFinite(v) ? pass(
 function enumeration(v, values) { return typeof v === "string" && values.includes(v) ? pass(v) : fail("unsupported value"); }
 function date(v) {
   if (v === null) return pass(null);
-  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-    return fail("must be YYYY-MM-DD or null");
-  }
-
-  const [year, month, day] = v.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  const isRealCalendarDate =
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month - 1 &&
-    parsed.getUTCDate() === day;
-
-  return isRealCalendarDate ? pass(v) : fail("must be a real calendar date in YYYY-MM-DD format or null");
+  return isValidCalendarDate(v)
+    ? pass(v)
+    : fail("must be a real calendar date in YYYY-MM-DD format or null");
 }
 function timestamp(v) {
   if (v === null) return pass(null);
