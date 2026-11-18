@@ -320,7 +320,18 @@ function numeric(v) { return typeof v === "number" && Number.isFinite(v) ? pass(
 function enumeration(v, values) { return typeof v === "string" && values.includes(v) ? pass(v) : fail("unsupported value"); }
 function date(v) {
   if (v === null) return pass(null);
-  return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + "T00:00:00Z")) ? pass(v) : fail("must be YYYY-MM-DD or null");
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return fail("must be YYYY-MM-DD or null");
+  }
+
+  const [year, month, day] = v.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const isRealCalendarDate =
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+
+  return isRealCalendarDate ? pass(v) : fail("must be a real calendar date in YYYY-MM-DD format or null");
 }
 function timestamp(v) {
   if (v === null) return pass(null);
