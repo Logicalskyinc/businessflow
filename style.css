@@ -991,3 +991,48 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
 @media(max-width:640px){.analytics-filter-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}.analytics-filter-bar .period-control{min-width:0}.analytics-filter-bar #analytics-reset{width:100%;grid-column:1/-1}}
 
 .explorer-subheading{margin-top:5px;color:#405574;font-size:11px}
+
+
+/* Mobile touch, form and safe-area refinements for iOS Safari and Android Chrome. */
+@media (max-width: 760px) {
+  .menu-button,
+  .topbar-icon-button,
+  .mobile-tab,
+  .small-button,
+  .secondary-button,
+  .primary-button,
+  .text-button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  .menu-button,
+  .topbar-icon-button { min-width: 44px; }
+  .topbar-icon-button { width: 44px; height: 44px; }
+  .mobile-tab { min-height: 48px; }
+  .analytics-filter-bar select,
+  .analytics-filter-bar input,
+  .import-mapping-item select,
+  .form-label input,
+  .form-label select,
+  .form-label textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .analytics-filter-bar { gap: 12px; }
+  .analytics-filter-bar .period-control { font-size: 12px; }
+  .import-review-actions { gap: 12px; }
+  .import-preview-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .revenue-chart-bars,
+  .import-preview-wrap { scrollbar-width: thin; }
+}
+@media (max-width: 380px) {
+  .analytics-filter-bar { grid-template-columns: minmax(0, 1fr); }
+  .analytics-filter-bar #analytics-reset { grid-column: auto; }
+  .mobile-tab small { font-size: 9px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .nav-link, .mobile-tab, .menu-button, .topbar-icon-button,
+  .small-button, .secondary-button, .primary-button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
