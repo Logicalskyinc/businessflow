@@ -152,6 +152,8 @@ businessIntelligenceRouter.get("/insights", requireAuthenticatedUser, async (req
 
       const filteredRows = (Array.isArray(dataset.rows) ? dataset.rows : []).filter(row => {
         const rawDate = String(row?.[dateColumn] ?? "").trim();
+        const datePrefix = rawDate.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+        if (datePrefix && !isValidCalendarDate(datePrefix[1])) return false;
         const parsed = new Date(rawDate);
         if (Number.isNaN(parsed.getTime())) return false;
         const day = parsed.toISOString().slice(0, 10);
