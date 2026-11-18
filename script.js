@@ -1456,6 +1456,131 @@ function renderGreyWorkspaceBrief() {
   }
   const coverage = result.coverage || {};
   const metrics = result.metrics || {};
+  if (status) status.textContent = (result.business?.name || state.businessName || "Selected workspace") +
+    " · " + (result.engine || "BusinessFlow analysis") + " · " +
+    (result.generatedAt ? "Updated " + new Date(result.generatedAt).toLocaleString() : "Current workspace snapshot");
+  const metricRows = [
+    ["Records analysed", Number(coverage.recordsAnalysed || 0).toLocaleString()],
+    ["Active goals", Number(coverage.activeGoalsCount || 0).toLocaleString()],
+    ["Active experiments", Number(coverage.activeExperimentsCount || 0).toLocaleString()],
+    ["Revenue total", metrics.revenueTotal == null ? "Not available" : Number(metrics.revenueTotal).toLocaleString() + " " + String(metrics.revenueCurrency || result.business?.currencyCode || "XOF")]
+  ];
+  const metricMarkup = metricRows.map(([label,value]) =>
+    '<div class="grey-brief-metric"><span>' + escapeHTML(label) + '</span><strong>' + escapeHTML(value) + '</strong></div>'
+  ).join("");
+  const insights = Array.isArray(result.insights) ? result.insights.slice(0,4) : [];
+  const insightMarkup = insights.map(item =>
+    '<article class="grey-brief-insight"><strong>' + escapeHTML(item.title || "Workspace insight") +
+    '</strong><p>' + escapeHTML(item.summary || "No summary available.") +
+    '</p><small>Evidence: ' + escapeHTML(item.evidence || "No supporting records") +
+    '</small><p class="grey-brief-next"><b>Suggested next step:</b> ' +
+    escapeHTML(item.recommendedAction || "Review the underlying business records.") + '</p></article>'
+  ).join("");
+  root.innerHTML = '<div class="grey-brief-metrics">' + metricMarkup + '</div>' +
+    (insightMarkup || '<p class="empty-state">No verified insights are available yet.</p>') +
+    '<p class="grey-brief-disclaimer">This briefing uses saved workspace records and rule-based analysis. Recommendations are not completed actions.</p>';
+}
+
+function renderDashboardMetrics(result) {
+  const metrics = result?.metrics || {};
+  const coverage = result?.coverage || {};
+  const records = Number(coverage.recordsAnalysed || 0);
+  const currency = String(metrics.revenueCurrency || result?.business?.currencyCode || "XOF");
+  const format = value => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+
+  document.querySelectorAll('[data-business-metric="revenue"]').forEach(node => {
+    node.textContent = metrics.revenueTotal == null ? "—" : format(metrics.revenueTotal) + " " + currency;
+  });
+  document.querySelectorAll('[data-business-metric-note="revenue"]').forEach(node => {
+    node.textContent = metrics.revenueTotal == null
+      ? "No verified revenue field mapped"
+      : records.toLocaleString() + " imported rows · snapshot";
+  });
+  document.querySelectorAll('[data-business-metric="customers"]').forEach(node => {
+    node.textContent = metrics.customers == null ? "—" : Number(metrics.customers).toLocaleString();
+  });
+  document.querySelectorAll('[data-business-metric-note="customers"]').forEach(node => {
+    node.textContent = metrics.customers == null
+      ? "Map a customer ID, email or name"
+      : Number(metrics.repeatCustomers || 0).toLocaleString() + " repeat customers · imported snapshot";
+  });
+  document.querySelectorAll('[data-business-metric="conversion"]').forEach(node => { node.textContent = "—"; });
+  document.querySelectorAll('[data-business-metric-note="conversion"]').forEach(node => {
+    node.textContent = "Not calculated: conversion events are not mapped";
+  });
+
+  const status = records
+    ? records.toLocaleString() + " imported records analysed. These figures describe the saved dataset, not a live connection."
+    : "No imported records are available for this workspace yet.";
+  ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = status;
+  });
+}
+
+function renderAnalyticsRevenueTrend(result) {
+  const selectors = ["#analytics-revenue-chart", "#overview-revenue-chart"];
+  const metrics = result?.metrics || {};
+  const points = Array.isArray(metrics.monthlyRevenue)
+    ? metrics.monthlyRevenue.filter(point =>
+        point && /^\\d{4}-\\d{2}$/.test(String(point.month)) &&
+        Number.isFinite(Number(point.total)) && Number(point.total) >= 0)
+    : [];
+  selectors.forEach(selector => {
+    const root = document.querySelector(selector);
+    if (!root) return;
+    root.classList.remove("chart-empty");
+    if (points.length < 2) {
+      root.classList.add("chart-empty");
+      root.innerHTML = '<p class="empty-state">A verified date and revenue mapping across at least two months is required to show a trend.</p>';
+      return;
+    }
+    const maximum = Math.max(...points.map(point => Number(point.total)), 0);
+    const rows = points.map(point => {
+      const date = new Date(String(point.month) + "-01T00:00:00");
+      const label = Number.isNaN(date.getTime()) ? String(point.month)
+        : date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+      const total = Number(point.total);
+      const width = maximum > 0 ? Math.max(1, Math.round(total / maximum * 100)) : 0;
+      const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(total);
+      return '<div class="revenue-trend-row"><div class="revenue-trend-label"><span>' +
+        escapeHTML(label) + '</span><strong>' + escapeHTML(formatted) + ' ' +
+        escapeHTML(metrics.revenueCurrency || result?.business?.currencyCode || "XOF") +
+        '</strong></div><div class="revenue-trend-track" role="img" aria-label="' +
+        escapeHTML(label + ": " + formatted) + '"><span style="width:' + width + '%"></span></div></div>';
+    }).join("");
+    root.innerHTML = '<div class="revenue-trend-list">' + rows + '</div>';
+  });
+  const note = document.querySelector("#analytics-revenue-chart-note");
+  if (note) note.textContent = points.length >= 2
+    ? "Monthly totals calculated from saved imported records. This is not a live feed."
+    : "Imported snapshot only. A trend requires verified date and revenue mappings.";
+}
+
+function renderBusinessInsights() {
+  const overview = document.querySelector("#overview-insights");
+  const analytics = document.querySelector("#analytics-insights");
+  const status = document.querySelector("#overview-intelligence-status");
+  const result = latestBusinessInsights;
+  renderDashboardMetrics(result);
+  renderAnalyticsRevenueTrend(result);
+  if (!result) {
+    if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
+    if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
+    ["#explorer-customer-segments", "#explorer-product-performance", "#explorer-period-comparison", "#explorer-profitability", "#explorer-customer-retention", "#explorer-data-quality", "#explorer-value-coverage"].forEach(selector => {
+      const host = document.querySelector(selector);
+      if (host) host.textContent = "Select a connected business workspace to load verified analytics.";
+    });
+    if (status) status.textContent = "Waiting for a selected workspace.";
+    renderWorkspacePulse();
+    renderAnalyticsDataReadiness();
+    return;
+  }
+  const coverage = result.coverage || {};
+  if (status) status.textContent = result.engine === "businessflow_rules_v1"
+    ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
+    : "Business analysis";
+  const metrics = result.metrics || {};
   const currency = String(metrics.revenueCurrency || result.business?.currencyCode || "XOF").toUpperCase();
   const money = value => value == null ? "—" : new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value) + " " + currency;
   const renderExplorerBar = (host, label, value, maximum, detail) => {
@@ -1654,132 +1779,6 @@ function renderGreyWorkspaceBrief() {
     note.textContent = "Average amount is calculated across readable mapped revenue values. It is not a profit or margin measure.";
     valueHost.append(note);
   }
-
-  const metrics = result.metrics || {};
-  if (status) status.textContent = (result.business?.name || state.businessName || "Selected workspace") +
-    " · " + (result.engine || "BusinessFlow analysis") + " · " +
-    (result.generatedAt ? "Updated " + new Date(result.generatedAt).toLocaleString() : "Current workspace snapshot");
-  const metricRows = [
-    ["Records analysed", Number(coverage.recordsAnalysed || 0).toLocaleString()],
-    ["Active goals", Number(coverage.activeGoalsCount || 0).toLocaleString()],
-    ["Active experiments", Number(coverage.activeExperimentsCount || 0).toLocaleString()],
-    ["Revenue total", metrics.revenueTotal == null ? "Not available" : Number(metrics.revenueTotal).toLocaleString() + " " + String(metrics.revenueCurrency || result.business?.currencyCode || "XOF")]
-  ];
-  const metricMarkup = metricRows.map(([label,value]) =>
-    '<div class="grey-brief-metric"><span>' + escapeHTML(label) + '</span><strong>' + escapeHTML(value) + '</strong></div>'
-  ).join("");
-  const insights = Array.isArray(result.insights) ? result.insights.slice(0,4) : [];
-  const insightMarkup = insights.map(item =>
-    '<article class="grey-brief-insight"><strong>' + escapeHTML(item.title || "Workspace insight") +
-    '</strong><p>' + escapeHTML(item.summary || "No summary available.") +
-    '</p><small>Evidence: ' + escapeHTML(item.evidence || "No supporting records") +
-    '</small><p class="grey-brief-next"><b>Suggested next step:</b> ' +
-    escapeHTML(item.recommendedAction || "Review the underlying business records.") + '</p></article>'
-  ).join("");
-  root.innerHTML = '<div class="grey-brief-metrics">' + metricMarkup + '</div>' +
-    (insightMarkup || '<p class="empty-state">No verified insights are available yet.</p>') +
-    '<p class="grey-brief-disclaimer">This briefing uses saved workspace records and rule-based analysis. Recommendations are not completed actions.</p>';
-}
-
-function renderDashboardMetrics(result) {
-  const metrics = result?.metrics || {};
-  const coverage = result?.coverage || {};
-  const records = Number(coverage.recordsAnalysed || 0);
-  const currency = String(metrics.revenueCurrency || result?.business?.currencyCode || "XOF");
-  const format = value => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
-
-  document.querySelectorAll('[data-business-metric="revenue"]').forEach(node => {
-    node.textContent = metrics.revenueTotal == null ? "—" : format(metrics.revenueTotal) + " " + currency;
-  });
-  document.querySelectorAll('[data-business-metric-note="revenue"]').forEach(node => {
-    node.textContent = metrics.revenueTotal == null
-      ? "No verified revenue field mapped"
-      : records.toLocaleString() + " imported rows · snapshot";
-  });
-  document.querySelectorAll('[data-business-metric="customers"]').forEach(node => {
-    node.textContent = metrics.customers == null ? "—" : Number(metrics.customers).toLocaleString();
-  });
-  document.querySelectorAll('[data-business-metric-note="customers"]').forEach(node => {
-    node.textContent = metrics.customers == null
-      ? "Map a customer ID, email or name"
-      : Number(metrics.repeatCustomers || 0).toLocaleString() + " repeat customers · imported snapshot";
-  });
-  document.querySelectorAll('[data-business-metric="conversion"]').forEach(node => { node.textContent = "—"; });
-  document.querySelectorAll('[data-business-metric-note="conversion"]').forEach(node => {
-    node.textContent = "Not calculated: conversion events are not mapped";
-  });
-
-  const status = records
-    ? records.toLocaleString() + " imported records analysed. These figures describe the saved dataset, not a live connection."
-    : "No imported records are available for this workspace yet.";
-  ["#overview-data-status", "#analytics-data-status"].forEach(selector => {
-    const node = document.querySelector(selector);
-    if (node) node.textContent = status;
-  });
-}
-
-function renderAnalyticsRevenueTrend(result) {
-  const selectors = ["#analytics-revenue-chart", "#overview-revenue-chart"];
-  const metrics = result?.metrics || {};
-  const points = Array.isArray(metrics.monthlyRevenue)
-    ? metrics.monthlyRevenue.filter(point =>
-        point && /^\\d{4}-\\d{2}$/.test(String(point.month)) &&
-        Number.isFinite(Number(point.total)) && Number(point.total) >= 0)
-    : [];
-  selectors.forEach(selector => {
-    const root = document.querySelector(selector);
-    if (!root) return;
-    root.classList.remove("chart-empty");
-    if (points.length < 2) {
-      root.classList.add("chart-empty");
-      root.innerHTML = '<p class="empty-state">A verified date and revenue mapping across at least two months is required to show a trend.</p>';
-      return;
-    }
-    const maximum = Math.max(...points.map(point => Number(point.total)), 0);
-    const rows = points.map(point => {
-      const date = new Date(String(point.month) + "-01T00:00:00");
-      const label = Number.isNaN(date.getTime()) ? String(point.month)
-        : date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
-      const total = Number(point.total);
-      const width = maximum > 0 ? Math.max(1, Math.round(total / maximum * 100)) : 0;
-      const formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(total);
-      return '<div class="revenue-trend-row"><div class="revenue-trend-label"><span>' +
-        escapeHTML(label) + '</span><strong>' + escapeHTML(formatted) + ' ' +
-        escapeHTML(metrics.revenueCurrency || result?.business?.currencyCode || "XOF") +
-        '</strong></div><div class="revenue-trend-track" role="img" aria-label="' +
-        escapeHTML(label + ": " + formatted) + '"><span style="width:' + width + '%"></span></div></div>';
-    }).join("");
-    root.innerHTML = '<div class="revenue-trend-list">' + rows + '</div>';
-  });
-  const note = document.querySelector("#analytics-revenue-chart-note");
-  if (note) note.textContent = points.length >= 2
-    ? "Monthly totals calculated from saved imported records. This is not a live feed."
-    : "Imported snapshot only. A trend requires verified date and revenue mappings.";
-}
-
-function renderBusinessInsights() {
-  const overview = document.querySelector("#overview-insights");
-  const analytics = document.querySelector("#analytics-insights");
-  const status = document.querySelector("#overview-intelligence-status");
-  const result = latestBusinessInsights;
-  renderDashboardMetrics(result);
-  renderAnalyticsRevenueTrend(result);
-  if (!result) {
-    if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
-    if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
-    ["#explorer-customer-segments", "#explorer-product-performance", "#explorer-period-comparison", "#explorer-profitability", "#explorer-customer-retention", "#explorer-data-quality", "#explorer-value-coverage"].forEach(selector => {
-      const host = document.querySelector(selector);
-      if (host) host.textContent = "Select a connected business workspace to load verified analytics.";
-    });
-    if (status) status.textContent = "Waiting for a selected workspace.";
-    renderWorkspacePulse();
-    renderAnalyticsDataReadiness();
-    return;
-  }
-  const coverage = result.coverage || {};
-  if (status) status.textContent = result.engine === "businessflow_rules_v1"
-    ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
-    : "Business analysis";
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
