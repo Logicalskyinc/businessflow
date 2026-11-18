@@ -1,0 +1,67 @@
+name: BusinessFlow scheduled quality checks
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "script.js"
+      - "auth.js"
+      - "frontend-config.js"
+      - ".github/workflows/businessflow-quality.yml"
+  workflow_dispatch:
+  schedule:
+    # Run before the workday, Tuesday through Sunday (Côte d’Ivoire is UTC+0).
+    # Monday remains the user’s review and decision day.
+    - cron: "0 6 * * 0,2-6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: businessflow-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Backend tests and JavaScript syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check frontend JavaScript syntax
+        run: |
+          node --check ../script.js
+          node --input-type=module --check < ../auth.js
+          node --check ../frontend-config.js
+
+      - name: Install backend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run backend test suite
+        run: npm test
+
+      - name: Write run summary
+        if: always()
+        working-directory: .
+        run: |
+          {
+            echo "## BusinessFlow quality check"
+            echo
+            echo "- Trigger: `${{ github.event_name }}`"
+            echo "- Branch: `${{ github.ref_name }}`"
+            echo "- Commit: `${{ github.sha }}`"
+            echo "- Result: **${{ job.status }}**"
+            echo
+            echo "Validation only. This workflow does not deploy or modify production services."
+          } >> "$GITHUB_STEP_SUMMARY"
