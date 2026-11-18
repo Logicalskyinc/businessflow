@@ -851,3 +851,159 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
   .record-item .record-details { grid-template-columns: 1fr; }
   .record-heading-actions { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* Filtered analytics, data explorer, and import-quality surfaces */
+.analytics-filter-bar {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.analytics-filter-bar .period-control {
+  display: grid;
+  gap: 5px;
+  min-width: 128px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.analytics-filter-bar select,
+.analytics-filter-bar input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+.analytics-filter-bar input:disabled { opacity: .55; cursor: not-allowed; }
+#analytics-filter-status { margin: -8px 0 18px; font-size: 12px; }
+
+.data-explorer-section { margin: 26px 0; }
+.data-explorer-section > .section-heading { margin-bottom: 14px; }
+.data-explorer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.explorer-panel { min-width: 0; }
+.explorer-panel .panel-heading { align-items: flex-start; }
+.explorer-panel h3 { margin: 0; font-size: 14px; }
+.explorer-panel .panel-heading .muted { margin: 4px 0 0; font-size: 11px; }
+.explorer-content { display: grid; gap: 11px; min-width: 0; }
+.explorer-highlight {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8faff;
+}
+.explorer-highlight strong { color: var(--text); font-size: 22px; letter-spacing: -.5px; }
+.explorer-highlight span { color: var(--muted); font-size: 11px; }
+.explorer-bar-row { display: grid; gap: 6px; }
+.explorer-bar-top,
+.explorer-value-line,
+.explorer-quality-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.explorer-bar-top span,
+.explorer-value-line span,
+.explorer-quality-line span { color: var(--muted); font-size: 11px; }
+.explorer-bar-top strong,
+.explorer-value-line strong,
+.explorer-quality-line strong { color: var(--text); font-size: 11px; text-align: right; }
+.explorer-bar-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #edf0f6;
+}
+.explorer-bar-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: var(--blue);
+}
+.explorer-footnote { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.explorer-subheading { margin-top: 5px; color: var(--text); font-size: 11px; }
+.explorer-value-line { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.explorer-quality-line { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.explorer-quality-line .is-mapped { color: var(--green); }
+.explorer-quality-line .is-unmapped { color: #a36b16; }
+
+.import-quality-summary {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #f8faff;
+}
+.import-quality-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.import-quality-heading strong { font-size: 12px; }
+.import-quality-heading span { color: var(--muted); font-size: 10px; }
+.import-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.import-quality-card {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.import-quality-card span { color: var(--muted); font-size: 10px; }
+.import-quality-card strong { font-size: 18px; }
+.import-quality-card small { color: var(--muted); font-size: 9px; }
+.import-quality-message { margin: 0; font-size: 11px; }
+.import-quality-message.is-ready { color: #16845f; }
+.import-quality-message.has-warnings { color: #9a6416; }
+.import-quality-issues { display: grid; gap: 4px; margin: 0; padding-left: 18px; color: var(--muted); font-size: 10px; }
+
+.dataset-portfolio-panel { margin-top: 18px; }
+.dataset-portfolio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dataset-portfolio-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8faff;
+}
+.dataset-portfolio-card span,
+.dataset-portfolio-card small { color: var(--muted); font-size: 10px; }
+.dataset-portfolio-card strong { font-size: 22px; letter-spacing: -.4px; }
+.dataset-coverage-list { display: grid; gap: 10px; margin-top: 18px; }
+.dataset-coverage-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.dataset-coverage-heading strong { font-size: 11px; }
+.dataset-coverage-heading span { color: var(--muted); font-size: 10px; }
+.dataset-coverage-row { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(70px, 2fr) 42px; align-items: center; gap: 10px; }
+.dataset-coverage-row > span { color: var(--muted); font-size: 10px; }
+.dataset-coverage-row > small { color: var(--muted); font-size: 10px; text-align: right; }
+.dataset-coverage-track { height: 7px; overflow: hidden; border-radius: 99px; background: #edf0f6; }
+.dataset-coverage-fill { height: 100%; border-radius: inherit; background: var(--blue); }
+
+@media (max-width: 900px) {
+  .analytics-filter-bar { justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .data-explorer-grid { grid-template-columns: 1fr; }
+  .analytics-filter-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .analytics-filter-bar .period-control { min-width: 0; }
+  .analytics-filter-bar #analytics-reset { width: 100%; }
+  .import-quality-grid { grid-template-columns: 1fr; }
+  .dataset-portfolio-grid { grid-template-columns: 1fr; }
+  .dataset-coverage-row { grid-template-columns: minmax(90px, 1fr) minmax(60px, 1.4fr) 38px; }
+}

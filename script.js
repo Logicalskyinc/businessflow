@@ -1567,6 +1567,10 @@ function renderBusinessInsights() {
   if (!result) {
     if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
+    ["#explorer-customer-segments", "#explorer-product-performance", "#explorer-period-comparison", "#explorer-profitability", "#explorer-customer-retention", "#explorer-data-quality", "#explorer-value-coverage"].forEach(selector => {
+      const host = document.querySelector(selector);
+      if (host) host.textContent = "Select a connected business workspace to load verified analytics.";
+    });
     if (status) status.textContent = "Waiting for a selected workspace.";
     renderWorkspacePulse();
     renderAnalyticsDataReadiness();
@@ -1576,6 +1580,205 @@ function renderBusinessInsights() {
   if (status) status.textContent = result.engine === "businessflow_rules_v1"
     ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
     : "Business analysis";
+  const metrics = result.metrics || {};
+  const currency = String(metrics.revenueCurrency || result.business?.currencyCode || "XOF").toUpperCase();
+  const money = value => value == null ? "—" : new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value) + " " + currency;
+  const renderExplorerBar = (host, label, value, maximum, detail) => {
+    if (!host) return;
+    const row = document.createElement("div"); row.className = "explorer-bar-row";
+    const top = document.createElement("div"); top.className = "explorer-bar-top";
+    const name = document.createElement("span"); name.textContent = label;
+    const amount = document.createElement("strong"); amount.textContent = value;
+    top.append(name, amount);
+    const track = document.createElement("div"); track.className = "explorer-bar-track";
+    const fill = document.createElement("div"); fill.className = "explorer-bar-fill";
+    fill.style.width = Math.max(0, Math.min(100, maximum > 0 ? Number(detail) / maximum * 100 : 0)) + "%";
+    track.append(fill); row.append(top, track); host.append(row);
+  };
+  const customersHost = document.querySelector("#explorer-customer-segments");
+  if (customersHost) {
+    customersHost.replaceChildren();
+    if (!result.dataQuality?.customerMapped || metrics.customers == null) {
+      customersHost.textContent = "Customer identity is not mapped. Map customer ID, email or customer name to calculate segments.";
+    } else {
+      const repeat = Number(metrics.repeatCustomers || 0);
+      const total = Number(metrics.customers || 0);
+      const once = Math.max(0, total - repeat);
+      const repeatPct = total ? Math.round(repeat / total * 100) : 0;
+      const headline = document.createElement("div"); headline.className = "explorer-highlight";
+      const strong = document.createElement("strong"); strong.textContent = repeatPct + "%";
+      const caption = document.createElement("span"); caption.textContent = "of identified customers appear more than once";
+      headline.append(strong, caption); customersHost.append(headline);
+      renderExplorerBar(customersHost, "Repeat customers", repeat.toLocaleString(), total, repeat);
+      renderExplorerBar(customersHost, "One-time customers", once.toLocaleString(), total, once);
+      const foot = document.createElement("small"); foot.className = "explorer-footnote";
+      foot.textContent = total.toLocaleString() + " distinct customers identified from mapped records.";
+      customersHost.append(foot);
+      const valueBands = Array.isArray(metrics.customerValueDistribution) ? metrics.customerValueDistribution : [];
+      if (valueBands.some(band => band.customers > 0)) {
+        const heading = document.createElement("strong"); heading.className = "explorer-subheading";
+        heading.textContent = "Customer value distribution"; customersHost.append(heading);
+        const known = Number(metrics.customerValueRecords || 0);
+        valueBands.forEach(band => {
+          if (!band.customers) return;
+          renderExplorerBar(customersHost, band.label, band.customers.toLocaleString() + " · " + money(band.revenue), known, band.customers);
+        });
+        const note = document.createElement("small"); note.className = "explorer-footnote";
+        note.textContent = "Customers are grouped by their recorded revenue, split into three value bands. This is not a lifetime-value forecast.";
+        customersHost.append(note);
+      }
+    }
+  }
+  const productHost = document.querySelector("#explorer-product-performance");
+  if (productHost) {
+    productHost.replaceChildren();
+    if (!result.dataQuality?.productMapped || !metrics.topProduct) {
+      productHost.textContent = "No mapped product or service values are available yet.";
+    } else {
+      const top = document.createElement("div"); top.className = "explorer-highlight";
+      const name = document.createElement("strong"); name.textContent = metrics.topProduct.name;
+      const caption = document.createElement("span"); caption.textContent = "Most frequently recorded product or service";
+      top.append(name, caption); productHost.append(top);
+      const count = document.createElement("p"); count.className = "explorer-footnote";
+      count.textContent = Number(metrics.topProduct.records).toLocaleString() + " records. This ranks frequency, not revenue or profitability.";
+      productHost.append(count);
+      const products = Array.isArray(metrics.productPerformance) ? metrics.productPerformance : [];
+      const revenueAvailable = products.some(item => item.revenue !== null && item.revenueRecords > 0);
+      products.forEach(item => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span");
+        label.textContent = item.name + " · " + Number(item.records).toLocaleString() + " records";
+        const value = document.createElement("strong");
+        const revenueText = revenueAvailable && item.revenue !== null ? money(item.revenue) : "Revenue unavailable";
+        const marginText = item.grossMarginPercent == null ? "" : " · " + item.grossMarginPercent.toFixed(1) + "% gross margin";
+        value.textContent = revenueText + marginText;
+        line.append(label, value); productHost.append(line);
+      });
+      const revenueNote = document.createElement("small"); revenueNote.className = "explorer-footnote";
+      revenueNote.textContent = revenueAvailable
+        ? "Revenue is summed only from readable mapped amounts for each product. It is not profit."
+        : "Map a revenue field to compare product revenue. Frequency alone does not indicate financial contribution.";
+      productHost.append(revenueNote);
+    }
+  }
+  const retentionHost = document.querySelector("#explorer-customer-retention");
+  if (retentionHost) {
+    retentionHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyRetention) ? metrics.monthlyRetention : [];
+    if (!result.dataQuality?.customerMapped || !result.dataQuality?.dateMapped) {
+      retentionHost.textContent = "Map both a stable customer identifier and transaction date to analyse monthly repeat activity.";
+    } else if (!periods.length) {
+      retentionHost.textContent = "No valid monthly customer activity is available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        value.textContent = Number(period.returningCustomers).toLocaleString() + " returning · " + Number(period.returningRate).toFixed(1) + "%";
+        line.append(label, value); retentionHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Returning means present in the immediately preceding calendar month. This is monthly repeat activity, not cohort retention or customer lifetime retention.";
+      retentionHost.append(note);
+    }
+  }
+  const comparisonHost = document.querySelector("#explorer-period-comparison");
+  if (comparisonHost) {
+    comparisonHost.replaceChildren();
+    const periods = Array.isArray(metrics.monthlyPerformance) ? metrics.monthlyPerformance : [];
+    if (!result.dataQuality?.revenueMapped) {
+      comparisonHost.textContent = "Map a revenue column to compare monthly business performance.";
+    } else if (!periods.length) {
+      comparisonHost.textContent = "No dated revenue records are available for the selected filters.";
+    } else {
+      periods.forEach(period => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const label = document.createElement("span"); label.textContent = period.month;
+        const value = document.createElement("strong");
+        const change = period.revenueChangePercent == null ? "No comparable prior month" :
+          (period.revenueChangePercent > 0 ? "+" : "") + period.revenueChangePercent.toFixed(1) + "% vs prior month";
+        value.textContent = (period.revenue == null ? "No revenue" : money(period.revenue)) + " · " + change;
+        line.append(label, value); comparisonHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Each month is compared with the immediately preceding calendar month. A missing month is not treated as zero revenue.";
+      comparisonHost.append(note);
+    }
+  }
+  const profitabilityHost = document.querySelector("#explorer-profitability");
+  if (profitabilityHost) {
+    profitabilityHost.replaceChildren();
+    if (!result.dataQuality?.revenueMapped || !result.dataQuality?.costMapped) {
+      profitabilityHost.textContent = "Map both transaction revenue and transaction cost to calculate gross profit and gross margin.";
+    } else if (metrics.grossProfit == null || metrics.grossMarginPercent == null) {
+      profitabilityHost.textContent = "There are not enough valid revenue and cost values to calculate a reliable gross margin.";
+    } else {
+      const items = [
+        ["Comparable revenue", money(metrics.profitabilityRevenue)],
+        ["Comparable cost", money(metrics.profitabilityCost)],
+        ["Gross profit", money(metrics.grossProfit)],
+        ["Gross margin", Number(metrics.grossMarginPercent).toFixed(1) + "%"],
+        ["Comparable transactions", Number(metrics.profitabilityRecords || 0).toLocaleString()]
+      ];
+      items.forEach(([label, value]) => {
+        const line = document.createElement("div"); line.className = "explorer-value-line";
+        const name = document.createElement("span"); name.textContent = label;
+        const amount = document.createElement("strong"); amount.textContent = value;
+        line.append(name, amount); profitabilityHost.append(line);
+      });
+      const note = document.createElement("small"); note.className = "explorer-footnote";
+      note.textContent = "Gross profit uses only rows with both readable revenue and cost values. Ensure both columns use the same currency and accounting basis. This is not net profit.";
+      profitabilityHost.append(note);
+    }
+  }
+  const qualityHost = document.querySelector("#explorer-data-quality");
+  if (qualityHost) {
+    qualityHost.replaceChildren();
+    const quality = result.dataQuality || {};
+    const checks = [
+      ["Revenue mapping", Boolean(quality.revenueMapped)],
+      ["Customer identity", Boolean(quality.customerMapped)],
+      ["Product / service", Boolean(quality.productMapped)],
+      ["Transaction date", Boolean(quality.dateMapped)],
+      ["Cost mapping", Boolean(quality.costMapped)]
+    ];
+    const mappedCount = checks.filter(item => item[1]).length;
+    const qualityHead = document.createElement("div"); qualityHead.className = "explorer-highlight";
+    const qualityValue = document.createElement("strong"); qualityValue.textContent = Math.round(mappedCount / checks.length * 100) + "%";
+    const qualityCaption = document.createElement("span"); qualityCaption.textContent = "of core analytics fields mapped";
+    qualityHead.append(qualityValue, qualityCaption); qualityHost.append(qualityHead);
+    checks.forEach(([label, ok]) => {
+      const line = document.createElement("div"); line.className = "explorer-quality-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const state = document.createElement("strong"); state.textContent = ok ? "Mapped" : "Missing";
+      state.className = ok ? "is-mapped" : "is-unmapped";
+      line.append(name, state); qualityHost.append(line);
+    });
+    const invalid = Number(quality.invalidRevenueValues || 0);
+    const invalidLine = document.createElement("small"); invalidLine.className = "explorer-footnote";
+    invalidLine.textContent = invalid + " blank or non-numeric revenue cells reported by the analytics engine.";
+    qualityHost.append(invalidLine);
+  }
+  const valueHost = document.querySelector("#explorer-value-coverage");
+  if (valueHost) {
+    valueHost.replaceChildren();
+    const valueCards = [
+      ["Revenue records", Number(metrics.revenueRecords || 0).toLocaleString()],
+      ["Average mapped amount", metrics.averageOrderValue == null ? "Unavailable" : money(metrics.averageOrderValue)],
+      ["Reporting period", metrics.dateRange?.from && metrics.dateRange?.to
+        ? new Date(metrics.dateRange.from).toLocaleDateString() + " – " + new Date(metrics.dateRange.to).toLocaleDateString()
+        : "No valid date range"]
+    ];
+    valueCards.forEach(([label, value]) => {
+      const line = document.createElement("div"); line.className = "explorer-value-line";
+      const name = document.createElement("span"); name.textContent = label;
+      const amount = document.createElement("strong"); amount.textContent = value;
+      line.append(name, amount); valueHost.append(line);
+    });
+    const note = document.createElement("small"); note.className = "explorer-footnote";
+    note.textContent = "Average amount is calculated across readable mapped revenue values. It is not a profit or margin measure.";
+    valueHost.append(note);
+  }
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
@@ -1587,7 +1790,8 @@ function renderBusinessInsights() {
   renderAnalyticsDataReadiness();
   renderGreyWorkspaceBrief();
 }
-async function loadBusinessInsights(businessId) {
+async function loadBusinessInsights(businessId, filters = getAnalyticsFilters()) {
+  const requestId = ++analyticsRequestId;
   const cloud = window.BusinessFlowCloud;
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
@@ -1597,18 +1801,100 @@ async function loadBusinessInsights(businessId) {
   }
   const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
+  updateAnalyticsFilterStatus(filters, "Updating analysis…");
   try {
-    const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    const result = await cloud.loadInsights(businessId, filters);
+    if (requestId !== analyticsRequestId || cloud.getBusinessId() !== businessId) return;
     latestBusinessInsights = result;
+    updateAnalyticsFilterStatus(filters, "Showing");
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   } catch (error) {
+    if (requestId !== analyticsRequestId) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
+    updateAnalyticsFilterStatus(filters, "Analysis could not be refreshed.");
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   }
+}
+let analyticsRequestId = 0;
+function localDateString(date) {
+  return String(date.getFullYear()).padStart(4, "0") + "-" +
+    String(date.getMonth() + 1).padStart(2, "0") + "-" +
+    String(date.getDate()).padStart(2, "0");
+}
+function getAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period")?.value || "all";
+  const datasetId = document.querySelector("#analytics-dataset")?.value || "";
+  let from = "", to = "";
+  if (period === "custom") {
+    from = document.querySelector("#analytics-from")?.value || "";
+    to = document.querySelector("#analytics-to")?.value || "";
+  } else if (["7", "30", "90"].includes(period)) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (Number(period) - 1));
+    from = localDateString(start);
+    to = localDateString(end);
+  }
+  return { datasetId, from, to };
+}
+function updateAnalyticsFilterStatus(filters = {}, message = "") {
+  const status = document.querySelector("#analytics-filter-status");
+  if (!status) return;
+  const dataset = importedDatasets.find(item => item.id === filters.datasetId);
+  const parts = [dataset ? dataset.name : "All datasets"];
+  if (filters.from || filters.to) parts.push((filters.from || "Beginning") + " to " + (filters.to || "Today"));
+  else parts.push("All available dates");
+  status.textContent = (message ? message + " " : "Showing ") + parts.join(" · ");
+}
+function syncAnalyticsDatasetOptions() {
+  const select = document.querySelector("#analytics-dataset");
+  if (!select) return;
+  const selected = select.value;
+  select.replaceChildren();
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "All datasets";
+  select.append(all);
+  importedDatasets.forEach(dataset => {
+    const option = document.createElement("option");
+    option.value = dataset.id;
+    option.textContent = dataset.name + " · " + Number(dataset.row_count || 0).toLocaleString() + " rows";
+    select.append(option);
+  });
+  select.value = importedDatasets.some(item => item.id === selected) ? selected : "";
+}
+function setupAnalyticsFilters() {
+  const period = document.querySelector("#analytics-period");
+  const dataset = document.querySelector("#analytics-dataset");
+  const from = document.querySelector("#analytics-from");
+  const to = document.querySelector("#analytics-to");
+  const reset = document.querySelector("#analytics-reset");
+  if (!period || period.dataset.bound) return;
+  period.dataset.bound = "true";
+  const update = () => {
+    const custom = period.value === "custom";
+    if (from) from.disabled = !custom;
+    if (to) to.disabled = !custom;
+    const filters = getAnalyticsFilters();
+    if (filters.from && filters.to && filters.from > filters.to) {
+      updateAnalyticsFilterStatus(filters, "The start date must be before the end date.");
+      return;
+    }
+    const businessId = window.BusinessFlowCloud?.getBusinessId?.();
+    if (businessId) void loadBusinessInsights(businessId, filters);
+  };
+  [period, dataset, from, to].forEach(control => control?.addEventListener("change", update));
+  reset?.addEventListener("click", () => {
+    period.value = "all";
+    if (dataset) dataset.value = "";
+    if (from) from.value = "";
+    if (to) to.value = "";
+    update();
+  });
+  updateAnalyticsFilterStatus(getAnalyticsFilters());
 }
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
@@ -1706,6 +1992,7 @@ function initializeBusinessFlow() {
   setupNavigation();
   setupActivityCenter();
   setupConnections();
+  setupAnalyticsFilters();
   setupDataImport();
 
   setupGoalForm();
@@ -1816,7 +2103,7 @@ function setupConnections() {
 }
 
 /* CSV / Excel dataset import */
-const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
+const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["cost","Transaction cost"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
 let pendingImport = null;
 let importedDatasets = [];
 
@@ -1868,13 +2155,102 @@ function inferImportBusinessField(column, rows) {
   if (/customer.?name|client.?name|buyer.?name|full.?name/.test(name)) return "customer_name";
   if (/customer.?id|client.?id|buyer.?id|account.?id/.test(name)) return "customer_id";
   if (/date|day|created|transaction.?time|timestamp/.test(name) || samples.filter(value => /^\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}/.test(value) || /^\\d{1,2}[-/]\\d{1,2}[-/]\\d{2,4}$/.test(value)).length >= Math.max(2, Math.ceil(samples.length * 0.7))) return "order_date";
-  if (/revenue|amount|price|cost|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
+  if (/cost|expense|cogs|purchase.?cost|unit.?cost/.test(name)) return "cost";
+  if (/revenue|amount|price|payment|paid|sales|income|turnover|fee|charge/.test(name)) return "revenue";
   if (/quantity|qty|units|items.?count/.test(name)) return "quantity";
   if (/product|item|service|job|package|offering/.test(name)) return "product";
   if (/status|progress|state/.test(name)) return "status";
   if (/location|address|area|zone|city|region|branch/.test(name)) return "location";
   if (/note|description|comment|detail|remark/.test(name)) return "notes";
   return "";
+}
+function renderImportQualitySummary() {
+  const host = document.querySelector("#import-quality-summary");
+  if (!host || !pendingImport) return;
+  const columns = pendingImport.columns || [];
+  const rows = pendingImport.rows || [];
+  const mapped = [...document.querySelectorAll("[data-import-column]")].filter(select => select.value);
+  const mappedFields = new Set(mapped.map(select => select.value));
+  const required = ["revenue", "order_date", "customer_id"];
+  const numericFields = new Set(["revenue", "cost", "quantity"]);
+  const cards = [
+    { label: "Rows to import", value: String(rows.length), note: "Within the 250-row limit" },
+    { label: "Source columns", value: String(columns.length), note: "All source columns are retained" },
+    { label: "Mapped fields", value: mapped.length + " / " + columns.length, note: "Business meaning assigned" }
+  ];
+  const issues = [];
+  const duplicateNames = columns.filter((name, index) => columns.indexOf(name) !== index);
+  if (duplicateNames.length) issues.push(duplicateNames.length + " duplicate source column labels were renamed to keep them distinct.");
+  ["revenue", "order_date"].forEach(field => {
+    const select = [...document.querySelectorAll("[data-import-column]")].find(item => item.value === field);
+    if (!select) issues.push("No " + field.replace("_", " ") + " column mapped. Related analytics will remain unavailable.");
+  });
+  const hasCustomerIdentity = ["customer_id", "customer_name", "email", "phone"].some(field =>
+    [...document.querySelectorAll("[data-import-column]")].some(item => item.value === field)
+  );
+  if (!hasCustomerIdentity) issues.push("No customer identifier mapped. Customer counts will remain unavailable.");
+  for (const select of mapped) {
+    const field = select.value;
+    if (numericFields.has(field)) {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const numeric = nonEmpty.filter(value => {
+        const normalized = value.replace(/,/g, "").replace(/[^0-9.\-]/g, "");
+        return normalized && normalized !== "-" && normalized !== "." && normalized !== "-." && Number.isFinite(Number(normalized));
+      });
+      const invalid = nonEmpty.length - numeric.length;
+      if (invalid) issues.push(column + ": " + invalid + " of " + nonEmpty.length + " non-empty values are not numeric.");
+      if (!nonEmpty.length) issues.push(column + ": no non-empty values found.");
+    }
+    if (field === "order_date") {
+      const column = select.dataset.importColumn;
+      const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
+      const valid = nonEmpty.filter(value => {
+        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+          const [year, month, day] = value.split("-").map(Number);
+          const parsed = new Date(Date.UTC(year, month - 1, day));
+          return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+        }
+        return !Number.isNaN(new Date(value).getTime());
+      });
+      if (nonEmpty.length && valid.length !== nonEmpty.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " date values could not be parsed.");
+      if (!valid.length) issues.push(column + ": no valid dates found.");
+    }
+  }
+  host.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "import-quality-heading";
+  heading.innerHTML = "<strong>Pre-import data quality</strong><span>Checks run on this file before saving</span>";
+  host.append(heading);
+  const grid = document.createElement("div");
+  grid.className = "import-quality-grid";
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "import-quality-card";
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.textContent = item.value;
+    const note = document.createElement("small");
+    note.textContent = item.note;
+    card.append(label, value, note);
+    grid.append(card);
+  });
+  host.append(grid);
+  const message = document.createElement("p");
+  message.className = "import-quality-message " + (issues.length ? "has-warnings" : "is-ready");
+  message.textContent = issues.length ? issues.length + " item(s) to review. You can still import, but unmapped or invalid fields will limit related analytics." : "No mapping or value-format warnings detected in the checked fields.";
+  host.append(message);
+  if (issues.length) {
+    const list = document.createElement("ul");
+    list.className = "import-quality-issues";
+    issues.slice(0, 8).forEach(issue => {
+      const item = document.createElement("li");
+      item.textContent = issue;
+      list.append(item);
+    });
+    host.append(list);
+  }
 }
 function renderImportReview(){
   if(!pendingImport)return;
@@ -1894,15 +2270,17 @@ function renderImportReview(){
     select.value=guess;
     select.addEventListener("change",()=>{
       const selected=select.value;
-      if(!selected)return;
+      if(!selected){renderImportQualitySummary();return;}
       const duplicate=[...mappings.querySelectorAll("[data-import-column]")].find(other=>other!==select&&other.value===selected);
       if(duplicate){
         duplicate.value="";
         document.querySelector("#import-review-status").textContent="BusinessFlow kept both source columns. Only one is mapped to each standard field; the other remains available for Intelligence analysis.";
       }
+      renderImportQualitySummary();
     });
     label.append(title,select);mappings.append(label);
   });
+  renderImportQualitySummary();
   head.replaceChildren();body.replaceChildren();
   const hr=document.createElement("tr");pendingImport.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;hr.append(th);});head.append(hr);
   pendingImport.rows.slice(0,10).forEach(row=>{const tr=document.createElement("tr");pendingImport.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";tr.append(td);});body.append(tr);});
@@ -1919,17 +2297,77 @@ function currentImportMapping(){
   });
   return mapping;
 }
+function renderDatasetPortfolio() {
+  const metrics = document.querySelector("#dataset-portfolio-metrics");
+  const coverage = document.querySelector("#dataset-portfolio-coverage");
+  const status = document.querySelector("#dataset-portfolio-status");
+  if (!metrics || !coverage || !status) return;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  if (!cloud?.signedIn || !cloud?.apiConnected || !cloud?.businessId) {
+    status.textContent = "Workspace not connected";
+    metrics.innerHTML = '<p class="empty-state">Connect and select a workspace to view dataset coverage.</p>';
+    coverage.replaceChildren();
+    return;
+  }
+  const datasets = Array.isArray(importedDatasets) ? importedDatasets : [];
+  const rows = datasets.reduce((sum, item) => sum + Math.max(0, Number(item.row_count) || 0), 0);
+  const fields = new Set();
+  datasets.forEach(item => {
+    const mapping = item.column_mapping && typeof item.column_mapping === "object" ? item.column_mapping : {};
+    Object.values(mapping).forEach(field => { if (typeof field === "string" && field) fields.add(field); });
+  });
+  const cards = [
+    { label: "Saved datasets", value: String(datasets.length), note: "In this workspace" },
+    { label: "Imported records", value: rows.toLocaleString(), note: "Across saved datasets" },
+    { label: "Business fields mapped", value: String(fields.size), note: "Unique standard fields covered" }
+  ];
+  metrics.replaceChildren();
+  cards.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "dataset-portfolio-card";
+    const label = document.createElement("span"); label.textContent = item.label;
+    const value = document.createElement("strong"); value.textContent = item.value;
+    const note = document.createElement("small"); note.textContent = item.note;
+    card.append(label, value, note); metrics.append(card);
+  });
+  const standards = [
+    ["Revenue", ["revenue"]],
+    ["Customer identity", ["customer_id", "customer_name", "email", "phone"]],
+    ["Transaction date", ["order_date"]],
+    ["Product / service", ["product"]],
+    ["Transaction cost", ["cost"]],
+    ["Status", ["status"]]
+  ];
+  coverage.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "dataset-coverage-heading";
+  const title = document.createElement("strong"); title.textContent = "Analytics field coverage";
+  const note = document.createElement("span"); note.textContent = "Based on saved column mappings";
+  heading.append(title, note); coverage.append(heading);
+  standards.forEach(([label, fields]) => {
+    const count = datasets.filter(item => Object.values(item.column_mapping || {}).some(field => fields.includes(field))).length;
+    const row = document.createElement("div"); row.className = "dataset-coverage-row";
+    const name = document.createElement("span"); name.textContent = label;
+    const track = document.createElement("div"); track.className = "dataset-coverage-track";
+    const fill = document.createElement("div"); fill.className = "dataset-coverage-fill";
+    fill.style.width = datasets.length ? Math.round(count / datasets.length * 100) + "%" : "0%";
+    track.append(fill);
+    const value = document.createElement("small"); value.textContent = count + " / " + datasets.length;
+    row.append(name, track, value); coverage.append(row);
+  });
+  status.textContent = datasets.length ? "Workspace portfolio" : "No datasets yet";
+}
 async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
+  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
+    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();void loadBusinessInsights(cloud.businessId,getAnalyticsFilters());list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
-  }catch(error){status.textContent=error.message||"Could not load saved datasets.";}
+  }catch(error){status.textContent=error.message||"Could not load saved datasets.";renderDatasetPortfolio();}
 }
 function buildDatasetReadout(dataset){
   const mapping=dataset.column_mapping&&typeof dataset.column_mapping==="object"?dataset.column_mapping:{};
