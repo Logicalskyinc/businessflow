@@ -28,6 +28,11 @@ jobs:
         run: |
           git fetch origin main feat/grey-dataset-context-dashboard-refresh
 
+      - name: Configure temporary Git identity
+        run: |
+          git config user.name "BusinessFlow Reconciliation Runner"
+          git config user.email "reconciliation-runner@users.noreply.github.com"
+
       - name: Simulate merge without changing remote branches
         id: merge
         shell: bash
@@ -38,17 +43,24 @@ jobs:
           merge_status=$?
           if [ "$merge_status" -ne 0 ]; then
             conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ -n "$conflicts" ]; then
+              result="CONFLICTS DETECTED"
+            else
+              result="MERGE ERROR (not a content conflict)"
+            fi
             {
               echo "## PR #11 reconciliation simulation"
               echo
-              echo "Result: **CONFLICTS DETECTED**"
+              echo "Result: **$result**"
               echo
               echo "The merge was attempted in an isolated runner. No remote branch was changed."
               echo
-              echo "### Conflicting files"
-              echo '~~~'
-              printf '%s\n' "$conflicts"
-              echo '~~~'
+              if [ -n "$conflicts" ]; then
+                echo "### Conflicting files"
+                echo '~~~'
+                printf '%s\\n' "$conflicts"
+                echo '~~~'
+              fi
             } >> "$GITHUB_STEP_SUMMARY"
             git merge --abort || true
             exit 1
