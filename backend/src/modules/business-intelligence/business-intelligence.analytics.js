@@ -1,3 +1,4 @@
+import { isValidCalendarDate } from "./calendar-date.js";
 const numericValue = value => {
   if (value === null || value === undefined || value === "") return null;
   const normalized = String(value).trim().replace(/[^0-9,.-]/g, "").replace(/,/g, "");
@@ -101,7 +102,10 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         }
       }
       if (fields.order_date) {
-        const parsed = new Date(String(row[fields.order_date] ?? "").trim());
+        const rawDate = String(row[fields.order_date] ?? "").trim();
+        const datePrefix = rawDate.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+        if (datePrefix && !isValidCalendarDate(datePrefix[1])) continue;
+        const parsed = new Date(rawDate);
         if (!Number.isNaN(parsed.getTime())) {
           dateValues.push(parsed.toISOString());
           const month = parsed.toISOString().slice(0, 7);
