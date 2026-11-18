@@ -1,0 +1,80 @@
+name: PR #11 reconciliation simulation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pr11-reconciliation-simulation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr11-reconciliation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulate-reconciliation:
+    name: Merge PR #11 into current main and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out simulation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch current main and PR #11 branch
+        run: |
+          git fetch origin main feat/grey-dataset-context-dashboard-refresh
+
+      - name: Simulate merge without changing remote branches
+        id: merge
+        shell: bash
+        run: |
+          set +e
+          git checkout -B reconciliation origin/main
+          git merge --no-commit --no-ff origin/feat/grey-dataset-context-dashboard-refresh
+          merge_status=$?
+          if [ "$merge_status" -ne 0 ]; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            {
+              echo "## PR #11 reconciliation simulation"
+              echo
+              echo "Result: **CONFLICTS DETECTED**"
+              echo
+              echo "The merge was attempted in an isolated runner. No remote branch was changed."
+              echo
+              echo "### Conflicting files"
+              echo '~~~'
+              printf '%s\n' "$conflicts"
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+            git merge --abort || true
+            exit 1
+          fi
+          echo "merge_ok=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "## PR #11 reconciliation simulation"
+            echo
+            echo "Result: **MERGE CLEAN**"
+            echo
+            echo "The merge completed in an isolated runner. No remote branch was changed."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check JavaScript syntax
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: |
+          node --check script.js
+          node --check auth.js
+          node --check frontend-config.js
+
+      - name: Install backend dependencies
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: npm install --no-audit --no-fund
+        working-directory: backend
+
+      - name: Run backend regression tests
+        if: steps.merge.outputs.merge_ok == 'true'
+        run: npm test
+        working-directory: backend
