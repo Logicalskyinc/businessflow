@@ -47,6 +47,8 @@ async function inspectMobileViewport(browser, device, width, height) {
   });
   const page = await context.newPage();
   await page.setJavaScriptEnabled(false);
+  // Layout tests do not need application bundles or third-party scripts.
+  await page.route("**/*.js*", route => route.abort());
   await page.goto(globalThis.__mobileTestUrl, { waitUntil: "domcontentloaded" });
   await page.locator("body").evaluate(body => {
     body.classList.remove("auth-pending", "auth-required");
