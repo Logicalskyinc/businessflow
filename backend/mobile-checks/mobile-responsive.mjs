@@ -55,10 +55,10 @@ async function inspectViewport(browser, device, url, width, height) {
     ...device,
     viewport: { width, height },
     isMobile: true,
-    hasTouch: true
+    hasTouch: true,
+    javaScriptEnabled: false
   });
   try {
-    await context.setJavaScriptEnabled(false);
     const page = await context.newPage();
     await page.route("**/*", route => {
       const hostname = new URL(route.request().url()).hostname;
@@ -149,8 +149,10 @@ test("tablet viewport does not show the mobile bottom navigation", { timeout: 30
   let context;
   try {
     browser = await chromium.launch({ headless: true, timeout: 20_000 });
-    context = await browser.newContext({ viewport: { width: 768, height: 1024 } });
-    await context.setJavaScriptEnabled(false);
+    context = await browser.newContext({
+      viewport: { width: 768, height: 1024 },
+      javaScriptEnabled: false
+    });
     const page = await context.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 12_000 });
     await page.locator("body").evaluate(body => body.classList.remove("auth-pending", "auth-required"));
