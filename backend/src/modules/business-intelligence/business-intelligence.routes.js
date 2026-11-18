@@ -258,7 +258,7 @@ function validateGoal(input, partial = false) {
   return record(input, {
     title: v => text(v, 1, 200), description: v => nullableText(v, 4000),
     metric_name: v => nullableText(v, 120), target_value: v => v === null ? pass(null) : numeric(v),
-    current_value: numeric, status: v => enumeration(v, goalStatuses), due_date: date(v)
+    current_value: numeric, status: v => enumeration(v, goalStatuses), due_date: v => date(v)
   }, ["title"], partial, { current_value: 0, status: "active" });
 }
 function validateExperiment(input, partial = false) {
@@ -268,7 +268,7 @@ function validateExperiment(input, partial = false) {
     baseline_value: v => v === null ? pass(null) : numeric(v),
     result_value: v => v === null ? pass(null) : numeric(v),
     learning_notes: v => nullableText(v, 2000),
-    result_summary: v => nullableText(v, 8000), started_at: timestamp(v), completed_at: timestamp(v)
+    result_summary: v => nullableText(v, 8000), started_at: v => timestamp(v), completed_at: timestamp(v)
   }, ["title"], partial, { status: "draft" });
 }
 function validateMemory(input, partial = false) {
