@@ -48,8 +48,11 @@ async function inspectMobileViewport(browser, device, width, height) {
   const page = await context.newPage();
   await page.setJavaScriptEnabled(false);
   // Layout tests do not need application bundles or third-party scripts.
-  await page.route("**/*.js*", route => route.abort());
-  await page.goto(globalThis.__mobileTestUrl, { waitUntil: "domcontentloaded" });
+  await page.route("**/*", route => {
+    const hostname = new URL(route.request().url()).hostname;
+    return hostname === "127.0.0.1" ? route.continue() : route.abort();
+  });
+  await page.goto(globalThis.__mobileTestUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
   await page.locator("body").evaluate(body => {
     body.classList.remove("auth-pending", "auth-required");
   });
@@ -81,7 +84,7 @@ async function inspectMobileViewport(browser, device, width, height) {
   return layout;
 }
 
-test("iPhone Safari and Android Chrome mobile layouts stay usable at narrow widths", async () => {
+test("iPhone Safari and Android Chrome mobile layouts stay usable at narrow widths", { timeout: 120_000 }, async () => {
   const { server, url } = await startStaticServer();
   globalThis.__mobileTestUrl = url;
   const browserRuns = [
@@ -92,7 +95,7 @@ test("iPhone Safari and Android Chrome mobile layouts stay usable at narrow widt
 
   try {
     for (const run of browserRuns) {
-      const browser = await run.browserType.launch({ headless: true });
+      const browser = await run.browserType.launch({ headless: true, timeout: 30_000 });
       try {
         for (const width of [320, 360, 390, 430]) {
           const layout = await inspectMobileViewport(browser, run.device, width, 844);
@@ -126,13 +129,13 @@ test("iPhone Safari and Android Chrome mobile layouts stay usable at narrow widt
   }
 });
 
-test("tablet viewport does not show the mobile bottom navigation", async () => {
+test("tablet viewport does not show the mobile bottom navigation", { timeout: 30_000 }, async () => {
   const { server, url } = await startStaticServer();
   try {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 768, height: 1024 } });
     await page.setJavaScriptEnabled(false);
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
     await page.locator("body").evaluate(body => body.classList.remove("auth-pending", "auth-required"));
     const layout = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
