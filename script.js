@@ -2206,7 +2206,14 @@ function renderImportQualitySummary() {
     if (field === "order_date") {
       const column = select.dataset.importColumn;
       const nonEmpty = rows.map(row => String(row[column] ?? "").trim()).filter(Boolean);
-      const valid = nonEmpty.filter(value => !Number.isNaN(new Date(value).getTime()));
+      const valid = nonEmpty.filter(value => {
+        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+          const [year, month, day] = value.split("-").map(Number);
+          const parsed = new Date(Date.UTC(year, month - 1, day));
+          return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+        }
+        return !Number.isNaN(new Date(value).getTime());
+      });
       if (nonEmpty.length && valid.length !== nonEmpty.length) issues.push(column + ": " + (nonEmpty.length - valid.length) + " date values could not be parsed.");
       if (!valid.length) issues.push(column + ": no valid dates found.");
     }
@@ -2325,8 +2332,12 @@ function renderDatasetPortfolio() {
     card.append(label, value, note); metrics.append(card);
   });
   const standards = [
-    ["Revenue", "revenue"], ["Customer identity", "customer_id"],
-    ["Transaction date", "order_date"], ["Product / service", "product"], ["Transaction cost", "cost"], ["Status", "status"]
+    ["Revenue", ["revenue"]],
+    ["Customer identity", ["customer_id", "customer_name", "email", "phone"]],
+    ["Transaction date", ["order_date"]],
+    ["Product / service", ["product"]],
+    ["Transaction cost", ["cost"]],
+    ["Status", ["status"]]
   ];
   coverage.replaceChildren();
   const heading = document.createElement("div");
@@ -2334,8 +2345,8 @@ function renderDatasetPortfolio() {
   const title = document.createElement("strong"); title.textContent = "Analytics field coverage";
   const note = document.createElement("span"); note.textContent = "Based on saved column mappings";
   heading.append(title, note); coverage.append(heading);
-  standards.forEach(([label, field]) => {
-    const count = datasets.filter(item => Object.values(item.column_mapping || {}).includes(field)).length;
+  standards.forEach(([label, fields]) => {
+    const count = datasets.filter(item => Object.values(item.column_mapping || {}).some(field => fields.includes(field))).length;
     const row = document.createElement("div"); row.className = "dataset-coverage-row";
     const name = document.createElement("span"); name.textContent = label;
     const track = document.createElement("div"); track.className = "dataset-coverage-track";
