@@ -17,6 +17,7 @@ function previousCalendarMonth(value) {
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
+  const revenueSourceColumns = new Set();
   let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0, costMapped = false, invalidCostValues = 0, costValueCount = 0, costTotal = 0, pairedRevenueTotal = 0, pairedCostTotal = 0, pairedCostRecords = 0;
   const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), monthlyCustomerActivity = new Map(), dateValues = [];
   for (const dataset of imports) {
@@ -24,6 +25,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     const fields = {};
     for (const [column, field] of Object.entries(mapping)) if (field) fields[field] = column;
     revenueMapped ||= Boolean(fields.revenue);
+    if (fields.revenue) revenueSourceColumns.add(fields.revenue);
     costMapped ||= Boolean(fields.cost);
     customerMapped ||= Boolean(fields.customer_id || fields.email || fields.customer_name);
     productMapped ||= Boolean(fields.product);
@@ -238,6 +240,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         ? Number(((revenue - previousRevenue) / Math.abs(previousRevenue) * 100).toFixed(1)) : null };
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const revenueSources = [...revenueSourceColumns];
+  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
+  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
   const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
     const previousMonth = previousCalendarMonth(month);
     const previous = monthlyCustomerActivity.get(previousMonth) || new Set();
@@ -253,7 +258,8 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       experimentsCount: experiments.length, activeExperimentsCount: activeExperiments.length, memoryCount: memory.length },
     metrics: {
       revenueTotal: revenueMapped && revenueValueCount ? Number(revenueTotal.toFixed(2)) : null,
-      revenueCurrency: profile.currency_code || "XOF", revenueRecords: revenueValueCount,
+      revenueCurrency: sourceCurrency || profile.currency_code || "XOF", revenueRecords: revenueValueCount,
+      revenueSourceColumns: revenueSources, revenueCurrencyFromColumn: Boolean(sourceCurrency),
       customers: customerMapped ? customerIds.size : null, repeatCustomers: customerMapped ? repeatCustomers : null,
       averageOrderValue: revenueValueCount ? Number((revenueTotal / revenueValueCount).toFixed(2)) : null,
       topProduct: topProduct ? { name: topProduct[0], records: topProduct[1] } : null,
@@ -279,7 +285,8 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         ...(!costMapped ? ["Cost field is not mapped; profitability cannot be calculated."] : []),
         ...(invalidCostValues ? [invalidCostValues + " cost cells are blank or non-numeric."] : []),
         ...(!customerMapped ? ["Customer identity is not mapped."] : []),
-        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : [])
+        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : []),
+        ...(currencyMismatch ? ["Mapped amount column indicates " + sourceCurrency + " but the workspace currency is " + profile.currency_code + ". Confirm the source currency before comparing totals."] : [])
       ] },
     goals: progressGoals, insights
   };
