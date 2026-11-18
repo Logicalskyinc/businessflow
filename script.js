@@ -2357,9 +2357,6 @@ function renderDatasetPortfolio() {
   });
   status.textContent = datasets.length ? "Workspace portfolio" : "No datasets yet";
 }
-  if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
-    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;importedDatasets=Array.isArray(result.imports)?result.imports:[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();void loadBusinessInsights(cloud.businessId,getAnalyticsFilters());list.replaceChildren();
-  }catch(error){status.textContent=error.message||"Could not load saved datasets.";renderDatasetPortfolio();
 async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
   if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
