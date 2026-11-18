@@ -2205,7 +2205,7 @@ function renderDatasetPortfolio() {
     : "No datasets imported yet";
   if (detail) detail.textContent = fields.size + " standard business fields mapped across this workspace.";
 }
-async async function loadSavedImports(){
+async function loadSavedImports(){
   const list=document.querySelector("#saved-imports-list"),status=document.querySelector("#saved-imports-status"),cloud=window.BusinessFlowCloud?.getState?.();if(!list||!status)return;
   if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];syncAnalyticsDatasetOptions();renderDatasetPortfolio();return;}
   status.textContent="Loading saved datasets…";
