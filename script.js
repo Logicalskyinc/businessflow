@@ -2101,6 +2101,8 @@ function setupConnections() {
 const IMPORT_MAPPING_OPTIONS = [["","Keep as source field"],["customer_name","Customer name"],["email","Email address"],["phone","Phone number"],["revenue","Revenue / amount"],["cost","Transaction cost"],["order_date","Order / transaction date"],["product","Product / service"],["quantity","Quantity"],["status","Status"],["customer_id","Customer ID"],["location","Location"],["notes","Notes / description"]];
 let pendingImport = null;
 let importedDatasets = [];
+let savedImportsRequestId = 0;
+let savedImportDetailRequestId = 0;
 
 function parseCsvText(source) {
   const rows=[]; let row=[], cell="", quoted=false;
@@ -2205,6 +2207,7 @@ function currentImportMapping(){
   return mapping;
 }
 async function loadSavedImports(){
+  const requestId=++savedImportsRequestId;
   const list=document.querySelector("#saved-imports-list");
   const status=document.querySelector("#saved-imports-status");
   const cloud=window.BusinessFlowCloud?.getState?.();
@@ -2215,12 +2218,15 @@ async function loadSavedImports(){
     importedDatasets=[];
     syncAnalyticsDatasetOptions();
     renderDatasetPortfolio();
+    const detail=document.querySelector("#saved-import-detail");
+    if(detail){detail.hidden=true;detail.replaceChildren();}
     return;
   }
   status.textContent="Loading saved datasets…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
-    if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportsRequestId||!latest?.signedIn||!latest.apiConnected||latest.userId!==cloud.userId||latest.businessId!==cloud.businessId)return;
     importedDatasets=Array.isArray(result.imports)?result.imports:[];
     syncAnalyticsDatasetOptions();
     renderDatasetPortfolio();
@@ -2242,6 +2248,8 @@ async function loadSavedImports(){
     });
     status.textContent=importedDatasets.length+" saved dataset"+(importedDatasets.length===1?"":"s")+" in this workspace.";
   }catch(error){
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportsRequestId||latest?.businessId!==cloud.businessId||latest?.userId!==cloud.userId)return;
     status.textContent=error.message||"Could not load saved datasets.";
     renderDatasetPortfolio();
   }
@@ -2268,16 +2276,24 @@ function buildDatasetReadout(dataset){
   return {cards,notes};
 }
 async function viewSavedImport(id){
-  const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
+  const requestId=++savedImportDetailRequestId;
+  const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");
+  if(!cloud?.signedIn||!cloud.apiConnected||!cloud.businessId||!panel)return;
   panel.hidden=false;panel.textContent="Loading dataset…";
   try{
     const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportDetailRequestId||!latest?.signedIn||!latest.apiConnected||latest.userId!==cloud.userId||latest.businessId!==cloud.businessId)return;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
     const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
     dataset.rows.slice(0,25).forEach(row=>{const line=document.createElement("tr");dataset.columns.forEach(c=>{const td=document.createElement("td");td.textContent=row[c]??"";line.append(td);});tbody.append(line);});
     table.append(thead,tbody);wrap.append(table);panel.append(title,meta,wrap);if(dataset.rows.length>25){const note=document.createElement("p");note.className="muted";note.textContent="Showing the first 25 rows of "+dataset.rows.length+".";panel.append(note);}
-  }catch(error){panel.textContent=error.message||"Could not load this dataset.";}
+  }catch(error){
+    const latest=window.BusinessFlowCloud?.getState?.();
+    if(requestId!==savedImportDetailRequestId||latest?.businessId!==cloud.businessId||latest?.userId!==cloud.userId)return;
+    panel.textContent=error.message||"Could not load this dataset.";
+  }
 }
 function setupDataImport(){
   const input=document.querySelector("#import-file");
@@ -2308,6 +2324,7 @@ function setupDataImport(){
     }
     if(processingFile===file)return;
     processingFile=file;
+    chooseButton.disabled=true;
     pendingImport=null;
     review.hidden=true;
     fileStatus.textContent="File selected: "+file.name+". Reading file…";
@@ -2323,7 +2340,9 @@ function setupDataImport(){
     }catch(error){
       fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
     }finally{
+      if(input.files?.[0]===file)input.value="";
       processingFile=null;
+      chooseButton.disabled=false;
       window.BusinessFlowLoading?.hide();
     }
   };
