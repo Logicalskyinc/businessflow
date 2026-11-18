@@ -1,6 +1,13 @@
 name: BusinessFlow scheduled quality checks
 
 on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "script.js"
+      - "auth.js"
+      - "frontend-config.js"
+      - ".github/workflows/businessflow-quality.yml"
   workflow_dispatch:
   schedule:
     # Run before the workday, Tuesday through Sunday (Côte d’Ivoire is UTC+0).
