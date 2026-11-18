@@ -7,18 +7,24 @@ const numericValue = value => {
 };
 const uniqueText = value => String(value ?? "").trim().toLowerCase();
 
+function previousCalendarMonth(value) {
+  const [year, month] = value.split("-").map(Number);
+  const previousYear = month === 1 ? year - 1 : year;
+  const previousMonth = month === 1 ? 12 : month - 1;
+  return String(previousYear).padStart(4, "0") + "-" + String(previousMonth).padStart(2, "0");
+}
+
 export function buildBusinessInsights({ profile, imports = [], goals = [], experiments = [], memory = [] }) {
   const rows = [], datasetNames = [], additionalColumnFindings = [];
   let revenueMapped = false, customerMapped = false, productMapped = false, dateMapped = false;
-  const revenueSourceColumns = new Set();
-  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0;
-  const customerIds = new Set(), customerFrequency = new Map(), productFrequency = new Map(), monthlyRevenue = new Map(), dateValues = [];
+  let invalidRevenueValues = 0, revenueValueCount = 0, revenueTotal = 0, costMapped = false, invalidCostValues = 0, costValueCount = 0, costTotal = 0, pairedRevenueTotal = 0, pairedCostTotal = 0, pairedCostRecords = 0;
+  const customerIds = new Set(), customerFrequency = new Map(), customerSpend = new Map(), productFrequency = new Map(), productRevenue = new Map(), monthlyRevenue = new Map(), monthlyCustomerActivity = new Map(), dateValues = [];
   for (const dataset of imports) {
     const mapping = dataset.column_mapping && typeof dataset.column_mapping === "object" ? dataset.column_mapping : {};
     const fields = {};
     for (const [column, field] of Object.entries(mapping)) if (field) fields[field] = column;
     revenueMapped ||= Boolean(fields.revenue);
-    if (fields.revenue) revenueSourceColumns.add(fields.revenue);
+    costMapped ||= Boolean(fields.cost);
     customerMapped ||= Boolean(fields.customer_id || fields.email || fields.customer_name);
     productMapped ||= Boolean(fields.product);
     dateMapped ||= Boolean(fields.order_date);
@@ -64,21 +70,53 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
         if (amount === null) invalidRevenueValues++;
         else { revenueTotal += amount; revenueValueCount++; }
       }
+      const amountForBreakdown = fields.revenue ? numericValue(row[fields.revenue]) : null;
+      const costAmount = fields.cost ? numericValue(row[fields.cost]) : null;
+      if (fields.cost) {
+        if (costAmount === null) invalidCostValues++;
+        else { costTotal += costAmount; costValueCount++; }
+      }
+      if (amountForBreakdown !== null && costAmount !== null) {
+        pairedRevenueTotal += amountForBreakdown;
+        pairedCostTotal += costAmount;
+        pairedCostRecords++;
+      }
+      let customer = "";
       if (fields.customer_id || fields.email || fields.customer_name) {
-        const customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
-        if (customer) { customerIds.add(customer); customerFrequency.set(customer, (customerFrequency.get(customer) || 0) + 1); }
+        customer = uniqueText(row[fields.customer_id] || row[fields.email] || row[fields.customer_name]);
+        if (customer) {
+          customerIds.add(customer);
+          customerFrequency.set(customer, (customerFrequency.get(customer) || 0) + 1);
+          if (amountForBreakdown !== null) customerSpend.set(customer, (customerSpend.get(customer) || 0) + amountForBreakdown);
+        }
       }
       if (fields.product) {
         const product = String(row[fields.product] ?? "").trim();
-        if (product) productFrequency.set(product, (productFrequency.get(product) || 0) + 1);
+        if (product) {
+          productFrequency.set(product, (productFrequency.get(product) || 0) + 1);
+          if (amountForBreakdown !== null || costAmount !== null) {
+            const current = productRevenue.get(product) || { revenue: 0, revenueRecords: 0, cost: 0, costRecords: 0, pairedRevenue: 0, pairedCost: 0, pairedRecords: 0 };
+            if (amountForBreakdown !== null) { current.revenue += amountForBreakdown; current.revenueRecords++; }
+            if (costAmount !== null) { current.cost += costAmount; current.costRecords++; }
+            if (amountForBreakdown !== null && costAmount !== null) {
+              current.pairedRevenue += amountForBreakdown; current.pairedCost += costAmount; current.pairedRecords++;
+            }
+            productRevenue.set(product, current);
+          }
+        }
       }
       if (fields.order_date) {
         const parsed = new Date(String(row[fields.order_date] ?? "").trim());
         if (!Number.isNaN(parsed.getTime())) {
           dateValues.push(parsed.toISOString());
+          const month = parsed.toISOString().slice(0, 7);
           if (fields.revenue) {
             const amount = numericValue(row[fields.revenue]);
-            if (amount !== null) { const month = parsed.toISOString().slice(0, 7); monthlyRevenue.set(month, (monthlyRevenue.get(month) || 0) + amount); }
+            if (amount !== null) monthlyRevenue.set(month, (monthlyRevenue.get(month) || 0) + amount);
+          }
+          if (customer) {
+            if (!monthlyCustomerActivity.has(month)) monthlyCustomerActivity.set(month, new Set());
+            monthlyCustomerActivity.get(month).add(customer);
           }
         }
       }
@@ -89,7 +127,32 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const repeatCustomers = [...customerFrequency.values()].filter(count => count > 1).length;
   const topProductCandidate = [...productFrequency.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
   const topProduct = topProductCandidate && topProductCandidate[1] > 1 ? topProductCandidate : null;
-  const progressGoals = activeGoals.map(goal => {
+  const productPerformance = [...productFrequency.entries()].map(([name, records]) => {
+    const financial = productRevenue.get(name);
+    return { name, records, revenue: financial?.revenueRecords ? Number(financial.revenue.toFixed(2)) : null,
+      revenueRecords: financial?.revenueRecords || 0,
+      cost: financial?.costRecords ? Number(financial.cost.toFixed(2)) : null,
+      costRecords: financial?.costRecords || 0,
+      grossProfit: financial?.pairedRecords ? Number((financial.pairedRevenue - financial.pairedCost).toFixed(2)) : null,
+      grossMarginPercent: financial?.pairedRecords && financial.pairedRevenue > 0
+        ? Number(((financial.pairedRevenue - financial.pairedCost) / financial.pairedRevenue * 100).toFixed(1)) : null,
+      comparableRecords: financial?.pairedRecords || 0 };
+  }).sort((a, b) => b.records - a.records).slice(0, 8);
+  const customerValueDistribution = (() => {
+    const values = [...customerSpend.values()].filter(Number.isFinite).sort((a, b) => a - b);
+    if (!values.length) return null;
+    const bands = [
+      { label: "Lower value", customers: 0, revenue: 0 },
+      { label: "Mid value", customers: 0, revenue: 0 },
+      { label: "Higher value", customers: 0, revenue: 0 }
+    ];
+    values.forEach((value, index) => {
+      const band = bands[Math.min(2, Math.floor(index * 3 / values.length))];
+      band.customers++;
+      band.revenue += value;
+    });
+    return bands.map(band => ({ ...band, revenue: Number(band.revenue.toFixed(2)) }));
+  })();  const progressGoals = activeGoals.map(goal => {
     const target = Number(goal.target_value), current = Number(goal.current_value);
     return { id: goal.id, title: goal.title, status: goal.status, metric: goal.metric_name,
       currentValue: Number.isFinite(current) ? current : null, targetValue: Number.isFinite(target) ? target : null,
@@ -145,12 +208,6 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       evidence: topProduct[1] + " records for this product or service",
       recommendedAction: "Compare its revenue and repeat-customer contribution before prioritising it."
     });
-    else if (productMapped && productFrequency.size) insights.push({
-      type: "product_mix", priority: "low", title: "No repeat-leading service identified",
-      summary: "No product or service appears more than once in the imported records, so the dataset does not support naming a most frequent service.",
-      evidence: productFrequency.size + " distinct product or service values were found; the highest frequency is " + topProductCandidate[1] + ".",
-      recommendedAction: "Check whether the mapped column contains a service name or a unique job/invoice code. Map the actual service category before comparing service popularity."
-    });
   }
   if (activeGoals.length) {
     const measurable = progressGoals.filter(goal => goal.progressPercent !== null);
@@ -170,10 +227,25 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     summary: "At least one completed experiment has no recorded result summary.",
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
+  const monthKeys = [...new Set([...monthlyRevenue.keys(), ...monthlyCustomerActivity.keys()])].sort();
+  const monthlyPerformance = monthKeys.map(month => {
+    const revenue = monthlyRevenue.get(month);
+    const previousMonth = previousCalendarMonth(month);
+    const previousRevenue = monthlyRevenue.get(previousMonth) ?? null;
+    return { month, revenue: revenue == null ? null : Number(revenue.toFixed(2)),
+      previousRevenue: previousRevenue == null ? null : Number(previousRevenue.toFixed(2)),
+      revenueChangePercent: revenue != null && previousRevenue != null && previousRevenue !== 0
+        ? Number(((revenue - previousRevenue) / Math.abs(previousRevenue) * 100).toFixed(1)) : null };
+  });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const revenueSources = [...revenueSourceColumns];
-  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
-  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
+  const monthlyRetention = [...monthlyCustomerActivity.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, customers]) => {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const previousMonth = previousCalendarMonth(month);
+    const previous = monthlyCustomerActivity.get(previousMonth) || new Set();
+    const returning = [...customers].filter(customer => previous.has(customer)).length;
+    return { month, activeCustomers: customers.size, returningCustomers: returning,
+      returningRate: customers.size ? Number((returning / customers.size * 100).toFixed(1)) : 0 };
+  });
   const sortedDates = dateValues.sort();
   return {
     status: "ok", engine: "businessflow_rules_v1", generatedAt: new Date().toISOString(),
@@ -182,20 +254,33 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       experimentsCount: experiments.length, activeExperimentsCount: activeExperiments.length, memoryCount: memory.length },
     metrics: {
       revenueTotal: revenueMapped && revenueValueCount ? Number(revenueTotal.toFixed(2)) : null,
-      revenueCurrency: sourceCurrency || profile.currency_code || "XOF", revenueRecords: revenueValueCount,
-      revenueSourceColumns: revenueSources, revenueCurrencyFromColumn: Boolean(sourceCurrency),
+      revenueCurrency: profile.currency_code || "XOF", revenueRecords: revenueValueCount,
       customers: customerMapped ? customerIds.size : null, repeatCustomers: customerMapped ? repeatCustomers : null,
       averageOrderValue: revenueValueCount ? Number((revenueTotal / revenueValueCount).toFixed(2)) : null,
       topProduct: topProduct ? { name: topProduct[0], records: topProduct[1] } : null,
       dateRange: sortedDates.length ? { from: sortedDates[0], to: sortedDates.at(-1) } : null,
-      monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) }))
+      monthlyRevenue: sortedMonths.map(([month, total]) => ({ month, total: Number(total.toFixed(2)) })),
+      monthlyPerformance,
+      productPerformance,
+      customerValueDistribution,
+      customerValueRecords: customerSpend.size,
+      costTotal: costMapped && costValueCount ? Number(costTotal.toFixed(2)) : null,
+      costRecords: costValueCount,
+      grossProfit: pairedCostRecords ? Number((pairedRevenueTotal - pairedCostTotal).toFixed(2)) : null,
+      grossMarginPercent: pairedCostRecords && pairedRevenueTotal > 0
+        ? Number(((pairedRevenueTotal - pairedCostTotal) / pairedRevenueTotal * 100).toFixed(1)) : null,
+      profitabilityRecords: pairedCostRecords,
+      profitabilityRevenue: pairedCostRecords ? Number(pairedRevenueTotal.toFixed(2)) : null,
+      profitabilityCost: pairedCostRecords ? Number(pairedCostTotal.toFixed(2)) : null,
+      monthlyRetention
     },
-    dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, invalidRevenueValues,
+    dataQuality: { revenueMapped, customerMapped, productMapped, dateMapped, costMapped, invalidRevenueValues, invalidCostValues,
       notes: !rows.length ? ["No imported records are available."] : [
         ...(!revenueMapped ? ["Revenue field is not mapped."] : []),
+        ...(!costMapped ? ["Cost field is not mapped; profitability cannot be calculated."] : []),
+        ...(invalidCostValues ? [invalidCostValues + " cost cells are blank or non-numeric."] : []),
         ...(!customerMapped ? ["Customer identity is not mapped."] : []),
-        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : []),
-        ...(currencyMismatch ? ["Mapped amount column indicates " + sourceCurrency + " but the workspace currency is " + profile.currency_code + ". Confirm the source currency before comparing totals."] : [])
+        ...(invalidRevenueValues ? [invalidRevenueValues + " revenue cells are blank or non-numeric."] : [])
       ] },
     goals: progressGoals, insights
   };
