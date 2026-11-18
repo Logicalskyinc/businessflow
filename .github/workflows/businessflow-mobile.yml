@@ -6,7 +6,7 @@ on:
       - "index.html"
       - "style.css"
       - "script.js"
-      - "backend/test/mobile-responsive.test.js"
+      - "backend/mobile-checks/mobile-responsive.mjs"
       - ".github/workflows/businessflow-mobile.yml"
   workflow_dispatch:
 
@@ -31,4 +31,4 @@ jobs:
       - name: Install Chromium and WebKit browsers
         run: npx playwright install --with-deps chromium webkit
       - name: Run responsive layout tests
-        run: node --test test/mobile-responsive.test.js
+        run: node --test mobile-checks/mobile-responsive.mjs
