@@ -103,7 +103,7 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       }
       if (fields.order_date) {
         const rawDate = String(row[fields.order_date] ?? "").trim();
-        const datePrefix = rawDate.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+        const datePrefix = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
         if (datePrefix && !isValidCalendarDate(datePrefix[1])) continue;
         const parsed = new Date(rawDate);
         if (!Number.isNaN(parsed.getTime())) {
