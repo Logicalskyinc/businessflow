@@ -2366,7 +2366,12 @@ function setupDataImport(){
       document.querySelector("#saved-import-detail")?.setAttribute("hidden","");
       navigateTo("overview");
       status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
-    }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
+    }catch(error){
+      // A network failure can happen after the server commits the import.
+      // Refresh the cloud list and never imply that the dataset definitely failed.
+      try{await loadSavedImports();}catch{}
+      status.textContent="The save could not be confirmed. Check Saved datasets before retrying; the server may already have stored this import.";
+    }
     finally{button.disabled=false;window.BusinessFlowLoading?.hide();}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
