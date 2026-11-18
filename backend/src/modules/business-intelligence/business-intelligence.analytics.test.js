@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBusinessInsights } from "../src/modules/business-intelligence/business-intelligence.analytics.js";
+import { buildBusinessInsights } from "./business-intelligence.analytics.js";
 
 const profile = { id: "business-1", name: "Test business", currency_code: "XOF" };
 
