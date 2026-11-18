@@ -242,10 +242,11 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
   const monthKeys = [...new Set([...monthlyRevenue.keys(), ...monthlyCustomerActivity.keys()])].sort();
-  const monthlyPerformance = monthKeys.map((month, index) => {
+  const monthlyPerformance = monthKeys.map(month => {
     const revenue = monthlyRevenue.get(month);
-    const previousMonth = index > 0 ? monthKeys[index - 1] : null;
-    const previousRevenue = previousMonth ? monthlyRevenue.get(previousMonth) : null;
+    const [year, monthNumber] = month.split("-").map(Number);
+    const previousMonth = new Date(Date.UTC(year, monthNumber - 2, 1)).toISOString().slice(0, 7);
+    const previousRevenue = monthlyRevenue.get(previousMonth) ?? null;
     return {
       month,
       revenue: revenue == null ? null : Number(revenue.toFixed(2)),
