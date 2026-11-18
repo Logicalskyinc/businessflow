@@ -235,9 +235,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
   const monthKeys = [...new Set([...monthlyRevenue.keys(), ...monthlyCustomerActivity.keys()])].sort();
   const monthlyPerformance = monthKeys.map(month => {
     const revenue = monthlyRevenue.get(month);
-    const index = monthKeys.indexOf(month);
-    const previousMonth = index > 0 ? monthKeys[index - 1] : null;
-    const previousRevenue = previousMonth ? monthlyRevenue.get(previousMonth) : null;
+    const [year, monthNumber] = month.split("-").map(Number);
+    const previousMonth = new Date(Date.UTC(year, monthNumber - 2, 1)).toISOString().slice(0, 7);
+    const previousRevenue = monthlyRevenue.get(previousMonth) ?? null;
     return { month, revenue: revenue == null ? null : Number(revenue.toFixed(2)),
       previousRevenue: previousRevenue == null ? null : Number(previousRevenue.toFixed(2)),
       revenueChangePercent: revenue != null && previousRevenue != null && previousRevenue !== 0
