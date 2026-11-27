@@ -100,7 +100,7 @@ test("sends authenticated requests and validates Grey's response", async () => {
   });
 });
 
-test("keeps the same idempotency key and payload when a timed-out request is retried", async () => {
+test("keeps the same idempotency key and payload after a connection failure", async () => {
   const captured = [];
   await withGreyEnvironment(async () => {
     await assert.rejects(sendMessageToGrey(request()), error =>
@@ -120,7 +120,7 @@ test("keeps the same idempotency key and payload when a timed-out request is ret
   assert.deepEqual(captured[1], captured[0]);
 });
 
-test("concurrent retries preserve the same Grey idempotency key", async () => {
+test("concurrent submissions carry the same Grey idempotency payload", async () => {
   const captured = [];
   await withGreyEnvironment(async () => {
     const results = await Promise.all([
