@@ -1,1 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 437 389" role="img" aria-labelledby="title"><title id="title">BusinessFlow loading</title><defs><radialGradient id="bg"><stop stop-color="#001a4a"/><stop offset="1" stop-color="#000724"/></radialGradient><linearGradient id="cyan" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#00a8ff"/><stop offset=".55" stop-color="#00f5ff"/><stop offset="1" stop-color="#43ffff"/></linearGradient><filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="437" height="389" fill="url(#bg)"/><g class="trail" filter="url(#glow)"><path d="M72 208 Q128 162 185 174" fill="none" stroke="url(#cyan)" stroke-width="3" stroke-linecap="round"/><circle cx="72" cy="208" r="5" fill="#fff"/></g><g class="brand"><path d="M136 81h121c73 0 112 31 112 83 0 28-13 50-38 63 26 12 39 34 39 64 0 56-43 89-117 89H136V81zm62 57v81h68c26 0 40-14 40-41s-14-40-40-40h-68zm0 134v58h61c29 0 44-10 44-30 0-19-15-28-44-28h-61z" fill="url(#cyan)"/><text x="218" y="321" text-anchor="middle" font-family="Arial,sans-serif" font-size="35" font-weight="700" fill="#fff">Business<tspan fill="#00eaff">Flow</tspan></text></g><style>.brand{opacity:0;transform-origin:50% 50%;animation:brand-in 2.4s ease-in-out infinite}.trail{transform-origin:50% 50%;animation:trail-out 2.4s ease-in-out infinite}@keyframes brand-in{0%,35%{opacity:0;transform:scale(.84)}65%,100%{opacity:1;transform:scale(1)}}@keyframes trail-out{0%{opacity:1;transform:translateX(-24px) scale(1)}38%,100%{opacity:0;transform:translateX(70px) scale(.2)}}@media(prefers-reduced-motion:reduce){.brand,.trail{animation:none}.brand{opacity:1}.trail{opacity:0}}</style></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 437 389" role="img" aria-labelledby="title">
+<title id="title">BusinessFlow startup animation</title>
+<defs>
+ <radialGradient id="bg"><stop offset="0" stop-color="#00133b"/><stop offset="1" stop-color="#000724"/></radialGradient>
+ <linearGradient id="flow" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#0878ff"/><stop offset=".48" stop-color="#00d9f5"/><stop offset="1" stop-color="#12f7ed"/></linearGradient>
+ <filter id="glow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <path id="trailPath" d="M144 181 C177 161 214 151 250 151"/>
+</defs>
+<rect width="437" height="389" fill="url(#bg)"/>
+<g class="logo">
+ <path d="M137 81h121c42 0 68 22 68 57 0 27-17 45-45 52 29 7 45 25 45 52 0 35-26 57-68 57H151l41-40h68c18 0 29-8 29-23s-11-23-29-23h-61v-40h59c18 0 29-8 29-23s-11-23-29-23H137z" fill="url(#flow)"/>
+ <path d="M151 299l43-40" fill="none" stroke="#00143d" stroke-width="2" opacity=".28"/>
+ <text x="218" y="320" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="35" font-weight="700" fill="#f7fbff">Business<tspan fill="#00e7f3">Flow</tspan></text>
+</g>
+<g class="light" filter="url(#glow)">
+ <path d="M144 181 C177 161 214 151 250 151" fill="none" stroke="#00eaff" stroke-width="3" stroke-linecap="round"/>
+ <circle cx="144" cy="181" r="5" fill="#fff"/>
+</g>
+<style>
+.logo{opacity:0;transform-origin:50% 50%;animation:logo-in 2.8s ease-in-out infinite}
+.light{opacity:1;transform-origin:144px 181px;animation:light-run 2.8s ease-in-out infinite}
+@keyframes logo-in{0%,28%{opacity:0;transform:scale(.94)}58%,100%{opacity:1;transform:scale(1)}}
+@keyframes light-run{0%{opacity:1;transform:translate(-30px,12px) scale(.7)}35%{opacity:1;transform:translate(0,0) scale(1)}60%,100%{opacity:0;transform:translate(115px,-42px) scale(.2)}}
+@media(prefers-reduced-motion:reduce){.logo,.light{animation:none}.logo{opacity:1}.light{opacity:0}}
+</style></svg>
