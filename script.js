@@ -1665,33 +1665,109 @@ window.addEventListener("businessflow:import-local-experiments-requested", () =>
   void importLocalExperimentsToCloud();
 });
 
-/* ---------- Branded loading experience ---------- */
+/* ---------- Shared BusinessFlow loading manager ---------- */
 function initializeBusinessFlowLoading() {
   const boot = document.querySelector("#bf-loading-screen");
   const action = document.querySelector("#bf-action-loading");
   const message = document.querySelector("#bf-action-loading-message");
+  const active = new Map();
+  let nextToken = 0;
+  let revealTimer = null;
   let bootFinished = false;
+
   const finishBoot = () => {
     if (bootFinished) return;
     bootFinished = true;
     boot?.classList.add("is-leaving");
     window.setTimeout(() => boot?.remove(), 350);
   };
-  // Auth emits cloud-state after its initial session check. Keep a hard timeout
-  // so a network/auth failure can never leave the app covered indefinitely.
-  window.addEventListener("businessflow:cloud-state", finishBoot, { once: true });
-  window.setTimeout(finishBoot, 6500);
-  window.BusinessFlowLoading = {
-    show(text = "Working on your workspace…") {
-      if (message) message.textContent = text;
-      action?.classList.add("is-visible");
-      action?.setAttribute("aria-hidden", "false");
-    },
-    hide() {
+
+  const syncOverlay = () => {
+    if (!active.size) {
+      if (revealTimer !== null) {
+        window.clearTimeout(revealTimer);
+        revealTimer = null;
+      }
       action?.classList.remove("is-visible");
       action?.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    if (revealTimer !== null || action?.classList.contains("is-visible")) return;
+    revealTimer = window.setTimeout(() => {
+      revealTimer = null;
+      if (!active.size) return;
+      const latest = Array.from(active.values()).at(-1);
+      if (message) message.textContent = latest?.message || "Working on your workspace…";
+      action?.classList.add("is-visible");
+      action?.setAttribute("aria-hidden", "false");
+    }, 200);
+  };
+
+  const begin = (options = {}) => {
+    const token = ++nextToken;
+    active.set(token, {
+      message: typeof options === "string"
+        ? options
+        : (options.message || "Working on your workspace…")
+    });
+    syncOverlay();
+    return token;
+  };
+
+  const end = token => {
+    if (token === undefined || token === null) {
+      const oldest = active.keys().next();
+      if (!oldest.done) active.delete(oldest.value);
+    } else {
+      active.delete(token);
+    }
+    syncOverlay();
+  };
+
+  const run = async (task, options = {}) => {
+    const token = begin(options);
+    try {
+      return await (typeof task === "function" ? task() : task);
+    } finally {
+      end(token);
     }
   };
+
+  const runButton = async (button, task, options = {}) => {
+    if (!(button instanceof HTMLButtonElement)) return run(task, options);
+    if (button.dataset.bfBusy === "true") return;
+    const wasDisabled = button.disabled;
+    const originalHTML = button.innerHTML;
+    button.dataset.bfBusy = "true";
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    if (options.buttonLabel) button.textContent = options.buttonLabel;
+    try {
+      return await run(task, options);
+    } finally {
+      button.innerHTML = originalHTML;
+      button.disabled = wasDisabled;
+      button.removeAttribute("aria-busy");
+      delete button.dataset.bfBusy;
+    }
+  };
+
+  // Authentication emits cloud-state after its initial session check. The
+  // timeout remains a fail-safe so a failed auth/network request cannot trap
+  // the user behind the startup screen.
+  window.addEventListener("businessflow:cloud-state", finishBoot, { once: true });
+  window.setTimeout(finishBoot, 6500);
+
+  window.BusinessFlowLoading = Object.freeze({
+    begin,
+    end,
+    run,
+    runButton,
+    show: begin,
+    hide: end,
+    get activeCount() { return active.size; }
+  });
 }
 
 /* ---------- Start the app ---------- */
@@ -1996,7 +2072,7 @@ function setupDataImport(){
     pendingImport=null;
     review.hidden=true;
     fileStatus.textContent="File selected: "+file.name+". Reading file…";
-    window.BusinessFlowLoading?.show("Reading and checking your file…");
+    const loadingToken = window.BusinessFlowLoading?.begin({ message: "Reading and checking your file…" });
     try{
       pendingImport=await readImportFile(file);
       pendingImport.filename=file.name;
@@ -2009,7 +2085,7 @@ function setupDataImport(){
       fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
     }finally{
       processingFile=null;
-      window.BusinessFlowLoading?.hide();
+      window.BusinessFlowLoading?.end(loadingToken);
     }
   };
   input.addEventListener("change",handleSelectedFile);
@@ -2036,7 +2112,7 @@ function setupDataImport(){
     if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
     button.disabled=true;
     status.textContent="Validating and saving the reviewed dataset…";
-    window.BusinessFlowLoading?.show("Adding your dataset and updating business intelligence…");
+    const loadingToken = window.BusinessFlowLoading?.begin({ message: "Adding your dataset and updating business intelligence…" });
     try{
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
@@ -2052,7 +2128,7 @@ function setupDataImport(){
       navigateTo("overview");
       status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
-    finally{button.disabled=false;window.BusinessFlowLoading?.hide();}
+    finally{button.disabled=false;window.BusinessFlowLoading?.end(loadingToken);}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
