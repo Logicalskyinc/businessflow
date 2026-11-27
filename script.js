@@ -169,11 +169,13 @@ function setupActivityCenter() {
     const pending = activityItems.filter(item => !item.read && item.cloud && item.id);
     if (!pending.length) return;
     try {
-      for (const item of pending) {
-        await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
-          method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
-        });
-      }
+      await withBusinessFlowLoading(async () => {
+        for (const item of pending) {
+          await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
+            method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
+          });
+        }
+      }, "Updating workspace activity…");
       if (getActivityCloudState()?.businessId !== cloud.businessId) return;
       activityItems = activityItems.map(item => ({ ...item, read: true }));
       renderActivityCenter();
@@ -191,7 +193,10 @@ function setupActivityCenter() {
     }
     if (!activityItems.length || !window.confirm("Clear this workspace's cloud activity history? This does not delete goals, experiments or imported datasets.")) return;
     try {
-      await window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" });
+      await withBusinessFlowLoading(
+        () => window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" }),
+        "Clearing workspace activity…"
+      );
       if (getActivityCloudState()?.businessId !== cloud.businessId) return;
       activityItems = [];
       renderActivityCenter();
