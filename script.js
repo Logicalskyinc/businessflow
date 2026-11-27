@@ -207,7 +207,6 @@ function setupActivityCenter() {
   });
 }
 
-window.addEventListener("businessflow:workspace-changed", () => { void loadWorkspaceActivity(); });
 window.addEventListener("businessflow:cloud-state", () => { void loadWorkspaceActivity(); });
 
 
@@ -1207,7 +1206,7 @@ function setSidebarNavigationOpen(isOpen, restoreFocus = false) {
   }
 }
 
-function navigateTo(pageId) {
+function navigateTo(pageId, options = {}) {
   let page = document.getElementById(pageId);
   if (!page || !page.classList.contains("page")) return;
 
@@ -1258,7 +1257,8 @@ function navigateTo(pageId) {
   }
 
   if (location.hash !== "#" + pageId) {
-    history.replaceState(null, "", "#" + pageId);
+    if (options.history !== false) history.pushState({ pageId }, "", "#" + pageId);
+    else history.replaceState({ pageId }, "", "#" + pageId);
   }
 }
 
@@ -1318,14 +1318,13 @@ function setupNavigation() {
     });
   });
 
-  window.addEventListener("hashchange", () => {
+  const restoreRouteFromHistory = () => {
     const pageId = location.hash.slice(1);
     const page = document.getElementById(pageId);
-
-    if (page?.classList.contains("page")) {
-      navigateTo(pageId);
-    }
-  });
+    if (page?.classList.contains("page")) navigateTo(pageId, { history: false });
+  };
+  window.addEventListener("popstate", restoreRouteFromHistory);
+  window.addEventListener("hashchange", restoreRouteFromHistory);
 }
 
 async function loadCloudGoalsForWorkspace(businessId) {
@@ -2379,7 +2378,6 @@ function initializeBusinessFlowChat() {
 
   newButton.addEventListener("click", createConversation);
   window.addEventListener("businessflow:cloud-state", () => { void loadConversations(false); });
-  window.addEventListener("businessflow:workspace-changed", () => { void loadConversations(false); });
   void loadConversations(false);
 }
 
@@ -2613,7 +2611,6 @@ function initializeBusinessFlowBilling() {
   });
 
   window.addEventListener("businessflow:cloud-state", () => { void loadBilling(); });
-  window.addEventListener("businessflow:workspace-changed", () => { void loadBilling(); });
   void loadBilling();
 }
 
