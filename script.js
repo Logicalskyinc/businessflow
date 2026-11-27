@@ -15,6 +15,11 @@ let cloudExperimentBusy = false;
 let cloudMemoryWorkspaceId = null;
 let cloudMemoryBusy = false;
 
+const withBusinessFlowLoading = (task, message) => {
+  const loading = window.BusinessFlowLoading;
+  return loading?.run ? loading.run(task, { message }) : (typeof task === "function" ? task() : task);
+};
+
 const DEFAULT_GOALS = [];
 
 const MEMORY_CATEGORIES = [
@@ -585,7 +590,7 @@ async function handleGoalAction(action, id) {
     const cloud = window.BusinessFlowCloud?.getState?.();
     if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
       try {
-        await window.BusinessFlowCloud.deleteGoal(cloud.businessId, id);
+        await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteGoal(cloud.businessId, id), "Deleting your business goal…");
       } catch (error) {
         showToast("Cloud delete failed: " + error.message);
         return;
@@ -617,7 +622,7 @@ async function handleGoalAction(action, id) {
 
     const nextGoal = { ...goal, current: value };
     try {
-      await window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal), "Updating your business goal…");
     } catch (error) {
       showToast("Cloud update failed: " + error.message);
       return;
@@ -825,13 +830,13 @@ async function importLocalExperimentsToCloud() {
   if (!localRecords.length) { showToast("No browser experiments are available to import."); return; }
   if (!confirm("Import " + localRecords.length + " browser experiment(s) into this workspace? Existing cloud experiments with the same title will be skipped. Your browser backup will be retained.")) return;
   try {
-    const remote = await window.BusinessFlowCloud.loadExperiments(cloud.businessId);
+    const remote = await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadExperiments(cloud.businessId), "Checking existing experiments…");
     const titles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
     let imported = 0, skipped = 0;
     for (const item of localRecords) {
       const key = item.title.trim().toLowerCase();
       if (titles.has(key)) { skipped++; continue; }
-      await window.BusinessFlowCloud.createExperiment(cloud.businessId, item);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.createExperiment(cloud.businessId, item), "Importing experiments…");
       titles.add(key); imported++;
     }
     await loadCloudExperimentsForWorkspace(cloud.businessId);
@@ -1100,7 +1105,7 @@ async function handleExperimentAction(action, id) {
     )) return;
 
     if (cloudReady) {
-      try { await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id); }
+      try { await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id), "Deleting your experiment…"); }
       catch (error) { showToast("Cloud delete failed: " + error.message); return; }
     }
     const removed = experiments.splice(index, 1)[0];
@@ -1164,8 +1169,8 @@ function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();re
 function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
 function memoryPayload(x){return {category:MEMORY_CATEGORY_TO_API[x.category],content:{title:x.title,date:x.date,details:x.content},source:"user"};}
 function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');const saveTask=()=>window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});try{const saved=window.BusinessFlowLoading?await window.BusinessFlowLoading.runButton(button,saveTask,{message:"Saving Business Memory…",buttonLabel:"Saving…"}):await saveTask();if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;}});}
-async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next));if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
-async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await window.BusinessFlowCloud.loadMemories(cloud.businessId),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await window.BusinessFlowCloud.createMemory(cloud.businessId,x);titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
+async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteMemory(cloud.businessId,id), "Deleting Business Memory…");if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await withBusinessFlowLoading(() => window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next)), "Updating Business Memory…");if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
+async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadMemories(cloud.businessId), "Checking existing Business Memory…"),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await withBusinessFlowLoading(() => window.BusinessFlowCloud.createMemory(cloud.businessId,x), "Importing Business Memory…");titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
 function setupMemoryActions(){document.querySelector("#import-local-memories")?.addEventListener("click",()=>void importLocalMemoriesToCloud());document.addEventListener("click",e=>{if(!(e.target instanceof Element))return;const b=e.target.closest("[data-memory-action]");if(b)void handleMemoryAction(b.dataset.memoryAction,b.dataset.id);});}
 function setupMemorySearch(){document.querySelector("#memory-search")?.addEventListener("input",renderMemories);}
 /* ---------- Navigation ---------- */
@@ -1346,7 +1351,7 @@ async function importLocalGoalsToCloud() {
   if (!confirm("Import " + localRecords.length + " browser goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your local backup will be kept.")) return;
 
   try {
-    const remote = await window.BusinessFlowCloud.loadGoals(cloud.businessId);
+    const remote = await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadGoals(cloud.businessId), "Checking existing business goals…");
     const existingTitles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
     let imported = 0, skipped = 0;
     for (const local of localRecords) {
@@ -1354,7 +1359,7 @@ async function importLocalGoalsToCloud() {
         skipped++;
         continue;
       }
-      await window.BusinessFlowCloud.createGoal(cloud.businessId, local);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.createGoal(cloud.businessId, local), "Importing business goals…");
       existingTitles.add(local.title.trim().toLowerCase());
       imported++;
     }
@@ -2009,7 +2014,7 @@ async function loadSavedImports(){
   if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
   status.textContent="Loading saved datasets…";
   try{
-    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
+    const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId)), "Refreshing saved datasets…");
     importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
@@ -2041,7 +2046,7 @@ async function viewSavedImport(id){
   const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
   panel.hidden=false;panel.textContent="Loading dataset…";
   try{
-    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
+    const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)), "Opening your saved dataset…"),dataset=result.import;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
     const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
@@ -2126,7 +2131,7 @@ function setupDataImport(){
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
       if(!name)throw Error("Enter a name for this dataset.");
-      const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
+      const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})}), "Saving your dataset…");
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
       recordActivity("dataset_imported", "Dataset imported", result.import.row_count + " rows added to the workspace", result.import.id || "");
       showToast("Dataset added to BusinessFlow.");
@@ -2528,11 +2533,11 @@ function initializeBusinessFlowBilling() {
     button.disabled = true;
     setFeedback("Preparing secure Stripe Checkout…");
     try {
-      const result = await api()("/api/billing/checkout", {
+      const result = await withBusinessFlowLoading(() => api()("/api/billing/checkout", {
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ business_id: current.businessId, plan_key: planKey, currency: price.currency, billing_interval: price.billing_interval })
-      });
+      }), "Preparing secure checkout…");
       if (!result.checkout_url || !/^https:\/\/checkout\.stripe\.com\//i.test(result.checkout_url)) {
         throw new Error("Stripe did not return a valid Checkout URL.");
       }
