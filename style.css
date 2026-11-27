@@ -131,6 +131,9 @@ h2 { margin: 0; font-size: 15px; font-weight: 750; letter-spacing: -.2px; }
 }
 .primary-button { background: var(--blue); color: #fff; box-shadow: 0 4px 10px rgba(36,87,230,.14); }
 .primary-button:hover { background: var(--blue-dark); }
+.primary-button[aria-busy="true"], .secondary-button[aria-busy="true"], .small-button[aria-busy="true"] { cursor: progress; }
+.primary-button[aria-busy="true"] { filter: saturate(.82); }
+button:focus-visible { outline: 3px solid rgba(53,99,233,.28); outline-offset: 2px; }
 .secondary-button { background: #fff; border-color: var(--border); color: #344258; }
 .secondary-button:hover { border-color: #b8c8ed; background: #f8faff; }
 .text-button { border: 0; background: transparent; color: var(--blue); font-weight: 700; }
