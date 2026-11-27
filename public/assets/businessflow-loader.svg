@@ -25,4 +25,6 @@
   <animateTransform attributeName="transform" type="translate" values="-28 12; 0 0; 92 -28; 180 -52" keyTimes="0;.35;.72;1" dur="2.35s" repeatCount="indefinite"/>
   <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.12;.72;1" dur="2.35s" repeatCount="indefinite"/>
 </g>
+<g class="still" filter="url(#glow)"><path d="M42 238 C94 210 147 193 204 184" fill="none" stroke="#00eaff" stroke-opacity=".72" stroke-width="3.5" stroke-linecap="round"/><circle cx="42" cy="238" r="14" fill="url(#core)"/><circle cx="42" cy="238" r="4.6" fill="#fff"/></g>
+<style>.still{display:none}@media(prefers-reduced-motion:reduce){.comet{display:none}.still{display:inline}}</style>
 </svg>
