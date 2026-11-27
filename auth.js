@@ -45,6 +45,10 @@ function saveWorkspaceId(id) {
 const show = message => { if (status) status.textContent = message; };
 const showApi = message => { if (apiStatus) apiStatus.textContent = message; };
 const showWorkspace = message => { if (workspaceStatus) workspaceStatus.textContent = message; };
+const withBusinessFlowLoading = (task, message) => {
+  const loading = window.BusinessFlowLoading;
+  return loading?.run ? loading.run(task, { message }) : (typeof task === "function" ? task() : task);
+};
 
 function emitCloudState() {
   window.dispatchEvent(new CustomEvent("businessflow:cloud-state", {
@@ -215,10 +219,10 @@ async function createBusiness(event) {
   if (workspaceCreate) workspaceCreate.disabled = true;
   showWorkspace("Creating business workspace…");
   try {
-    const result = await apiRequest("/api/business-intelligence/onboarding", {
+    const result = await withBusinessFlowLoading(() => apiRequest("/api/business-intelligence/onboarding", {
       method: "POST",
       body: JSON.stringify({ name, answers: { business_basics: basics, primary_goal: goal } })
-    });
+    }), "Creating your business workspace…");
     if (!result.business?.id) throw new Error("Workspace was created but the response did not contain its ID.");
     workspaceForm.reset();
     await loadBusinesses(result.business.id);
@@ -257,7 +261,7 @@ document.querySelector("#onboarding-skip")?.addEventListener("click", async () =
   if (button) button.disabled = true;
   if (message) message.textContent = "Saving your preference…";
   try {
-    const { error } = await supabase.auth.updateUser({ data: { businessflow_onboarding_skipped: true } });
+    const { error } = await withBusinessFlowLoading(() => supabase.auth.updateUser({ data: { businessflow_onboarding_skipped: true } }), "Saving your onboarding preference…");
     if (error) throw error;
     session.user.user_metadata = { ...(session.user.user_metadata ?? {}), businessflow_onboarding_skipped: true };
     if (message) message.textContent = "";
@@ -290,7 +294,7 @@ form?.addEventListener("submit", async event => {
   if (signUp) signUp.disabled = true;
   show("Signing in…");
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.value.trim(), password: password.value });
+    const { data, error } = await withBusinessFlowLoading(() => supabase.auth.signInWithPassword({ email: email.value.trim(), password: password.value }), "Signing in securely…");
     if (error) throw error;
     setSession(data.session);
     password.value = "";
@@ -311,11 +315,11 @@ signUp?.addEventListener("click", async () => {
   if (!address || secret.length < 8) { show("Enter a valid email and a password with at least 8 characters."); return; }
   signIn.disabled = true; signUp.disabled = true; show("Creating account…");
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await withBusinessFlowLoading(() => supabase.auth.signUp({
       email: address,
       password: secret,
       options: { emailRedirectTo: window.location.href.split("#")[0] }
-    });
+    }), "Creating your BusinessFlow account…");
     if (error) throw error;
     if (data.session) {
       setSession(data.session);
@@ -338,7 +342,7 @@ async function performSignOut() {
   const sidebarSignOut = document.querySelector("#sidebar-signout");
   if (sidebarSignOut) sidebarSignOut.disabled = true;
   try {
-    const { error } = await supabase.auth.signOut({ scope: "local" });
+    const { error } = await withBusinessFlowLoading(() => supabase.auth.signOut({ scope: "local" }), "Signing out of this device…");
     if (error) throw error;
     businesses = [];
     activeBusinessId = null;

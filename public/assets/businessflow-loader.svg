@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 437 389" role="img" aria-labelledby="title">
+<title id="title">BusinessFlow loading</title>
+<defs>
+  <linearGradient id="trail" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#00aaff" stop-opacity="0"/>
+    <stop offset=".48" stop-color="#00cfff" stop-opacity=".72"/>
+    <stop offset="1" stop-color="#39f8ff"/>
+  </linearGradient>
+  <radialGradient id="core">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset=".2" stop-color="#d9ffff"/>
+    <stop offset=".48" stop-color="#00eaff"/>
+    <stop offset="1" stop-color="#00aaff" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="7" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<g class="comet" filter="url(#glow)">
+  <path d="M42 238 C93 208 145 190 204 184 C164 190 108 213 58 251" fill="none" stroke="url(#trail)" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M42 238 C94 210 147 193 204 184" fill="none" stroke="#00eaff" stroke-opacity=".28" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="42" cy="238" r="14" fill="url(#core)"/>
+  <circle cx="42" cy="238" r="4.6" fill="#fff"/>
+  <animateTransform attributeName="transform" type="translate" values="-28 12; 0 0; 92 -28; 180 -52" keyTimes="0;.35;.72;1" dur="2.35s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.12;.72;1" dur="2.35s" repeatCount="indefinite"/>
+</g>
+<g class="still" filter="url(#glow)"><path d="M42 238 C94 210 147 193 204 184" fill="none" stroke="#00eaff" stroke-opacity=".72" stroke-width="3.5" stroke-linecap="round"/><circle cx="42" cy="238" r="14" fill="url(#core)"/><circle cx="42" cy="238" r="4.6" fill="#fff"/></g>
+<style>.still{display:none}@media(prefers-reduced-motion:reduce){.comet{display:none}.still{display:inline}}</style>
+</svg>

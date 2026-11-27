@@ -15,6 +15,11 @@ let cloudExperimentBusy = false;
 let cloudMemoryWorkspaceId = null;
 let cloudMemoryBusy = false;
 
+const withBusinessFlowLoading = (task, message) => {
+  const loading = window.BusinessFlowLoading;
+  return loading?.run ? loading.run(task, { message }) : (typeof task === "function" ? task() : task);
+};
+
 const DEFAULT_GOALS = [];
 
 const MEMORY_CATEGORIES = [
@@ -164,11 +169,13 @@ function setupActivityCenter() {
     const pending = activityItems.filter(item => !item.read && item.cloud && item.id);
     if (!pending.length) return;
     try {
-      for (const item of pending) {
-        await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
-          method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
-        });
-      }
+      await withBusinessFlowLoading(async () => {
+        for (const item of pending) {
+          await window.BusinessFlowCloud.request("/api/business-intelligence/activity/" + encodeURIComponent(item.id), {
+            method: "PATCH", body: JSON.stringify({ business_id: cloud.businessId, is_read: true })
+          });
+        }
+      }, "Updating workspace activity…");
       if (getActivityCloudState()?.businessId !== cloud.businessId) return;
       activityItems = activityItems.map(item => ({ ...item, read: true }));
       renderActivityCenter();
@@ -186,7 +193,10 @@ function setupActivityCenter() {
     }
     if (!activityItems.length || !window.confirm("Clear this workspace's cloud activity history? This does not delete goals, experiments or imported datasets.")) return;
     try {
-      await window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" });
+      await withBusinessFlowLoading(
+        () => window.BusinessFlowCloud.request("/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId), { method: "DELETE" }),
+        "Clearing workspace activity…"
+      );
       if (getActivityCloudState()?.businessId !== cloud.businessId) return;
       activityItems = [];
       renderActivityCenter();
@@ -585,7 +595,7 @@ async function handleGoalAction(action, id) {
     const cloud = window.BusinessFlowCloud?.getState?.();
     if (cloud?.signedIn && cloud.apiConnected && cloud.businessId === cloudGoalWorkspaceId && /^[0-9a-f-]{36}$/i.test(id)) {
       try {
-        await window.BusinessFlowCloud.deleteGoal(cloud.businessId, id);
+        await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteGoal(cloud.businessId, id), "Deleting your business goal…");
       } catch (error) {
         showToast("Cloud delete failed: " + error.message);
         return;
@@ -617,7 +627,7 @@ async function handleGoalAction(action, id) {
 
     const nextGoal = { ...goal, current: value };
     try {
-      await window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.updateGoal(cloud.businessId, nextGoal), "Updating your business goal…");
     } catch (error) {
       showToast("Cloud update failed: " + error.message);
       return;
@@ -690,7 +700,11 @@ function setupGoalForm() {
     const target = document.querySelector("#goal-target")?.value ?? "";
     const unit = document.querySelector("#goal-unit")?.value ?? "units";
 
-    if (await createGoal(title, current, target, unit)) {
+    const submitButton = event.submitter instanceof HTMLButtonElement ? event.submitter : form.querySelector('button[type="submit"]');
+    const saved = window.BusinessFlowLoading
+      ? await window.BusinessFlowLoading.runButton(submitButton, () => createGoal(title, current, target, unit), { message: "Saving your business goal…", buttonLabel: "Saving…" })
+      : await createGoal(title, current, target, unit);
+    if (saved) {
       form.reset();
 
       const currentField = document.querySelector("#goal-current");
@@ -821,13 +835,13 @@ async function importLocalExperimentsToCloud() {
   if (!localRecords.length) { showToast("No browser experiments are available to import."); return; }
   if (!confirm("Import " + localRecords.length + " browser experiment(s) into this workspace? Existing cloud experiments with the same title will be skipped. Your browser backup will be retained.")) return;
   try {
-    const remote = await window.BusinessFlowCloud.loadExperiments(cloud.businessId);
+    const remote = await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadExperiments(cloud.businessId), "Checking existing experiments…");
     const titles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
     let imported = 0, skipped = 0;
     for (const item of localRecords) {
       const key = item.title.trim().toLowerCase();
       if (titles.has(key)) { skipped++; continue; }
-      await window.BusinessFlowCloud.createExperiment(cloud.businessId, item);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.createExperiment(cloud.businessId, item), "Importing experiments…");
       titles.add(key); imported++;
     }
     await loadCloudExperimentsForWorkspace(cloud.businessId);
@@ -1032,7 +1046,9 @@ function setupExperimentForm() {
       const next = { ...item, title, hypothesis, baseline, result, status, notes, updatedAt: now,
         completedAt: status === "completed" ? (item.completedAt || now) : null };
       try {
-        await window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+        const updateTask = () => window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+        if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(form.querySelector('button[type="submit"]'), updateTask, { message: "Updating your experiment…", buttonLabel: "Updating…" });
+        else await updateTask();
       } catch (error) {
         showToast("Cloud update failed: " + error.message); return;
       } finally { cloudExperimentBusy = false; }
@@ -1049,7 +1065,10 @@ function setupExperimentForm() {
       completedAt: status === "completed" ? now : null, createdAt: now, updatedAt: now };
     if (cloudReady) {
       try {
-        const saved = await window.BusinessFlowCloud.createExperiment(cloud.businessId, newItem);
+        const createTask = () => window.BusinessFlowCloud.createExperiment(cloud.businessId, newItem);
+        const saved = window.BusinessFlowLoading
+          ? await window.BusinessFlowLoading.runButton(form.querySelector('button[type="submit"]'), createTask, { message: "Saving your experiment…", buttonLabel: "Saving…" })
+          : await createTask();
         Object.assign(newItem, { id: saved.id, status: saved.status,
           baseline: saved.baseline_value == null ? null : Number(saved.baseline_value),
           result: saved.result_value == null ? null : Number(saved.result_value),
@@ -1091,7 +1110,7 @@ async function handleExperimentAction(action, id) {
     )) return;
 
     if (cloudReady) {
-      try { await window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id); }
+      try { await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteExperiment(cloud.businessId, id), "Deleting your experiment…"); }
       catch (error) { showToast("Cloud delete failed: " + error.message); return; }
     }
     const removed = experiments.splice(index, 1)[0];
@@ -1154,12 +1173,39 @@ function renderMemories(){const box=document.querySelector("#memory-list"),count
 function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();return c?.signedIn&&c.apiConnected&&c.businessId&&c.businessId===cloudMemoryWorkspaceId&&typeof window.BusinessFlowCloud?.createMemory==="function"?c:null;}
 function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
 function memoryPayload(x){return {category:MEMORY_CATEGORY_TO_API[x.category],content:{title:x.title,date:x.date,details:x.content},source:"user"};}
-function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');if(button)button.disabled=true;try{const saved=await window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;if(button)button.disabled=false;}});}
-async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next));if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
-async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await window.BusinessFlowCloud.loadMemories(cloud.businessId),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await window.BusinessFlowCloud.createMemory(cloud.businessId,x);titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
+function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');const saveTask=()=>window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});try{const saved=window.BusinessFlowLoading?await window.BusinessFlowLoading.runButton(button,saveTask,{message:"Saving Business Memory…",buttonLabel:"Saving…"}):await saveTask();if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;}});}
+async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await withBusinessFlowLoading(() => window.BusinessFlowCloud.deleteMemory(cloud.businessId,id), "Deleting Business Memory…");if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await withBusinessFlowLoading(() => window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next)), "Updating Business Memory…");if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
+async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadMemories(cloud.businessId), "Checking existing Business Memory…"),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await withBusinessFlowLoading(() => window.BusinessFlowCloud.createMemory(cloud.businessId,x), "Importing Business Memory…");titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
 function setupMemoryActions(){document.querySelector("#import-local-memories")?.addEventListener("click",()=>void importLocalMemoriesToCloud());document.addEventListener("click",e=>{if(!(e.target instanceof Element))return;const b=e.target.closest("[data-memory-action]");if(b)void handleMemoryAction(b.dataset.memoryAction,b.dataset.id);});}
 function setupMemorySearch(){document.querySelector("#memory-search")?.addEventListener("input",renderMemories);}
 /* ---------- Navigation ---------- */
+
+function setSidebarNavigationOpen(isOpen, restoreFocus = false) {
+  const sidebar = document.querySelector("#sidebar");
+  const menuButton = document.querySelector(".menu-button");
+  const backdrop = document.querySelector("#sidebar-backdrop");
+  if (!sidebar || !menuButton) return;
+
+  const mobile = window.matchMedia("(max-width: 760px)").matches;
+  sidebar.classList.toggle("open", Boolean(isOpen));
+  document.body.classList.toggle("navigation-open", Boolean(isOpen) && mobile);
+  menuButton.setAttribute("aria-expanded", String(Boolean(isOpen)));
+
+  if (mobile) {
+    sidebar.inert = !isOpen;
+    sidebar.setAttribute("aria-hidden", String(!isOpen));
+  } else {
+    sidebar.inert = false;
+    sidebar.removeAttribute("aria-hidden");
+  }
+  backdrop?.setAttribute("aria-hidden", String(!isOpen));
+
+  if (isOpen && mobile) {
+    sidebar.querySelector('a[href], button:not([disabled])')?.focus();
+  } else if (restoreFocus && mobile) {
+    menuButton.focus();
+  }
+}
 
 function navigateTo(pageId) {
   let page = document.getElementById(pageId);
@@ -1204,9 +1250,12 @@ function navigateTo(pageId) {
       : (page.querySelector("h1")?.textContent || "Workspace");
   }
 
-  document.querySelector("#sidebar")?.classList.remove("open");
-  document.body.classList.remove("navigation-open");
-  document.querySelector(".menu-button")?.setAttribute("aria-expanded", "false");
+  setSidebarNavigationOpen(false);
+  const pageHeading = page.querySelector("h1");
+  if (pageHeading) {
+    pageHeading.setAttribute("tabindex", "-1");
+    pageHeading.focus({ preventScroll: true });
+  }
 
   if (location.hash !== "#" + pageId) {
     history.replaceState(null, "", "#" + pageId);
@@ -1239,25 +1288,27 @@ function setupNavigation() {
 
   const menuButton = document.querySelector(".menu-button");
   const sidebar = document.querySelector("#sidebar");
-
   const backdrop = document.querySelector("#sidebar-backdrop");
-  if (menuButton && sidebar) {
-    menuButton.addEventListener("click", () => {
-      const isOpen = sidebar.classList.toggle("open");
-      document.body.classList.toggle("navigation-open", isOpen);
-      menuButton.setAttribute("aria-expanded", String(isOpen));
-    });
-  }
+
+  setSidebarNavigationOpen(false);
+  menuButton?.addEventListener("click", () => {
+    const isOpen = menuButton.getAttribute("aria-expanded") !== "true";
+    setSidebarNavigationOpen(isOpen);
+  });
   backdrop?.addEventListener("click", () => {
-    sidebar?.classList.remove("open");
-    document.body.classList.remove("navigation-open");
-    menuButton?.setAttribute("aria-expanded", "false");
+    setSidebarNavigationOpen(false, true);
   });
   document.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return;
-    sidebar?.classList.remove("open");
-    document.body.classList.remove("navigation-open");
-    menuButton?.setAttribute("aria-expanded", "false");
+    if (event.key !== "Escape" || !sidebar?.classList.contains("open")) return;
+    setSidebarNavigationOpen(false, true);
+  });
+  window.addEventListener("resize", () => {
+    const isOpen = sidebar?.classList.contains("open") || false;
+    if (!window.matchMedia("(max-width: 760px)").matches) {
+      setSidebarNavigationOpen(false);
+    } else {
+      setSidebarNavigationOpen(isOpen);
+    }
   });
 
   document.querySelectorAll(".mobile-tab[data-page]").forEach(link => {
@@ -1337,7 +1388,7 @@ async function importLocalGoalsToCloud() {
   if (!confirm("Import " + localRecords.length + " browser goal(s) into the selected business? Existing cloud goals with the same name will be skipped. Your local backup will be kept.")) return;
 
   try {
-    const remote = await window.BusinessFlowCloud.loadGoals(cloud.businessId);
+    const remote = await withBusinessFlowLoading(() => window.BusinessFlowCloud.loadGoals(cloud.businessId), "Checking existing business goals…");
     const existingTitles = new Set(remote.map(item => String(item.title).trim().toLowerCase()));
     let imported = 0, skipped = 0;
     for (const local of localRecords) {
@@ -1345,7 +1396,7 @@ async function importLocalGoalsToCloud() {
         skipped++;
         continue;
       }
-      await window.BusinessFlowCloud.createGoal(cloud.businessId, local);
+      await withBusinessFlowLoading(() => window.BusinessFlowCloud.createGoal(cloud.businessId, local), "Importing business goals…");
       existingTitles.add(local.title.trim().toLowerCase());
       imported++;
     }
@@ -1665,33 +1716,109 @@ window.addEventListener("businessflow:import-local-experiments-requested", () =>
   void importLocalExperimentsToCloud();
 });
 
-/* ---------- Branded loading experience ---------- */
+/* ---------- Shared BusinessFlow loading manager ---------- */
 function initializeBusinessFlowLoading() {
   const boot = document.querySelector("#bf-loading-screen");
   const action = document.querySelector("#bf-action-loading");
   const message = document.querySelector("#bf-action-loading-message");
+  const active = new Map();
+  let nextToken = 0;
+  let revealTimer = null;
   let bootFinished = false;
+
   const finishBoot = () => {
     if (bootFinished) return;
     bootFinished = true;
     boot?.classList.add("is-leaving");
     window.setTimeout(() => boot?.remove(), 350);
   };
-  // Auth emits cloud-state after its initial session check. Keep a hard timeout
-  // so a network/auth failure can never leave the app covered indefinitely.
-  window.addEventListener("businessflow:cloud-state", finishBoot, { once: true });
-  window.setTimeout(finishBoot, 6500);
-  window.BusinessFlowLoading = {
-    show(text = "Working on your workspace…") {
-      if (message) message.textContent = text;
-      action?.classList.add("is-visible");
-      action?.setAttribute("aria-hidden", "false");
-    },
-    hide() {
+
+  const syncOverlay = () => {
+    if (!active.size) {
+      if (revealTimer !== null) {
+        window.clearTimeout(revealTimer);
+        revealTimer = null;
+      }
       action?.classList.remove("is-visible");
       action?.setAttribute("aria-hidden", "true");
+      return;
+    }
+
+    if (revealTimer !== null || action?.classList.contains("is-visible")) return;
+    revealTimer = window.setTimeout(() => {
+      revealTimer = null;
+      if (!active.size) return;
+      const latest = Array.from(active.values()).at(-1);
+      if (message) message.textContent = latest?.message || "Working on your workspace…";
+      action?.classList.add("is-visible");
+      action?.setAttribute("aria-hidden", "false");
+    }, 200);
+  };
+
+  const begin = (options = {}) => {
+    const token = ++nextToken;
+    active.set(token, {
+      message: typeof options === "string"
+        ? options
+        : (options.message || "Working on your workspace…")
+    });
+    syncOverlay();
+    return token;
+  };
+
+  const end = token => {
+    if (token === undefined || token === null) {
+      const oldest = active.keys().next();
+      if (!oldest.done) active.delete(oldest.value);
+    } else {
+      active.delete(token);
+    }
+    syncOverlay();
+  };
+
+  const run = async (task, options = {}) => {
+    const token = begin(options);
+    try {
+      return await (typeof task === "function" ? task() : task);
+    } finally {
+      end(token);
     }
   };
+
+  const runButton = async (button, task, options = {}) => {
+    if (!(button instanceof HTMLButtonElement)) return run(task, options);
+    if (button.dataset.bfBusy === "true") return;
+    const wasDisabled = button.disabled;
+    const originalHTML = button.innerHTML;
+    button.dataset.bfBusy = "true";
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    if (options.buttonLabel) button.textContent = options.buttonLabel;
+    try {
+      return await run(task, options);
+    } finally {
+      button.innerHTML = originalHTML;
+      button.disabled = wasDisabled;
+      button.removeAttribute("aria-busy");
+      delete button.dataset.bfBusy;
+    }
+  };
+
+  // Authentication emits cloud-state after its initial session check. The
+  // timeout remains a fail-safe so a failed auth/network request cannot trap
+  // the user behind the startup screen.
+  window.addEventListener("businessflow:cloud-state", finishBoot, { once: true });
+  window.setTimeout(finishBoot, 6500);
+
+  window.BusinessFlowLoading = Object.freeze({
+    begin,
+    end,
+    run,
+    runButton,
+    show: begin,
+    hide: end,
+    get activeCount() { return active.size; }
+  });
 }
 
 /* ---------- Start the app ---------- */
@@ -1924,7 +2051,7 @@ async function loadSavedImports(){
   if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){list.innerHTML='<p class="empty-state">Sign in, connect to the BusinessFlow API, and select a business workspace to view saved datasets.</p>';status.textContent="";importedDatasets=[];return;}
   status.textContent="Loading saved datasets…";
   try{
-    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId));
+    const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports?business_id="+encodeURIComponent(cloud.businessId)), "Refreshing saved datasets…");
     importedDatasets=Array.isArray(result.imports)?result.imports:[];list.replaceChildren();
     if(!importedDatasets.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="No datasets imported yet. Choose a file above to get started.";list.append(empty);}
     importedDatasets.forEach(item=>{const row=document.createElement("div");row.className="record-item import-record";const content=document.createElement("div");content.className="record-content";const title=document.createElement("strong");title.textContent=item.name;const detail=document.createElement("p");detail.textContent=item.source_filename+" · "+item.row_count+" rows · "+new Date(item.created_at).toLocaleString();content.append(title,detail);const button=document.createElement("button");button.className="small-button";button.type="button";button.textContent="View data";button.dataset.importId=item.id;row.append(content,button);list.append(row);});
@@ -1956,7 +2083,7 @@ async function viewSavedImport(id){
   const cloud=window.BusinessFlowCloud?.getState?.(),panel=document.querySelector("#saved-import-detail");if(!cloud?.businessId||!panel)return;
   panel.hidden=false;panel.textContent="Loading dataset…";
   try{
-    const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)),dataset=result.import;
+    const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports/"+encodeURIComponent(id)+"?business_id="+encodeURIComponent(cloud.businessId)), "Opening your saved dataset…"),dataset=result.import;
     panel.replaceChildren();const title=document.createElement("h3");title.textContent=dataset.name;const meta=document.createElement("p");meta.textContent=dataset.row_count+" rows · "+dataset.columns.length+" columns · "+dataset.source_filename;
     const analysis=buildDatasetReadout(dataset);const analysisPanel=document.createElement("section");analysisPanel.className="dataset-readout";const analysisTitle=document.createElement("h4");analysisTitle.textContent="BusinessFlow data readout";analysisPanel.append(analysisTitle);const analysisNote=document.createElement("p");analysisNote.className="muted";analysisNote.textContent="Calculated from your saved records and column mapping. These are summaries, not invented forecasts.";analysisPanel.append(analysisNote);const cards=document.createElement("div");cards.className="dataset-readout-grid";analysis.cards.forEach(item=>{const card=document.createElement("article");card.className="dataset-readout-card";const label=document.createElement("span");label.textContent=item.label;const value=document.createElement("strong");value.textContent=item.value;card.append(label,value);cards.append(card);});analysisPanel.append(cards);if(analysis.notes.length){const list=document.createElement("ul");analysis.notes.forEach(note=>{const li=document.createElement("li");li.textContent=note;list.append(li);});analysisPanel.append(list);}panel.append(analysisPanel);const wrap=document.createElement("div");wrap.className="import-preview-wrap";const table=document.createElement("table");table.className="import-preview-table";const thead=document.createElement("thead"),tr=document.createElement("tr");
     dataset.columns.forEach(c=>{const th=document.createElement("th");th.textContent=c;tr.append(th);});thead.append(tr);const tbody=document.createElement("tbody");
@@ -1996,7 +2123,7 @@ function setupDataImport(){
     pendingImport=null;
     review.hidden=true;
     fileStatus.textContent="File selected: "+file.name+". Reading file…";
-    window.BusinessFlowLoading?.show("Reading and checking your file…");
+    const loadingToken = window.BusinessFlowLoading?.begin({ message: "Reading and checking your file…" });
     try{
       pendingImport=await readImportFile(file);
       pendingImport.filename=file.name;
@@ -2009,7 +2136,7 @@ function setupDataImport(){
       fileStatus.textContent="Could not read "+file.name+": "+(error.message||"Unsupported or invalid file.");
     }finally{
       processingFile=null;
-      window.BusinessFlowLoading?.hide();
+      window.BusinessFlowLoading?.end(loadingToken);
     }
   };
   input.addEventListener("change",handleSelectedFile);
@@ -2036,12 +2163,12 @@ function setupDataImport(){
     if(!cloud?.signedIn||!cloud?.apiConnected||!cloud?.businessId){status.textContent="Sign in and select a connected business workspace before saving.";return;}
     button.disabled=true;
     status.textContent="Validating and saving the reviewed dataset…";
-    window.BusinessFlowLoading?.show("Adding your dataset and updating business intelligence…");
+    const loadingToken = window.BusinessFlowLoading?.begin({ message: "Adding your dataset and updating business intelligence…" });
     try{
       const mapping=currentImportMapping();
       const name=document.querySelector("#import-dataset-name").value.trim();
       if(!name)throw Error("Enter a name for this dataset.");
-      const result=await window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})});
+      const result=await withBusinessFlowLoading(() => window.BusinessFlowCloud.request("/api/business-intelligence/imports",{method:"POST",body:JSON.stringify({business_id:cloud.businessId,name,source_filename:pendingImport.filename,columns:pendingImport.columns,column_mapping:mapping,rows:pendingImport.rows})}), "Saving your dataset…");
       status.textContent="Added "+result.import.row_count+" rows to this business workspace.";
       recordActivity("dataset_imported", "Dataset imported", result.import.row_count + " rows added to the workspace", result.import.id || "");
       showToast("Dataset added to BusinessFlow.");
@@ -2052,7 +2179,7 @@ function setupDataImport(){
       navigateTo("overview");
       status.textContent="Dataset added. Your BusinessFlow dashboard has been updated with the available findings.";
     }catch(error){status.textContent=error.message||"Import failed. Your file remains on this device.";}
-    finally{button.disabled=false;window.BusinessFlowLoading?.hide();}
+    finally{button.disabled=false;window.BusinessFlowLoading?.end(loadingToken);}
   });
   document.querySelector("#imports-refresh")?.addEventListener("click",loadSavedImports);
   document.querySelector("#saved-imports-list")?.addEventListener("click",event=>{const button=event.target.closest("[data-import-id]");if(button)viewSavedImport(button.dataset.importId);});
@@ -2070,14 +2197,11 @@ document.querySelector("#grey-refresh-brief")?.addEventListener("click", async e
     renderGreyWorkspaceBrief();
     return;
   }
-  button.disabled = true;
   const status = document.querySelector("#grey-brief-status");
   if (status) status.textContent = "Refreshing verified business context…";
-  try {
-    await loadBusinessInsights(cloud.businessId);
-  } finally {
-    button.disabled = false;
-  }
+  const refreshTask = () => loadBusinessInsights(cloud.businessId);
+  if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(button, refreshTask, { message: "Refreshing Grey’s business briefing…", buttonLabel: "Refreshing…" });
+  else await refreshTask();
 });
 
 function initializeBusinessFlowChat() {
@@ -2167,10 +2291,13 @@ function initializeBusinessFlowChat() {
     busy = true;
     newButton.disabled = true;
     try {
-      const result = await api().request("/api/business-intelligence/conversations", {
+      const createTask = () => api().request("/api/business-intelligence/conversations", {
         method: "POST",
         body: JSON.stringify({ business_id: current.businessId, title: "New conversation" })
       });
+      const result = window.BusinessFlowLoading
+        ? await window.BusinessFlowLoading.runButton(newButton, createTask, { message: "Creating a Grey conversation…", buttonLabel: "Creating…" })
+        : await createTask();
       activeConversationId = result.conversation.id;
       conversations.unshift(result.conversation);
       renderList();
@@ -2221,7 +2348,7 @@ function initializeBusinessFlowChat() {
     const previous = input.value;
     input.value = "";
     setStatus("Grey is reviewing your workspace…");
-    try {
+    const sendTask = async () => {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
         method: "POST",
         body: JSON.stringify({ content, client_message_id: clientMessageId })
@@ -2235,6 +2362,10 @@ function initializeBusinessFlowChat() {
       pendingClientMessageId = null;
       pendingClientMessageContent = null;
       setStatus(result.replayed ? "Previous response restored safely." : "Saved to your business workspace.");
+    };
+    try {
+      if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(send, sendTask, { message: "Grey is working on your message…", buttonLabel: "Sending…" });
+      else await sendTask();
     } catch (error) {
       input.value = previous;
       setStatus(error.message || "Message could not be saved. Your text is still here so you can retry.");
@@ -2439,11 +2570,11 @@ function initializeBusinessFlowBilling() {
     button.disabled = true;
     setFeedback("Preparing secure Stripe Checkout…");
     try {
-      const result = await api()("/api/billing/checkout", {
+      const result = await withBusinessFlowLoading(() => api()("/api/billing/checkout", {
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ business_id: current.businessId, plan_key: planKey, currency: price.currency, billing_interval: price.billing_interval })
-      });
+      }), "Preparing secure checkout…");
       if (!result.checkout_url || !/^https:\/\/checkout\.stripe\.com\//i.test(result.checkout_url)) {
         throw new Error("Stripe did not return a valid Checkout URL.");
       }
@@ -2462,14 +2593,18 @@ function initializeBusinessFlowBilling() {
     portalButton.disabled = true;
     setFeedback("Opening Stripe's secure billing portal…");
     try {
-      const result = await api()("/api/billing/portal", {
-        method: "POST",
-        body: JSON.stringify({ business_id: current.businessId })
-      });
-      if (!result.portal_url || !/^https:\/\/billing\.stripe\.com\//i.test(result.portal_url)) {
-        throw new Error("Stripe did not return a valid billing portal URL.");
-      }
-      window.location.assign(result.portal_url);
+      const openPortal = async () => {
+        const result = await api()("/api/billing/portal", {
+          method: "POST",
+          body: JSON.stringify({ business_id: current.businessId })
+        });
+        if (!result.portal_url || !/^https:\/\/billing\.stripe\.com\//i.test(result.portal_url)) {
+          throw new Error("Stripe did not return a valid billing portal URL.");
+        }
+        window.location.assign(result.portal_url);
+      };
+      if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(portalButton, openPortal, { message: "Opening secure billing portal…", buttonLabel: "Opening…" });
+      else await openPortal();
     } catch (error) {
       setFeedback(error.message || "Could not open the billing portal.", true);
       busy = false;
