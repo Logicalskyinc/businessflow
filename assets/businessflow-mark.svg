@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+<title id="title">BusinessFlow</title>
+<defs><linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101d50"/><stop offset="1" stop-color="#06102d"/></linearGradient><linearGradient id="arrow" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#16d6c5"/><stop offset="1" stop-color="#168bff"/></linearGradient></defs>
+<rect width="128" height="128" rx="25" fill="url(#tile)"/>
+<path d="M29 24h43c20 0 31 10 31 25 0 10-5 18-14 22 10 4 15 12 15 23 0 17-13 27-34 27H29V99h40c9 0 14-4 14-11s-5-11-14-11H29V58h41c8 0 12-3 12-9s-4-9-12-9H29z" fill="#fff" opacity=".97" transform="translate(0 -8) scale(.96)"/>
+<path d="M23 91c20-2 36-12 53-31l17-20" fill="none" stroke="url(#arrow)" stroke-width="10" stroke-linecap="round"/>
+<path d="M79 38l18-8-2 20" fill="none" stroke="#16c8ef" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
