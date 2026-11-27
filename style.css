@@ -619,18 +619,17 @@ button, a, .panel, .metric-card { -webkit-tap-highlight-color: transparent; }
 /* BusinessFlow branded loading experience */
 .bf-loading-screen{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:20px;background:#000724;opacity:1;visibility:visible;transition:opacity .28s ease,visibility .28s ease}
 .bf-loading-screen.is-leaving{opacity:0;visibility:hidden;pointer-events:none}
-.bf-loading-animation{display:block;width:min(437px,100vw);height:auto}
-.bf-action-loading{position:fixed;inset:0;z-index:1100;display:grid;place-content:center;justify-items:center;gap:13px;background:rgba(0,7,36,.88);opacity:0;visibility:hidden;transition:opacity .18s ease,visibility .18s ease}
-.bf-action-loading.is-visible{opacity:1;visibility:visible}
-.bf-action-logo{display:block;width:48px;height:48px;border-radius:10px;animation:bf-mark-breathe 1.5s ease-in-out infinite}
-.bf-action-loading p{margin:0;color:#fff;font-size:12px;font-weight:650}
-@keyframes bf-mark-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.bf-loading-animation{display:block;width:min(320px,78vw);height:auto;object-fit:contain}
+.bf-action-loading{position:fixed;inset:0;z-index:1100;display:grid;place-content:center;justify-items:center;gap:13px;padding:24px;background:rgba(0,7,36,.94);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility .18s ease}
+.bf-action-loading.is-visible{opacity:1;visibility:visible;pointer-events:auto}
+.bf-action-loading .bf-loading-animation{width:min(280px,72vw)}
+.bf-action-loading p{margin:0;color:#fff;font-size:12px;font-weight:650;text-align:center}
 .bf-skeleton{position:relative;overflow:hidden;border-radius:8px;background:#edf1f7}
 .bf-skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.78),transparent);animation:bf-skeleton-shimmer 1.35s ease-in-out infinite}
 .bf-skeleton-line{height:10px;margin:10px 0}.bf-skeleton-line.short{width:42%}.bf-skeleton-line.medium{width:68%}
 .bf-skeleton-card{min-height:94px;padding:16px;border:1px solid #e6ebf3;border-radius:13px;background:#fff}
 @keyframes bf-skeleton-shimmer{to{transform:translateX(100%)}}
-@media(prefers-reduced-motion:reduce){.bf-action-logo,.bf-skeleton::after{animation:none}.bf-loading-screen,.bf-action-loading{transition:none}}
+@media(prefers-reduced-motion:reduce){.bf-skeleton::after{animation:none}.bf-loading-screen,.bf-action-loading{transition:none}}
 /* Phase 3: evidence-led workspace pulse and activity feed */
 .workspace-pulse { overflow: hidden; }
 .pulse-live-label { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 7px 10px; border-radius: 99px; background: #edf8f3; color: #19845e; font-size: 10px; font-weight: 750; }
