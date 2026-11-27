@@ -56,7 +56,9 @@ function getActivityCloudState() {
   return cloud?.signedIn && cloud?.apiConnected && cloud?.businessId ? cloud : null;
 }
 
+let activityLoadVersion = 0;
 async function loadWorkspaceActivity() {
+  const requestVersion = ++activityLoadVersion;
   const cloud = getActivityCloudState();
   activityItems = [];
   renderActivityCenter();
@@ -65,11 +67,16 @@ async function loadWorkspaceActivity() {
     if (status) status.textContent = "Connect to a cloud workspace to view activity.";
     return;
   }
+  const isCurrent = () => requestVersion === activityLoadVersion &&
+    (() => {
+      const latest = getActivityCloudState();
+      return latest?.businessId === cloud.businessId;
+    })();
   try {
     const result = await window.BusinessFlowCloud.request(
       "/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId) + "&limit=80"
     );
-    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+    if (!isCurrent()) return;
     activityItems = Array.isArray(result.activity) ? result.activity.map(item => ({
       id: item.id, eventKey: item.event_key, type: item.event_type,
       title: item.title, message: item.message, entityId: item.entity_id || "",
@@ -77,7 +84,7 @@ async function loadWorkspaceActivity() {
     })) : [];
     renderActivityCenter();
   } catch (error) {
-    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud activity could not be loaded:", error);
     activityItems = [];
     renderActivityCenter();
@@ -1637,29 +1644,38 @@ function renderBusinessInsights() {
   renderAnalyticsDataReadiness();
   renderGreyWorkspaceBrief();
 }
+let businessInsightsLoadVersion = 0;
 async function loadBusinessInsights(businessId) {
+  const requestVersion = ++businessInsightsLoadVersion;
   const cloud = window.BusinessFlowCloud;
+  const status = document.querySelector("#overview-intelligence-status");
+  const isCurrent = () => {
+    const latest = cloud?.getState?.();
+    return requestVersion === businessInsightsLoadVersion &&
+      latest?.signedIn && latest?.apiConnected && latest?.businessId === businessId;
+  };
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
     return;
   }
-  const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
   try {
     const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    if (!isCurrent()) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   } catch (error) {
+    if (!isCurrent()) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   }
 }
+
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
   const signedIn = Boolean(state.signedIn);
@@ -2249,8 +2265,16 @@ function initializeBusinessFlowChat() {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  let conversationLoadVersion = 0;
   async function loadConversations(keepActive = true) {
+    const requestVersion = ++conversationLoadVersion;
     const current = state();
+    const isCurrent = () => {
+      const latest = state();
+      return requestVersion === conversationLoadVersion &&
+        latest.signedIn && latest.apiConnected &&
+        latest.businessId === current.businessId;
+    };
     if (!current.signedIn || !current.apiConnected || !current.businessId) {
       conversations = [];
       activeConversationId = null;
@@ -2262,22 +2286,28 @@ function initializeBusinessFlowChat() {
     setStatus("Loading your saved conversations…");
     try {
       const result = await api().request("/api/business-intelligence/conversations?business_id=" + encodeURIComponent(current.businessId));
+      if (!isCurrent()) return;
       conversations = Array.isArray(result.conversations) ? result.conversations : [];
       if (!keepActive || !conversations.some(item => item.id === activeConversationId)) {
         activeConversationId = conversations[0]?.id ?? null;
       }
       renderList();
-      if (activeConversationId) await loadMessages(activeConversationId);
+      if (activeConversationId) await loadMessages(activeConversationId, current.businessId);
       else renderMessages([]);
-      setStatus("Grey conversation history is saved to this business workspace.");
+      if (isCurrent()) setStatus("Grey conversation history is saved to this business workspace.");
     } catch (error) {
+      if (!isCurrent()) return;
       setStatus(error.message || "Could not load conversation history.");
     }
   }
 
-  async function loadMessages(conversationId) {
+  async function loadMessages(conversationId, businessId = state().businessId) {
+    const requestVersion = conversationLoadVersion;
     const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(conversationId) + "/messages");
-    if (activeConversationId === conversationId) renderMessages(Array.isArray(result.messages) ? result.messages : []);
+    const latest = state();
+    if (requestVersion !== conversationLoadVersion || latest.businessId !== businessId ||
+        !latest.signedIn || !latest.apiConnected || activeConversationId !== conversationId) return;
+    renderMessages(Array.isArray(result.messages) ? result.messages : []);
   }
 
   async function createConversation() {
@@ -2507,8 +2537,17 @@ function initializeBusinessFlowBilling() {
     entitlementsWrap.hidden = false;
   }
 
+  let billingLoadVersion = 0;
   async function loadBilling() {
+    const requestVersion = ++billingLoadVersion;
     const current = state();
+    const isCurrent = () => {
+      const latest = state();
+      return requestVersion === billingLoadVersion &&
+        latest.signedIn === current.signedIn &&
+        latest.apiConnected === current.apiConnected &&
+        latest.businessId === current.businessId;
+    };
     if (!current.signedIn || !current.apiConnected || !current.businessId || typeof api() !== "function") {
       currentPlan.textContent = "Starter";
       currentStatus.textContent = "Sign in and select a connected business workspace to view its billing status.";
@@ -2530,7 +2569,7 @@ function initializeBusinessFlowBilling() {
         api()("/api/billing/subscription?business_id=" + businessId),
         api()("/api/billing/entitlements?business_id=" + businessId)
       ]);
-      if (state().businessId !== current.businessId) return;
+      if (!isCurrent()) return;
 
       plans = Array.isArray(planResult.plans) ? planResult.plans : [];
       subscription = subscriptionResult.subscription ?? null;
@@ -2555,8 +2594,12 @@ function initializeBusinessFlowBilling() {
       renderEntitlements(entitlementResult.entitlements);
       setFeedback(plans.length ? "Billing details are up to date for " + (current.businessName || "this workspace") + "." : "No paid plans are active yet. Starter remains available.");
     } catch (error) {
+      if (!isCurrent()) return;
       plans = [];
+      subscription = null;
+      portalButton.hidden = true;
       renderPlans();
+      renderEntitlements([]);
       setFeedback(error.message || "Could not load billing details. Try again shortly.", true);
     }
   }
