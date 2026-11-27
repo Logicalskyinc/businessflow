@@ -780,8 +780,15 @@ function saveExperiments() {
   return true;
 }
 
+let cloudExperimentsLoadVersion = 0;
 async function loadCloudExperimentsForWorkspace(businessId) {
+  const requestVersion = ++cloudExperimentsLoadVersion;
   const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudExperimentsLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
   experiments = [];
   cloudExperimentWorkspaceId = null;
   renderExperiments();
@@ -794,8 +801,7 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     preserveLegacyBackup(EXPERIMENTS_KEY, LOCAL_EXPERIMENTS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
-    const latest = window.BusinessFlowCloud?.getState?.();
-    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
+    if (!isCurrent()) return;
     experiments = records.filter(record =>
       record && typeof record.id === "string" && typeof record.title === "string" &&
       EXPERIMENT_STATUSES.includes(record.status)
@@ -813,7 +819,7 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     renderExperiments();
     updateStorageStatus();
   } catch (error) {
-    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud experiments could not load:", error);
     experiments = [];
     cloudExperimentWorkspaceId = null;
@@ -1174,7 +1180,43 @@ function isValidMemory(x){return Boolean(x&&typeof x.id==="string"&&typeof x.tit
 function loadMemories(){preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);memories=[];cloudMemoryWorkspaceId=null;updateLegacyImportControls();}
 function saveMemories(){return true;}
 function memoryFromCloud(r){const c=r?.content&&typeof r.content==="object"?r.content:{};const category=MEMORY_CATEGORY_FROM_API[r?.category];if(!r?.id||!category||typeof c.title!=="string"||typeof c.date!=="string"||typeof c.details!=="string")return null;const x={id:r.id,title:c.title,category,date:c.date,content:c.details,createdAt:r.created_at||new Date().toISOString(),updatedAt:r.updated_at||r.created_at||new Date().toISOString()};return isValidMemory(x)?x:null;}
-async function loadCloudMemoriesForWorkspace(businessId){const cloud=window.BusinessFlowCloud?.getState?.();memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateLegacyImportControls();if(!cloud?.signedIn||!cloud.apiConnected||!businessId||cloud.businessId!==businessId){updateStorageStatus();return;}try{preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);const records=await window.BusinessFlowCloud.loadMemories(businessId);const latest=window.BusinessFlowCloud?.getState?.();if(!latest?.signedIn||!latest.apiConnected||latest.businessId!==businessId)return;memories=records.map(memoryFromCloud).filter(Boolean);cloudMemoryWorkspaceId=businessId;renderMemories();updateLegacyImportControls();updateStorageStatus();}catch(e){if(window.BusinessFlowCloud?.getState?.()?.businessId!==businessId)return;console.error("BusinessFlow cloud memory could not load:",e);memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateStorageStatus();showToast("Could not load cloud Business Memory. No browser cache was substituted.");}}
+let cloudMemoriesLoadVersion = 0;
+async function loadCloudMemoriesForWorkspace(businessId) {
+  const requestVersion = ++cloudMemoriesLoadVersion;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudMemoriesLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
+  memories = [];
+  cloudMemoryWorkspaceId = null;
+  renderMemories();
+  updateLegacyImportControls();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId || cloud.businessId !== businessId) {
+    updateStorageStatus();
+    return;
+  }
+  try {
+    preserveLegacyBackup(MEMORY_KEY, LOCAL_MEMORY_BACKUP_KEY);
+    const records = await window.BusinessFlowCloud.loadMemories(businessId);
+    if (!isCurrent()) return;
+    memories = records.map(memoryFromCloud).filter(Boolean);
+    cloudMemoryWorkspaceId = businessId;
+    renderMemories();
+    updateLegacyImportControls();
+    updateStorageStatus();
+  } catch (error) {
+    if (!isCurrent()) return;
+    console.error("BusinessFlow cloud memory could not load:", error);
+    memories = [];
+    cloudMemoryWorkspaceId = null;
+    renderMemories();
+    updateStorageStatus();
+    showToast("Could not load cloud Business Memory. No browser cache was substituted.");
+  }
+}
+
 function renderMemories(){const box=document.querySelector("#memory-list"),count=document.querySelector("#memory-count"),q=(document.querySelector("#memory-search")?.value||"").trim().toLowerCase();if(count)count.textContent=String(memories.length);if(!box)return;const rows=memories.filter(x=>[x.title,x.category,x.content,x.date].join(" ").toLowerCase().includes(q));if(!rows.length){box.innerHTML=q?'<p class="empty-state">No matching business memory found.</p>':'<p class="empty-state">No business knowledge saved in this cloud workspace yet. Add your first note.</p>';return;}box.innerHTML=rows.map(x=>{const id=escapeHTML(x.id);return `<article class="record-item panel"><div class="record-heading"><div><h3>${escapeHTML(x.title)}</h3><span class="count-pill">${escapeHTML(x.category)}</span></div><small>${formatDate(x.date)}</small></div><p>${formatText(x.content)}</p><div class="record-actions"><button class="small-button" type="button" data-memory-action="edit" data-id="${id}">Edit</button><button class="small-button danger" type="button" data-memory-action="delete" data-id="${id}">Delete</button></div></article>`;}).join("");}
 function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();return c?.signedIn&&c.apiConnected&&c.businessId&&c.businessId===cloudMemoryWorkspaceId&&typeof window.BusinessFlowCloud?.createMemory==="function"?c:null;}
 function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
@@ -1334,8 +1376,15 @@ function setupNavigation() {
   window.addEventListener("hashchange", restoreRouteFromHistory);
 }
 
+let cloudGoalsLoadVersion = 0;
 async function loadCloudGoalsForWorkspace(businessId) {
+  const requestVersion = ++cloudGoalsLoadVersion;
   const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudGoalsLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
   goals = [];
   cloudGoalWorkspaceId = null;
   renderGoals();
@@ -1348,8 +1397,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     preserveLegacyBackup(STORAGE_KEY, LOCAL_GOALS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadGoals(businessId);
-    const latest = window.BusinessFlowCloud?.getState?.();
-    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
+    if (!isCurrent()) return;
     goals = records.filter(record =>
       record && typeof record.id === "string" && typeof record.title === "string" &&
       Number.isFinite(Number(record.current_value)) && Number(record.current_value) >= 0 &&
@@ -1362,7 +1410,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     renderGoals();
     updateStorageStatus();
   } catch (error) {
-    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud goals could not load:", error);
     goals = [];
     cloudGoalWorkspaceId = null;
@@ -1714,14 +1762,20 @@ function updateWorkspaceIdentity(state = {}) {
 window.addEventListener("businessflow:cloud-state", event => {
   const state = event.detail ?? {};
   updateWorkspaceIdentity(state);
-  if (!state.signedIn || !state.apiConnected) {
+  if (!state.signedIn || !state.apiConnected || !state.businessId) {
+    cloudGoalsLoadVersion++;
+    cloudExperimentsLoadVersion++;
+    cloudMemoriesLoadVersion++;
     cloudGoalWorkspaceId = null;
     cloudExperimentWorkspaceId = null;
-    loadGoals(); loadExperiments();
-    renderGoals(); renderExperiments();
-  } else if (state.businessId) {
-    void loadCloudGoalsForWorkspace(state.businessId);
-    void loadCloudExperimentsForWorkspace(state.businessId);
+    cloudMemoryWorkspaceId = null;
+    loadGoals();
+    loadExperiments();
+    memories = [];
+    renderGoals();
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
   }
 });
 window.addEventListener("businessflow:import-local-goals-requested", () => {
