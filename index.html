@@ -4,21 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="BusinessFlow helps businesses understand performance, test ideas, and make better decisions.">
-  <meta name="theme-color" content="#f6f8fc">
+  <meta name="theme-color" content="#000724">
+  <link rel="icon" href="assets/businessflow-mark.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/businessflow-mark.svg">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=25">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
-    <div class="bf-loading-brand"><span class="bf-loading-mark">B</span><span>BusinessFlow<small>BUSINESS INTELLIGENCE</small></span></div>
-    <div class="bf-loading-track"><span></span></div>
-    <p id="bf-loading-message">Preparing your workspace…</p>
+    <img class="bf-loading-animation" src="assets/businessflow-loading.svg" alt="BusinessFlow is loading">
   </div>
-  <div class="bf-action-loading" id="bf-action-loading" aria-hidden="true"><span class="bf-loading-mark">B</span><p id="bf-action-loading-message">Working on your workspace…</p></div>
+  <div class="bf-action-loading" id="bf-action-loading" aria-hidden="true"><img class="bf-action-logo" src="assets/businessflow-mark.svg" alt=""><p id="bf-action-loading-message">Working on your workspace…</p></div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a href="#overview" class="brand">
-        <span class="brand-icon">B</span>
+        <img class="brand-icon" src="assets/businessflow-mark.svg" alt="">
         <span>BusinessFlow<small>BUSINESS INTELLIGENCE</small></span>
       </a>
 
