@@ -690,7 +690,11 @@ function setupGoalForm() {
     const target = document.querySelector("#goal-target")?.value ?? "";
     const unit = document.querySelector("#goal-unit")?.value ?? "units";
 
-    if (await createGoal(title, current, target, unit)) {
+    const submitButton = event.submitter instanceof HTMLButtonElement ? event.submitter : form.querySelector('button[type="submit"]');
+    const saved = window.BusinessFlowLoading
+      ? await window.BusinessFlowLoading.runButton(submitButton, () => createGoal(title, current, target, unit), { message: "Saving your business goal…", buttonLabel: "Saving…" })
+      : await createGoal(title, current, target, unit);
+    if (saved) {
       form.reset();
 
       const currentField = document.querySelector("#goal-current");
@@ -1032,7 +1036,9 @@ function setupExperimentForm() {
       const next = { ...item, title, hypothesis, baseline, result, status, notes, updatedAt: now,
         completedAt: status === "completed" ? (item.completedAt || now) : null };
       try {
-        await window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+        const updateTask = () => window.BusinessFlowCloud.updateExperiment(cloud.businessId, next);
+        if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(form.querySelector('button[type="submit"]'), updateTask, { message: "Updating your experiment…", buttonLabel: "Updating…" });
+        else await updateTask();
       } catch (error) {
         showToast("Cloud update failed: " + error.message); return;
       } finally { cloudExperimentBusy = false; }
@@ -1049,7 +1055,10 @@ function setupExperimentForm() {
       completedAt: status === "completed" ? now : null, createdAt: now, updatedAt: now };
     if (cloudReady) {
       try {
-        const saved = await window.BusinessFlowCloud.createExperiment(cloud.businessId, newItem);
+        const createTask = () => window.BusinessFlowCloud.createExperiment(cloud.businessId, newItem);
+        const saved = window.BusinessFlowLoading
+          ? await window.BusinessFlowLoading.runButton(form.querySelector('button[type="submit"]'), createTask, { message: "Saving your experiment…", buttonLabel: "Saving…" })
+          : await createTask();
         Object.assign(newItem, { id: saved.id, status: saved.status,
           baseline: saved.baseline_value == null ? null : Number(saved.baseline_value),
           result: saved.result_value == null ? null : Number(saved.result_value),
@@ -1154,7 +1163,7 @@ function renderMemories(){const box=document.querySelector("#memory-list"),count
 function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();return c?.signedIn&&c.apiConnected&&c.businessId&&c.businessId===cloudMemoryWorkspaceId&&typeof window.BusinessFlowCloud?.createMemory==="function"?c:null;}
 function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
 function memoryPayload(x){return {category:MEMORY_CATEGORY_TO_API[x.category],content:{title:x.title,date:x.date,details:x.content},source:"user"};}
-function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');if(button)button.disabled=true;try{const saved=await window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;if(button)button.disabled=false;}});}
+function setupMemoryForm(){const form=document.querySelector("#memory-form");if(!form)return;const dateInput=document.querySelector("#memory-date");if(dateInput&&!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const cloud=getMemoryCloudState();if(!cloud){showToast("Select a connected cloud workspace and wait for Business Memory to finish loading.");return;}if(cloudMemoryBusy)return;const title=document.querySelector("#memory-title").value.trim(),category=document.querySelector("#memory-category").value,date=document.querySelector("#memory-date").value,content=document.querySelector("#memory-content").value.trim(),err=validateMemoryFields(title,category,date,content);if(err){showToast(err);return;}cloudMemoryBusy=true;const button=form.querySelector('button[type="submit"]');const saveTask=()=>window.BusinessFlowCloud.createMemory(cloud.businessId,{title,category,date,content});try{const saved=window.BusinessFlowLoading?await window.BusinessFlowLoading.runButton(button,saveTask,{message:"Saving Business Memory…",buttonLabel:"Saving…"}):await saveTask();if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const item=memoryFromCloud(saved);if(!item)throw Error("Server returned an unsupported memory record.");memories.unshift(item);renderMemories();form.reset();if(dateInput)dateInput.value=new Date().toISOString().slice(0,10);showToast("Business memory saved to your cloud workspace.");}catch(e){showToast("Cloud save failed: "+e.message);}finally{cloudMemoryBusy=false;}});}
 async function handleMemoryAction(action,id){const cloud=getMemoryCloudState(),i=memories.findIndex(x=>x.id===id);if(!cloud||i<0){showToast("This memory is not loaded from the selected cloud workspace.");return;}if(cloudMemoryBusy)return;const item=memories[i];if(action==="delete"){if(!confirm('Delete "'+item.title+'" permanently from the selected cloud workspace?'))return;cloudMemoryBusy=true;try{await window.BusinessFlowCloud.deleteMemory(cloud.businessId,id);if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;memories.splice(i,1);renderMemories();showToast("Memory deleted from the cloud workspace.");}catch(e){showToast("Cloud delete failed: "+e.message);}finally{cloudMemoryBusy=false;}return;}if(action!=="edit")return;const title=prompt("Memory title:",item.title);if(title===null)return;const category=prompt("Category: Decision, Customer insight, Lesson learned, Process, Follow-up, or Other",item.category);if(category===null)return;const date=prompt("Date (YYYY-MM-DD):",item.date);if(date===null)return;const content=prompt("Details:",item.content);if(content===null)return;const next={...item,title:title.trim(),category:category.trim(),date:date.trim(),content:content.trim()},err=validateMemoryFields(next.title,next.category,next.date,next.content);if(err){showToast(err);return;}cloudMemoryBusy=true;try{const saved=await window.BusinessFlowCloud.updateMemory(cloud.businessId,id,memoryPayload(next));if(window.BusinessFlowCloud?.getState?.()?.businessId!==cloud.businessId)return;const updated=memoryFromCloud(saved);if(!updated)throw Error("Server returned an unsupported updated memory.");memories[i]=updated;renderMemories();showToast("Memory updated in the cloud workspace.");}catch(e){showToast("Cloud update failed: "+e.message);}finally{cloudMemoryBusy=false;}}
 async function importLocalMemoriesToCloud(){const cloud=getMemoryCloudState();if(!cloud){showToast("Sign in and select a cloud workspace first.");return;}let rows=[];try{const raw=localStorage.getItem(LOCAL_MEMORY_BACKUP_KEY)??localStorage.getItem(MEMORY_KEY),parsed=raw?JSON.parse(raw):[];if(Array.isArray(parsed))rows=parsed.filter(isValidMemory);}catch{showToast("Could not read the browser memory backup.");return;}if(!rows.length){showToast("No valid browser memories are available to import.");return;}if(!confirm("Import "+rows.length+" browser memory item(s) into this cloud workspace? Matching titles will be skipped. The browser backup will be retained."))return;cloudMemoryBusy=true;try{const remote=await window.BusinessFlowCloud.loadMemories(cloud.businessId),titles=new Set(remote.map(x=>String(x.content?.title||"").trim().toLowerCase()));let imported=0,skipped=0;for(const x of rows){const key=x.title.trim().toLowerCase();if(titles.has(key)){skipped++;continue;}await window.BusinessFlowCloud.createMemory(cloud.businessId,x);titles.add(key);imported++;}await loadCloudMemoriesForWorkspace(cloud.businessId);showToast("Memory import complete: "+imported+" imported, "+skipped+" skipped. Browser backup retained.");}catch(e){showToast("Memory import stopped: "+e.message+". Browser backup retained.");}finally{cloudMemoryBusy=false;}}
 function setupMemoryActions(){document.querySelector("#import-local-memories")?.addEventListener("click",()=>void importLocalMemoriesToCloud());document.addEventListener("click",e=>{if(!(e.target instanceof Element))return;const b=e.target.closest("[data-memory-action]");if(b)void handleMemoryAction(b.dataset.memoryAction,b.dataset.id);});}
@@ -2146,14 +2155,11 @@ document.querySelector("#grey-refresh-brief")?.addEventListener("click", async e
     renderGreyWorkspaceBrief();
     return;
   }
-  button.disabled = true;
   const status = document.querySelector("#grey-brief-status");
   if (status) status.textContent = "Refreshing verified business context…";
-  try {
-    await loadBusinessInsights(cloud.businessId);
-  } finally {
-    button.disabled = false;
-  }
+  const refreshTask = () => loadBusinessInsights(cloud.businessId);
+  if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(button, refreshTask, { message: "Refreshing Grey’s business briefing…", buttonLabel: "Refreshing…" });
+  else await refreshTask();
 });
 
 function initializeBusinessFlowChat() {
@@ -2243,10 +2249,13 @@ function initializeBusinessFlowChat() {
     busy = true;
     newButton.disabled = true;
     try {
-      const result = await api().request("/api/business-intelligence/conversations", {
+      const createTask = () => api().request("/api/business-intelligence/conversations", {
         method: "POST",
         body: JSON.stringify({ business_id: current.businessId, title: "New conversation" })
       });
+      const result = window.BusinessFlowLoading
+        ? await window.BusinessFlowLoading.runButton(newButton, createTask, { message: "Creating a Grey conversation…", buttonLabel: "Creating…" })
+        : await createTask();
       activeConversationId = result.conversation.id;
       conversations.unshift(result.conversation);
       renderList();
@@ -2297,7 +2306,7 @@ function initializeBusinessFlowChat() {
     const previous = input.value;
     input.value = "";
     setStatus("Grey is reviewing your workspace…");
-    try {
+    const sendTask = async () => {
       const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(activeConversationId) + "/messages", {
         method: "POST",
         body: JSON.stringify({ content, client_message_id: clientMessageId })
@@ -2311,6 +2320,10 @@ function initializeBusinessFlowChat() {
       pendingClientMessageId = null;
       pendingClientMessageContent = null;
       setStatus(result.replayed ? "Previous response restored safely." : "Saved to your business workspace.");
+    };
+    try {
+      if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(send, sendTask, { message: "Grey is working on your message…", buttonLabel: "Sending…" });
+      else await sendTask();
     } catch (error) {
       input.value = previous;
       setStatus(error.message || "Message could not be saved. Your text is still here so you can retry.");
@@ -2538,14 +2551,18 @@ function initializeBusinessFlowBilling() {
     portalButton.disabled = true;
     setFeedback("Opening Stripe's secure billing portal…");
     try {
-      const result = await api()("/api/billing/portal", {
-        method: "POST",
-        body: JSON.stringify({ business_id: current.businessId })
-      });
-      if (!result.portal_url || !/^https:\/\/billing\.stripe\.com\//i.test(result.portal_url)) {
-        throw new Error("Stripe did not return a valid billing portal URL.");
-      }
-      window.location.assign(result.portal_url);
+      const openPortal = async () => {
+        const result = await api()("/api/billing/portal", {
+          method: "POST",
+          body: JSON.stringify({ business_id: current.businessId })
+        });
+        if (!result.portal_url || !/^https:\/\/billing\.stripe\.com\//i.test(result.portal_url)) {
+          throw new Error("Stripe did not return a valid billing portal URL.");
+        }
+        window.location.assign(result.portal_url);
+      };
+      if (window.BusinessFlowLoading) await window.BusinessFlowLoading.runButton(portalButton, openPortal, { message: "Opening secure billing portal…", buttonLabel: "Opening…" });
+      else await openPortal();
     } catch (error) {
       setFeedback(error.message || "Could not open the billing portal.", true);
       busy = false;
