@@ -95,6 +95,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       currentValue: Number.isFinite(current) ? current : null, targetValue: Number.isFinite(target) ? target : null,
       progressPercent: Number.isFinite(target) && target > 0 && Number.isFinite(current) ? Math.max(0, Math.min(100, Math.round(current / target * 100))) : null };
   });
+  const revenueSources = [...revenueSourceColumns];
+  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
+  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
   const insights = [];
   if (additionalColumnFindings.length) {
     const selected = additionalColumnFindings.slice(0, 5);
@@ -175,9 +178,6 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const revenueSources = [...revenueSourceColumns];
-  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
-  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
   const sortedDates = dateValues.sort();
   return {
     status: "ok", engine: "businessflow_rules_v1", generatedAt: new Date().toISOString(),
