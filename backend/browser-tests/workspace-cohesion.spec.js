@@ -239,10 +239,10 @@ async function installApp(page, { holdWorkspaceA = false } = {}) {
 }
 
 async function expectWorkspaceBVisible(page) {
-  await expect(page.locator("#goal-list")).toContainText("Workspace B goal");
+  await expect(page.locator("#all-goals-list")).toContainText("Workspace B goal");
   await expect(page.locator("#experiment-list")).toContainText("Workspace B experiment");
   await expect(page.locator("#memory-list")).toContainText("Workspace B memory");
-  await expect(page.locator("#overview-insights")).toContainText("Workspace B insight");
+  await expect(page.locator("#analytics-insights")).toContainText("Workspace B insight");
   await expect(page.locator("#activity-feed")).toContainText("Workspace B activity");
   await expect(page.locator("#bf-conversation-list")).toContainText("Workspace B conversation");
   await expect(page.locator("#billing-current-plan")).toHaveText("Workspace B Plan");
@@ -262,10 +262,10 @@ test("workspace switching ignores late responses from the previous workspace", a
     await expect.poll(() => harness.workspaceARequestsCompleted)
       .toBe(harness.workspaceARequestsStarted);
 
-    await expect(page.locator("#goal-list")).not.toContainText("Workspace A");
+    await expect(page.locator("#all-goals-list")).not.toContainText("Workspace A");
     await expect(page.locator("#experiment-list")).not.toContainText("Workspace A");
     await expect(page.locator("#memory-list")).not.toContainText("Workspace A");
-    await expect(page.locator("#overview-insights")).not.toContainText("Workspace A");
+    await expect(page.locator("#analytics-insights")).not.toContainText("Workspace A");
     await expect(page.locator("#activity-feed")).not.toContainText("Workspace A");
     await expect(page.locator("#bf-conversation-list")).not.toContainText("Workspace A");
     await expect(page.locator("#billing-current-plan")).toHaveText("Workspace B Plan");
@@ -287,10 +287,10 @@ test("sign-out invalidates all pending workspace responses", async ({ page }) =>
       .toBe(harness.workspaceARequestsStarted);
 
     await expect(page.locator("#account")).toHaveClass(/active/);
-    await expect(page.locator("#goal-list")).not.toContainText("Workspace A");
+    await expect(page.locator("#all-goals-list")).not.toContainText("Workspace A");
     await expect(page.locator("#experiment-list")).not.toContainText("Workspace A");
     await expect(page.locator("#memory-list")).not.toContainText("Workspace A");
-    await expect(page.locator("#overview-insights")).not.toContainText("Workspace A");
+    await expect(page.locator("#analytics-insights")).not.toContainText("Workspace A");
     await expect(page.locator("#activity-feed")).not.toContainText("Workspace A");
     await expect(page.locator("#bf-conversation-list")).not.toContainText("Workspace A");
     await expect(page.locator("#billing-current-plan")).toHaveText("Starter");
@@ -340,7 +340,7 @@ test("overview stays focused and detailed workspace tools have dedicated pages",
   await installApp(page);
   await expect(page.locator("#overview .bf-chat-panel")).toHaveCount(0);
   await expect(page.locator("#overview .activity-center")).toHaveCount(0);
-  await expect(page.locator("#overview-insights")).toHaveCount(0);
+  await expect(page.locator("#analytics-insights")).toHaveCount(0);
   await expect(page.locator("#overview-recommendation")).toBeVisible();
   await expect(page.locator("#pulse-goals-count")).toBeVisible();
   await page.locator('.nav-link[data-page="grey"]').click();
