@@ -47,3 +47,7 @@ jobs:
         run: npm install
       - name: Run backend tests
         run: npm test
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Run browser regression tests
+        run: npm run test:browser
