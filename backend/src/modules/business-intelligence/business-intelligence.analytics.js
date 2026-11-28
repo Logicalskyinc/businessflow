@@ -117,10 +117,14 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       evidence: datasetNames.map(item => item.name + " (" + item.rowCount + " rows)").join("; "),
       recommendedAction: "Review the mapped fields and keep this dataset updated as new business activity occurs." });
     if (revenueMapped && revenueValueCount) insights.push({
-      type: "revenue", priority: "normal", title: "Revenue recorded in imported data",
-      summary: "The imported records contain " + revenueValueCount + " readable revenue values totalling " + revenueTotal.toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + (profile.currency_code || "currency units") + ".",
-      evidence: invalidRevenueValues ? invalidRevenueValues + " revenue cells could not be interpreted as numbers." : "All mapped revenue cells were numeric.",
-      recommendedAction: invalidRevenueValues ? "Review blank or non-numeric revenue cells before relying on the total." : "Compare this total with the next reporting period after importing updated records."
+      type: "revenue", priority: currencyMismatch ? "high" : "normal", title: "Revenue recorded in imported data",
+      summary: "The imported records contain " + revenueValueCount + " readable revenue values totalling " + revenueTotal.toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + (sourceCurrency || profile.currency_code || "currency units") + ".",
+      evidence: currencyMismatch
+        ? "The mapped amount column indicates " + sourceCurrency + " while the workspace currency is " + profile.currency_code + ". Confirm the source currency before comparing totals."
+        : invalidRevenueValues ? invalidRevenueValues + " revenue cells could not be interpreted as numbers." : "All mapped revenue cells were numeric.",
+      recommendedAction: currencyMismatch
+        ? "Confirm whether the imported amounts are in " + sourceCurrency + " or " + profile.currency_code + " before making financial comparisons."
+        : invalidRevenueValues ? "Review blank or non-numeric revenue cells before relying on the total." : "Compare this total with the next reporting period after importing updated records."
     });
     else if (!revenueMapped) insights.push({
       type: "mapping", priority: "high", title: "Revenue is not mapped yet",
