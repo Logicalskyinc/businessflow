@@ -334,3 +334,29 @@ test.describe("mobile navigation", () => {
     await expect(menuButton).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+
+test("overview stays focused and detailed workspace tools have dedicated pages", async ({ page }) => {
+  await installApp(page);
+  await expect(page.locator("#overview .bf-chat-panel")).toHaveCount(0);
+  await expect(page.locator("#overview .activity-center")).toHaveCount(0);
+  await expect(page.locator("#overview-insights")).toHaveCount(0);
+  await expect(page.locator("#overview-recommendation")).toBeVisible();
+  await expect(page.locator("#pulse-goals-count")).toBeVisible();
+  await page.locator('.nav-link[data-page="grey"]').click();
+  await expect(page.locator("#grey")).toHaveClass(/active/);
+  await expect(page.locator("#businessflow-intelligence-panel")).toBeVisible();
+  await page.locator("#topbar-notifications").click();
+  await expect(page.locator("#activity")).toHaveClass(/active/);
+  await expect(page.locator("#activity-feed")).toBeVisible();
+});
+
+test("mobile quick navigation includes Grey and the overview has no repeated report sections", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApp(page);
+  await page.locator('.mobile-tab[data-page="grey"]').click();
+  await expect(page.locator("#grey")).toHaveClass(/active/);
+  await page.locator('.mobile-tab[data-page="overview"]').click();
+  await expect(page.locator("#overview .content-grid")).toHaveCount(0);
+  await expect(page.locator("#overview .activity-center")).toHaveCount(0);
+});
