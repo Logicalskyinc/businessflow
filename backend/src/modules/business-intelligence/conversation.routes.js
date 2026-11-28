@@ -331,11 +331,23 @@ async function buildWorkspaceContext(supabase, businessId) {
     : null;
   delete profile.primary_goal;
   const savedGoals = goalsResult.data ?? [];
+  const analysis = buildBusinessInsights({
+    profile: {
+      id: businessId,
+      name: profile.name,
+      currency_code: profile.currency_code
+    },
+    imports: importsResult.data ?? [],
+    goals: savedGoals,
+    experiments: experimentsResult.data ?? [],
+    memory: memoryResult.data ?? []
+  });
   const context = {
     source: "BusinessFlow workspace records",
     instructions: [
       "Treat savedGoalState as the authoritative source for tracked goals.",
       "The onboarding business objective is not a saved goal and must never be described as an existing tracked goal.",
+      "Do not infer a goal from the business description or onboarding objective.",
       "Do not invent goals, customer segments, service rankings, or dataset facts not present in this context."
     ],
     profile,
@@ -345,13 +357,7 @@ async function buildWorkspaceContext(supabase, businessId) {
       activeCount: savedGoals.filter(goal => goal.status === "active").length,
       goals: savedGoals
     },
-    analysis: buildBusinessInsights({
-      profile: { id: businessId, ...profileResult.data },
-      imports: importsResult.data ?? [],
-      goals: savedGoals,
-      experiments: experimentsResult.data ?? [],
-      memory: memoryResult.data ?? []
-    }),
+    analysis,
     goals: savedGoals,
     experiments: experimentsResult.data ?? [],
     importedDatasets: (importsResult.data ?? []).map(item => ({
