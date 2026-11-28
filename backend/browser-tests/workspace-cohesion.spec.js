@@ -340,7 +340,7 @@ test("overview stays focused and detailed workspace tools have dedicated pages",
   await installApp(page);
   await expect(page.locator("#overview .bf-chat-panel")).toHaveCount(0);
   await expect(page.locator("#overview .activity-center")).toHaveCount(0);
-  await expect(page.locator("#analytics-insights")).toHaveCount(0);
+  await expect(page.locator("#overview #analytics-insights")).toHaveCount(0);
   await expect(page.locator("#overview-recommendation")).toBeVisible();
   await expect(page.locator("#pulse-goals-count")).toBeVisible();
   await page.locator('.nav-link[data-page="grey"]').click();
