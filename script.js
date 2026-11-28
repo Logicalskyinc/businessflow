@@ -1326,10 +1326,7 @@ function setupNavigation() {
   });
 
   document.querySelector("#topbar-notifications")?.addEventListener("click", () => {
-    navigateTo("overview");
-    const activity = document.querySelector(".activity-center");
-    if (activity instanceof HTMLDetailsElement) activity.open = true;
-    document.querySelector(".activity-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    navigateTo("activity");
   });
   document.querySelector("#topbar-settings")?.addEventListener("click", () => {
     navigateTo("settings");
@@ -1662,31 +1659,46 @@ function renderAnalyticsRevenueTrend(result) {
     : "Imported snapshot only. A trend requires verified date and revenue mappings.";
 }
 
+function renderOverviewRecommendation() {
+  const root = document.querySelector("#overview-recommendation");
+  const warning = document.querySelector("#overview-currency-warning");
+  const result = latestBusinessInsights;
+  const insights = Array.isArray(result?.insights) ? result.insights : [];
+  const preferredTypes = ["customers", "revenue", "mapping", "product_mix", "product", "goals", "experiments", "coverage"];
+  const item = preferredTypes.map(type => insights.find(insight => insight.type === type)).find(Boolean) || insights[0];
+  if (root) {
+    root.innerHTML = item
+      ? '<article class="overview-recommendation"><strong>' + escapeHTML(item.title || "Business recommendation") +
+        '</strong><p>' + escapeHTML(item.summary || "Review the available business evidence.") +
+        '</p><p class="insight-action"><b>Next step:</b> ' + escapeHTML(item.recommendedAction || "Review the underlying business records.") +
+        '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records available.") + '</small></article>'
+      : '<p class="empty-state">No verified recommendation is available yet. Import business records or connect a supported data source.</p>';
+  }
+  const currencyNote = (result?.dataQuality?.notes || []).find(note => /mapped amount column indicates|source currency/i.test(String(note)));
+  if (warning) {
+    warning.hidden = !currencyNote;
+    warning.textContent = currencyNote ? "Currency check required: " + currencyNote : "";
+  }
+}
+
 function renderBusinessInsights() {
-  const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
-  const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
   renderDashboardMetrics(result);
   renderAnalyticsRevenueTrend(result);
+  renderOverviewRecommendation();
   if (!result) {
-    if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
-    if (status) status.textContent = "Waiting for a selected workspace.";
     renderWorkspacePulse();
     renderAnalyticsDataReadiness();
     return;
   }
   const coverage = result.coverage || {};
-  if (status) status.textContent = result.engine === "businessflow_rules_v1"
-    ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
-    : "Business analysis";
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
   }).join("");
   const content = markup || '<p class="empty-state">No recommendations are available yet.</p>';
-  if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
   renderWorkspacePulse();
   renderAnalyticsDataReadiness();
