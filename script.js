@@ -56,7 +56,9 @@ function getActivityCloudState() {
   return cloud?.signedIn && cloud?.apiConnected && cloud?.businessId ? cloud : null;
 }
 
+let activityLoadVersion = 0;
 async function loadWorkspaceActivity() {
+  const requestVersion = ++activityLoadVersion;
   const cloud = getActivityCloudState();
   activityItems = [];
   renderActivityCenter();
@@ -65,11 +67,16 @@ async function loadWorkspaceActivity() {
     if (status) status.textContent = "Connect to a cloud workspace to view activity.";
     return;
   }
+  const isCurrent = () => requestVersion === activityLoadVersion &&
+    (() => {
+      const latest = getActivityCloudState();
+      return latest?.businessId === cloud.businessId;
+    })();
   try {
     const result = await window.BusinessFlowCloud.request(
       "/api/business-intelligence/activity?business_id=" + encodeURIComponent(cloud.businessId) + "&limit=80"
     );
-    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+    if (!isCurrent()) return;
     activityItems = Array.isArray(result.activity) ? result.activity.map(item => ({
       id: item.id, eventKey: item.event_key, type: item.event_type,
       title: item.title, message: item.message, entityId: item.entity_id || "",
@@ -77,7 +84,7 @@ async function loadWorkspaceActivity() {
     })) : [];
     renderActivityCenter();
   } catch (error) {
-    if (getActivityCloudState()?.businessId !== cloud.businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud activity could not be loaded:", error);
     activityItems = [];
     renderActivityCenter();
@@ -207,7 +214,6 @@ function setupActivityCenter() {
   });
 }
 
-window.addEventListener("businessflow:workspace-changed", () => { void loadWorkspaceActivity(); });
 window.addEventListener("businessflow:cloud-state", () => { void loadWorkspaceActivity(); });
 
 
@@ -774,8 +780,15 @@ function saveExperiments() {
   return true;
 }
 
+let cloudExperimentsLoadVersion = 0;
 async function loadCloudExperimentsForWorkspace(businessId) {
+  const requestVersion = ++cloudExperimentsLoadVersion;
   const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudExperimentsLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
   experiments = [];
   cloudExperimentWorkspaceId = null;
   renderExperiments();
@@ -788,8 +801,7 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     preserveLegacyBackup(EXPERIMENTS_KEY, LOCAL_EXPERIMENTS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadExperiments(businessId);
-    const latest = window.BusinessFlowCloud?.getState?.();
-    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
+    if (!isCurrent()) return;
     experiments = records.filter(record =>
       record && typeof record.id === "string" && typeof record.title === "string" &&
       EXPERIMENT_STATUSES.includes(record.status)
@@ -807,7 +819,7 @@ async function loadCloudExperimentsForWorkspace(businessId) {
     renderExperiments();
     updateStorageStatus();
   } catch (error) {
-    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud experiments could not load:", error);
     experiments = [];
     cloudExperimentWorkspaceId = null;
@@ -1168,7 +1180,43 @@ function isValidMemory(x){return Boolean(x&&typeof x.id==="string"&&typeof x.tit
 function loadMemories(){preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);memories=[];cloudMemoryWorkspaceId=null;updateLegacyImportControls();}
 function saveMemories(){return true;}
 function memoryFromCloud(r){const c=r?.content&&typeof r.content==="object"?r.content:{};const category=MEMORY_CATEGORY_FROM_API[r?.category];if(!r?.id||!category||typeof c.title!=="string"||typeof c.date!=="string"||typeof c.details!=="string")return null;const x={id:r.id,title:c.title,category,date:c.date,content:c.details,createdAt:r.created_at||new Date().toISOString(),updatedAt:r.updated_at||r.created_at||new Date().toISOString()};return isValidMemory(x)?x:null;}
-async function loadCloudMemoriesForWorkspace(businessId){const cloud=window.BusinessFlowCloud?.getState?.();memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateLegacyImportControls();if(!cloud?.signedIn||!cloud.apiConnected||!businessId||cloud.businessId!==businessId){updateStorageStatus();return;}try{preserveLegacyBackup(MEMORY_KEY,LOCAL_MEMORY_BACKUP_KEY);const records=await window.BusinessFlowCloud.loadMemories(businessId);const latest=window.BusinessFlowCloud?.getState?.();if(!latest?.signedIn||!latest.apiConnected||latest.businessId!==businessId)return;memories=records.map(memoryFromCloud).filter(Boolean);cloudMemoryWorkspaceId=businessId;renderMemories();updateLegacyImportControls();updateStorageStatus();}catch(e){if(window.BusinessFlowCloud?.getState?.()?.businessId!==businessId)return;console.error("BusinessFlow cloud memory could not load:",e);memories=[];cloudMemoryWorkspaceId=null;renderMemories();updateStorageStatus();showToast("Could not load cloud Business Memory. No browser cache was substituted.");}}
+let cloudMemoriesLoadVersion = 0;
+async function loadCloudMemoriesForWorkspace(businessId) {
+  const requestVersion = ++cloudMemoriesLoadVersion;
+  const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudMemoriesLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
+  memories = [];
+  cloudMemoryWorkspaceId = null;
+  renderMemories();
+  updateLegacyImportControls();
+  if (!cloud?.signedIn || !cloud.apiConnected || !businessId || cloud.businessId !== businessId) {
+    updateStorageStatus();
+    return;
+  }
+  try {
+    preserveLegacyBackup(MEMORY_KEY, LOCAL_MEMORY_BACKUP_KEY);
+    const records = await window.BusinessFlowCloud.loadMemories(businessId);
+    if (!isCurrent()) return;
+    memories = records.map(memoryFromCloud).filter(Boolean);
+    cloudMemoryWorkspaceId = businessId;
+    renderMemories();
+    updateLegacyImportControls();
+    updateStorageStatus();
+  } catch (error) {
+    if (!isCurrent()) return;
+    console.error("BusinessFlow cloud memory could not load:", error);
+    memories = [];
+    cloudMemoryWorkspaceId = null;
+    renderMemories();
+    updateStorageStatus();
+    showToast("Could not load cloud Business Memory. No browser cache was substituted.");
+  }
+}
+
 function renderMemories(){const box=document.querySelector("#memory-list"),count=document.querySelector("#memory-count"),q=(document.querySelector("#memory-search")?.value||"").trim().toLowerCase();if(count)count.textContent=String(memories.length);if(!box)return;const rows=memories.filter(x=>[x.title,x.category,x.content,x.date].join(" ").toLowerCase().includes(q));if(!rows.length){box.innerHTML=q?'<p class="empty-state">No matching business memory found.</p>':'<p class="empty-state">No business knowledge saved in this cloud workspace yet. Add your first note.</p>';return;}box.innerHTML=rows.map(x=>{const id=escapeHTML(x.id);return `<article class="record-item panel"><div class="record-heading"><div><h3>${escapeHTML(x.title)}</h3><span class="count-pill">${escapeHTML(x.category)}</span></div><small>${formatDate(x.date)}</small></div><p>${formatText(x.content)}</p><div class="record-actions"><button class="small-button" type="button" data-memory-action="edit" data-id="${id}">Edit</button><button class="small-button danger" type="button" data-memory-action="delete" data-id="${id}">Delete</button></div></article>`;}).join("");}
 function getMemoryCloudState(){const c=window.BusinessFlowCloud?.getState?.();return c?.signedIn&&c.apiConnected&&c.businessId&&c.businessId===cloudMemoryWorkspaceId&&typeof window.BusinessFlowCloud?.createMemory==="function"?c:null;}
 function validateMemoryFields(t,c,d,v){if(!t||t.length>120)return "Title must contain 1–120 characters.";if(!MEMORY_CATEGORIES.includes(c))return "Choose a valid memory category.";if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return "Choose a valid date.";const parsed=new Date(d+"T00:00:00");if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==d)return "Choose a valid calendar date.";if(!v||v.length>4000)return "Details must contain 1–4,000 characters.";return null;}
@@ -1207,7 +1255,7 @@ function setSidebarNavigationOpen(isOpen, restoreFocus = false) {
   }
 }
 
-function navigateTo(pageId) {
+function navigateTo(pageId, options = {}) {
   let page = document.getElementById(pageId);
   if (!page || !page.classList.contains("page")) return;
 
@@ -1258,7 +1306,8 @@ function navigateTo(pageId) {
   }
 
   if (location.hash !== "#" + pageId) {
-    history.replaceState(null, "", "#" + pageId);
+    if (options.history !== false) history.pushState({ pageId }, "", "#" + pageId);
+    else history.replaceState({ pageId }, "", "#" + pageId);
   }
 }
 
@@ -1277,10 +1326,7 @@ function setupNavigation() {
   });
 
   document.querySelector("#topbar-notifications")?.addEventListener("click", () => {
-    navigateTo("overview");
-    const activity = document.querySelector(".activity-center");
-    if (activity instanceof HTMLDetailsElement) activity.open = true;
-    document.querySelector(".activity-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    navigateTo("activity");
   });
   document.querySelector("#topbar-settings")?.addEventListener("click", () => {
     navigateTo("settings");
@@ -1318,18 +1364,24 @@ function setupNavigation() {
     });
   });
 
-  window.addEventListener("hashchange", () => {
+  const restoreRouteFromHistory = () => {
     const pageId = location.hash.slice(1);
     const page = document.getElementById(pageId);
-
-    if (page?.classList.contains("page")) {
-      navigateTo(pageId);
-    }
-  });
+    if (page?.classList.contains("page")) navigateTo(pageId, { history: false });
+  };
+  window.addEventListener("popstate", restoreRouteFromHistory);
+  window.addEventListener("hashchange", restoreRouteFromHistory);
 }
 
+let cloudGoalsLoadVersion = 0;
 async function loadCloudGoalsForWorkspace(businessId) {
+  const requestVersion = ++cloudGoalsLoadVersion;
   const cloud = window.BusinessFlowCloud?.getState?.();
+  const isCurrent = () => {
+    const latest = window.BusinessFlowCloud?.getState?.();
+    return requestVersion === cloudGoalsLoadVersion &&
+      latest?.signedIn && latest.apiConnected && latest.businessId === businessId;
+  };
   goals = [];
   cloudGoalWorkspaceId = null;
   renderGoals();
@@ -1342,8 +1394,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     preserveLegacyBackup(STORAGE_KEY, LOCAL_GOALS_BACKUP_KEY);
     updateLegacyImportControls();
     const records = await window.BusinessFlowCloud.loadGoals(businessId);
-    const latest = window.BusinessFlowCloud?.getState?.();
-    if (!latest?.signedIn || !latest.apiConnected || latest.businessId !== businessId) return;
+    if (!isCurrent()) return;
     goals = records.filter(record =>
       record && typeof record.id === "string" && typeof record.title === "string" &&
       Number.isFinite(Number(record.current_value)) && Number(record.current_value) >= 0 &&
@@ -1356,7 +1407,7 @@ async function loadCloudGoalsForWorkspace(businessId) {
     renderGoals();
     updateStorageStatus();
   } catch (error) {
-    if (window.BusinessFlowCloud?.getState?.()?.businessId !== businessId) return;
+    if (!isCurrent()) return;
     console.error("BusinessFlow cloud goals could not load:", error);
     goals = [];
     cloudGoalWorkspaceId = null;
@@ -1608,59 +1659,83 @@ function renderAnalyticsRevenueTrend(result) {
     : "Imported snapshot only. A trend requires verified date and revenue mappings.";
 }
 
+function renderOverviewRecommendation() {
+  const root = document.querySelector("#overview-recommendation");
+  const warning = document.querySelector("#overview-currency-warning");
+  const result = latestBusinessInsights;
+  const insights = Array.isArray(result?.insights) ? result.insights : [];
+  const preferredTypes = ["customers", "revenue", "mapping", "product_mix", "product", "goals", "experiments", "coverage"];
+  const item = preferredTypes.map(type => insights.find(insight => insight.type === type)).find(Boolean) || insights[0];
+  if (root) {
+    root.innerHTML = item
+      ? '<article class="overview-recommendation"><strong>' + escapeHTML(item.title || "Business recommendation") +
+        '</strong><p>' + escapeHTML(item.summary || "Review the available business evidence.") +
+        '</p><p class="insight-action"><b>Next step:</b> ' + escapeHTML(item.recommendedAction || "Review the underlying business records.") +
+        '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records available.") + '</small></article>'
+      : '<p class="empty-state">No verified recommendation is available yet. Import business records or connect a supported data source.</p>';
+  }
+  const currencyNote = (result?.dataQuality?.notes || []).find(note => /mapped amount column indicates|source currency/i.test(String(note)));
+  if (warning) {
+    warning.hidden = !currencyNote;
+    warning.textContent = currencyNote ? "Currency check required: " + currencyNote : "";
+  }
+}
+
 function renderBusinessInsights() {
-  const overview = document.querySelector("#overview-insights");
   const analytics = document.querySelector("#analytics-insights");
-  const status = document.querySelector("#overview-intelligence-status");
   const result = latestBusinessInsights;
   renderDashboardMetrics(result);
   renderAnalyticsRevenueTrend(result);
+  renderOverviewRecommendation();
   if (!result) {
-    if (overview) overview.innerHTML = '<p class="empty-state">Select a workspace to generate your first business analysis.</p>';
     if (analytics) analytics.innerHTML = '<p class="empty-state">Select a workspace to generate verified business insights.</p>';
-    if (status) status.textContent = "Waiting for a selected workspace.";
     renderWorkspacePulse();
     renderAnalyticsDataReadiness();
     return;
   }
   const coverage = result.coverage || {};
-  if (status) status.textContent = result.engine === "businessflow_rules_v1"
-    ? coverage.recordsAnalysed + " records analysed · " + coverage.datasetCount + " datasets · Evidence-based rules engine"
-    : "Business analysis";
   const markup = (result.insights || []).map(item => {
     const priority = item.priority === "high" ? "Priority" : item.priority === "low" ? "Monitor" : "Insight";
     return '<article class="insight-item"><div class="insight-item-top"><span class="insight-type">' + escapeHTML(priority) + '</span><strong>' + escapeHTML(item.title) + '</strong></div><p>' + escapeHTML(item.summary) + '</p><small><b>Evidence:</b> ' + escapeHTML(item.evidence || "No supporting records") + '</small><p class="insight-action"><b>Recommended next step:</b> ' + escapeHTML(item.recommendedAction) + '</p></article>';
   }).join("");
   const content = markup || '<p class="empty-state">No recommendations are available yet.</p>';
-  if (overview) overview.innerHTML = content;
   if (analytics) analytics.innerHTML = content;
   renderWorkspacePulse();
   renderAnalyticsDataReadiness();
   renderGreyWorkspaceBrief();
 }
+let businessInsightsLoadVersion = 0;
 async function loadBusinessInsights(businessId) {
+  const requestVersion = ++businessInsightsLoadVersion;
   const cloud = window.BusinessFlowCloud;
+  const status = document.querySelector("#overview-intelligence-status");
+  const isCurrent = () => {
+    const latest = cloud?.getState?.();
+    return requestVersion === businessInsightsLoadVersion &&
+      latest?.signedIn && latest?.apiConnected && latest?.businessId === businessId;
+  };
   if (!businessId || !cloud?.getState?.().signedIn || !cloud?.getState?.().apiConnected || typeof cloud.loadInsights !== "function") {
     latestBusinessInsights = null;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
     return;
   }
-  const status = document.querySelector("#overview-intelligence-status");
   if (status) status.textContent = "Analysing your business records…";
   try {
     const result = await cloud.loadInsights(businessId);
-    if (cloud.getBusinessId() !== businessId) return;
+    if (!isCurrent()) return;
     latestBusinessInsights = result;
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   } catch (error) {
+    if (!isCurrent()) return;
     latestBusinessInsights = null;
     if (status) status.textContent = error.message || "Business intelligence could not load.";
     renderBusinessInsights();
     renderGreyWorkspaceBrief();
   }
 }
+
 function updateWorkspaceIdentity(state = {}) {
   const name = String(state.businessName || "").trim();
   const signedIn = Boolean(state.signedIn);
@@ -1699,14 +1774,20 @@ function updateWorkspaceIdentity(state = {}) {
 window.addEventListener("businessflow:cloud-state", event => {
   const state = event.detail ?? {};
   updateWorkspaceIdentity(state);
-  if (!state.signedIn || !state.apiConnected) {
+  if (!state.signedIn || !state.apiConnected || !state.businessId) {
+    cloudGoalsLoadVersion++;
+    cloudExperimentsLoadVersion++;
+    cloudMemoriesLoadVersion++;
     cloudGoalWorkspaceId = null;
     cloudExperimentWorkspaceId = null;
-    loadGoals(); loadExperiments();
-    renderGoals(); renderExperiments();
-  } else if (state.businessId) {
-    void loadCloudGoalsForWorkspace(state.businessId);
-    void loadCloudExperimentsForWorkspace(state.businessId);
+    cloudMemoryWorkspaceId = null;
+    loadGoals();
+    loadExperiments();
+    memories = [];
+    renderGoals();
+    renderExperiments();
+    renderMemories();
+    updateStorageStatus();
   }
 });
 window.addEventListener("businessflow:import-local-goals-requested", () => {
@@ -2250,8 +2331,16 @@ function initializeBusinessFlowChat() {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  let conversationLoadVersion = 0;
   async function loadConversations(keepActive = true) {
+    const requestVersion = ++conversationLoadVersion;
     const current = state();
+    const isCurrent = () => {
+      const latest = state();
+      return requestVersion === conversationLoadVersion &&
+        latest.signedIn && latest.apiConnected &&
+        latest.businessId === current.businessId;
+    };
     if (!current.signedIn || !current.apiConnected || !current.businessId) {
       conversations = [];
       activeConversationId = null;
@@ -2263,22 +2352,28 @@ function initializeBusinessFlowChat() {
     setStatus("Loading your saved conversations…");
     try {
       const result = await api().request("/api/business-intelligence/conversations?business_id=" + encodeURIComponent(current.businessId));
+      if (!isCurrent()) return;
       conversations = Array.isArray(result.conversations) ? result.conversations : [];
       if (!keepActive || !conversations.some(item => item.id === activeConversationId)) {
         activeConversationId = conversations[0]?.id ?? null;
       }
       renderList();
-      if (activeConversationId) await loadMessages(activeConversationId);
+      if (activeConversationId) await loadMessages(activeConversationId, current.businessId);
       else renderMessages([]);
-      setStatus("Grey conversation history is saved to this business workspace.");
+      if (isCurrent()) setStatus("Grey conversation history is saved to this business workspace.");
     } catch (error) {
+      if (!isCurrent()) return;
       setStatus(error.message || "Could not load conversation history.");
     }
   }
 
-  async function loadMessages(conversationId) {
+  async function loadMessages(conversationId, businessId = state().businessId) {
+    const requestVersion = conversationLoadVersion;
     const result = await api().request("/api/business-intelligence/conversations/" + encodeURIComponent(conversationId) + "/messages");
-    if (activeConversationId === conversationId) renderMessages(Array.isArray(result.messages) ? result.messages : []);
+    const latest = state();
+    if (requestVersion !== conversationLoadVersion || latest.businessId !== businessId ||
+        !latest.signedIn || !latest.apiConnected || activeConversationId !== conversationId) return;
+    renderMessages(Array.isArray(result.messages) ? result.messages : []);
   }
 
   async function createConversation() {
@@ -2379,7 +2474,6 @@ function initializeBusinessFlowChat() {
 
   newButton.addEventListener("click", createConversation);
   window.addEventListener("businessflow:cloud-state", () => { void loadConversations(false); });
-  window.addEventListener("businessflow:workspace-changed", () => { void loadConversations(false); });
   void loadConversations(false);
 }
 
@@ -2509,8 +2603,17 @@ function initializeBusinessFlowBilling() {
     entitlementsWrap.hidden = false;
   }
 
+  let billingLoadVersion = 0;
   async function loadBilling() {
+    const requestVersion = ++billingLoadVersion;
     const current = state();
+    const isCurrent = () => {
+      const latest = state();
+      return requestVersion === billingLoadVersion &&
+        latest.signedIn === current.signedIn &&
+        latest.apiConnected === current.apiConnected &&
+        latest.businessId === current.businessId;
+    };
     if (!current.signedIn || !current.apiConnected || !current.businessId || typeof api() !== "function") {
       currentPlan.textContent = "Starter";
       currentStatus.textContent = "Sign in and select a connected business workspace to view its billing status.";
@@ -2532,7 +2635,7 @@ function initializeBusinessFlowBilling() {
         api()("/api/billing/subscription?business_id=" + businessId),
         api()("/api/billing/entitlements?business_id=" + businessId)
       ]);
-      if (state().businessId !== current.businessId) return;
+      if (!isCurrent()) return;
 
       plans = Array.isArray(planResult.plans) ? planResult.plans : [];
       subscription = subscriptionResult.subscription ?? null;
@@ -2557,8 +2660,12 @@ function initializeBusinessFlowBilling() {
       renderEntitlements(entitlementResult.entitlements);
       setFeedback(plans.length ? "Billing details are up to date for " + (current.businessName || "this workspace") + "." : "No paid plans are active yet. Starter remains available.");
     } catch (error) {
+      if (!isCurrent()) return;
       plans = [];
+      subscription = null;
+      portalButton.hidden = true;
       renderPlans();
+      renderEntitlements([]);
       setFeedback(error.message || "Could not load billing details. Try again shortly.", true);
     }
   }
@@ -2613,7 +2720,6 @@ function initializeBusinessFlowBilling() {
   });
 
   window.addEventListener("businessflow:cloud-state", () => { void loadBilling(); });
-  window.addEventListener("businessflow:workspace-changed", () => { void loadBilling(); });
   void loadBilling();
 }
 

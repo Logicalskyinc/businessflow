@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="assets/businessflow-mark.svg">
   <link rel="manifest" href="manifest.webmanifest">
   <title>BusinessFlow | Business Intelligence</title>
-  <link rel="stylesheet" href="style.css?v=26">
+  <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body class="auth-pending">
   <div class="bf-loading-screen" id="bf-loading-screen" role="status" aria-live="polite" aria-label="Loading BusinessFlow">
@@ -28,6 +28,8 @@
       <nav class="navigation" aria-label="Main navigation">
         <a href="#overview" class="nav-link active" data-page="overview"><span>⌂</span> Overview</a>
         <a href="#analytics" class="nav-link" data-page="analytics"><span>▥</span> Analytics</a>
+        <a href="#grey" class="nav-link" data-page="grey"><span>✦</span> Grey</a>
+        <a href="#activity" class="nav-link" data-page="activity"><span>◷</span> Activity</a>
         <a href="#experiments" class="nav-link" data-page="experiments"><span>◇</span> Experiments</a>
         <a href="#goals" class="nav-link" data-page="goals"><span>◎</span> Goals</a>
         <a href="#business-memory" class="nav-link" data-page="business-memory"><span>▤</span> Business Memory</a>
@@ -71,11 +73,7 @@
       </header>
 
       <div class="page-container">
-        <section class="page active" id="overview">          <div class="notice">
-            <strong>DATA STATUS</strong>
-            <span id="overview-data-status">Imported datasets are analysed as saved snapshots. Live connections update only when a supported source is connected.</span>
-          </div>
-
+        <section class="page active" id="overview">
           <div class="welcome-row overview-welcome">
             <div class="overview-welcome-copy">
               <p class="eyebrow">BUSINESSFLOW · OVERVIEW</p>
@@ -89,64 +87,51 @@
             </div>
           </div>
 
+          <div class="notice overview-data-notice">
+            <strong>DATA STATUS</strong>
+            <span id="overview-data-status">Imported datasets are analysed as saved snapshots. Live connections update only when a supported source is connected.</span>
+          </div>
+
           <div class="section-heading">
-            <div>
-              <h2>Business overview</h2>
-              <p class="muted">Live indicators appear when you connect business data.</p>
-            </div>
+            <div><h2>Business overview</h2><p class="muted">A concise view of your saved business data.</p></div>
             <label class="period-control">Period
               <select id="period-select">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
+                <option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option>
               </select>
             </label>
           </div>
 
           <div class="metrics-grid">
-            <article class="metric-card">
-              <div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div>
-              <strong class="metric-value" data-business-metric="revenue">—</strong>
-              <p class="metric-note" data-business-metric-note="revenue">Awaiting mapped data</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div>
-              <strong class="metric-value" data-business-metric="customers">—</strong>
-              <p class="metric-note" data-business-metric-note="customers">Awaiting mapped data</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div>
-              <strong class="metric-value" data-business-metric="conversion">—</strong>
-              <p class="metric-note" data-business-metric-note="conversion">Awaiting mapped data</p>
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div>
-              <strong class="metric-value" data-metric-value="active-experiments">0</strong>
-              <p class="metric-note" data-metric-note="active-experiments">From saved experiments</p>
-            </article>
+            <article class="metric-card"><div class="metric-heading"><span>Revenue</span><span class="metric-icon">↗</span></div><strong class="metric-value" data-business-metric="revenue">—</strong><p class="metric-note" data-business-metric-note="revenue">Awaiting mapped data</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Customers</span><span class="metric-icon">♙</span></div><strong class="metric-value" data-business-metric="customers">—</strong><p class="metric-note" data-business-metric-note="customers">Awaiting mapped data</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Conversion rate</span><span class="metric-icon">◎</span></div><strong class="metric-value" data-business-metric="conversion">—</strong><p class="metric-note" data-business-metric-note="conversion">Awaiting mapped data</p></article>
+            <article class="metric-card"><div class="metric-heading"><span>Active experiments</span><span class="metric-icon">◇</span></div><strong class="metric-value" data-metric-value="active-experiments">0</strong><p class="metric-note" data-metric-note="active-experiments">From saved experiments</p></article>
           </div>
 
-          <article class="panel intelligence-panel">
-            <div class="panel-heading"><div><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h2>What your business data is telling us</h2><p class="muted" id="overview-intelligence-status">Waiting for a selected workspace.</p></div><button type="button" class="text-button" data-go-to="analytics">Explore analytics</button></div>
-            <div id="overview-insights" class="insight-list"><p class="empty-state">Select a workspace to generate your first business analysis.</p></div>
+          <p class="notice currency-quality-warning" id="overview-currency-warning" role="status" hidden></p>
+
+          <article class="panel overview-recommendation-panel">
+            <div class="panel-heading"><div><p class="eyebrow">NEXT BEST ACTION</p><h2>Recommended next step</h2><p class="muted">One action supported by your current workspace evidence.</p></div><button type="button" class="text-button" data-go-to="analytics">View evidence</button></div>
+            <div id="overview-recommendation"><p class="empty-state">Your next step will appear when verified business insights are available.</p></div>
           </article>
 
-          <section class="workspace-pulse panel" aria-labelledby="workspace-pulse-title">
-            <div class="panel-heading">
-              <div><p class="eyebrow">WORKSPACE PULSE</p><h2 id="workspace-pulse-title">Your business at a glance</h2><p class="muted" id="workspace-pulse-caption">A live summary of saved workspace activity.</p></div>
-              <span class="pulse-live-label"><span aria-hidden="true"></span> Workspace</span>
-            </div>
+          <section class="panel overview-workspace-status" aria-labelledby="workspace-status-title">
+            <div class="panel-heading"><div><p class="eyebrow">WORKSPACE STATUS</p><h2 id="workspace-status-title">Your workspace at a glance</h2><p class="muted" id="workspace-pulse-caption">Summary of saved goals and experiments.</p></div></div>
             <div class="pulse-metrics" id="workspace-pulse-metrics">
-              <article class="pulse-metric"><span>Saved goals</span><strong id="pulse-goals-count">0</strong><small>Goals being tracked</small></article>
+              <article class="pulse-metric"><span>Saved goals</span><strong id="pulse-goals-count">0</strong><small>Tracked business goals</small></article>
               <article class="pulse-metric"><span>Running experiments</span><strong id="pulse-experiments-count">0</strong><small>Active tests</small></article>
-              <article class="pulse-metric"><span>Evidence insights</span><strong id="pulse-insights-count">0</strong><small>From business data</small></article>
             </div>
-            <div class="pulse-lower-grid">
-              <section class="pulse-section"><div class="pulse-section-heading"><h3>Recent experiment work</h3><button type="button" class="text-button" data-go-to="experiments">Open experiments</button></div><div id="pulse-experiment-activity" class="pulse-activity-list"><p class="empty-state">Your saved experiments will appear here.</p></div></section>
-              <section class="pulse-section"><div class="pulse-section-heading"><h3>Goals in focus</h3><button type="button" class="text-button" data-go-to="goals">View goals</button></div><div id="pulse-goal-focus" class="pulse-goal-list"><p class="empty-state">Create a goal to start tracking progress.</p></div></section>
+            <div class="workspace-shortcuts">
+              <button type="button" class="secondary-button" data-go-to="grey">Talk to Grey</button>
+              <button type="button" class="secondary-button" data-go-to="activity">View activity</button>
             </div>
           </section>
 
+          <footer class="app-footer">BusinessFlow · Business workspace</footer>
+        </section>
+
+        <section class="page" id="grey">
+          <div class="page-heading"><p class="eyebrow">BUSINESSFLOW INTELLIGENCE</p><h1>Talk to Grey</h1><p class="subtitle">Ask questions, review evidence and work through business decisions with your selected workspace context.</p></div>
           <article class="panel bf-chat-panel" id="businessflow-intelligence-panel">
             <div class="panel-heading"><div><p class="eyebrow">YOUR BUSINESS PARTNER</p><h2>Talk to Grey</h2><p class="muted">Grey uses your selected business workspace, goals, experiments and saved decisions as context.</p></div><button type="button" class="secondary-button" id="bf-new-conversation">New conversation</button></div>
             <div class="bf-chat-layout">
@@ -163,48 +148,20 @@
             </div>
             <p class="bf-chat-disclaimer">Grey-powered conversations use your saved workspace context. External actions still require separate authorization.</p>
           </article>
+          <footer class="app-footer">BusinessFlow · Intelligence partner</footer>
+        </section>
 
-          <details class="panel activity-center">
-            <summary class="activity-summary">
-              <span class="activity-summary-copy"><span class="eyebrow">WORKSPACE UPDATES</span><strong id="activity-center-title">Activity and notifications</strong></span>
-              <span class="count-pill" id="activity-unread-count">0 unread</span>
-            </summary>
+        <section class="page" id="activity">
+          <div class="page-heading"><p class="eyebrow">WORKSPACE UPDATES</p><h1>Activity</h1><p class="subtitle">Review important changes and notifications from your business workspace.</p></div>
+          <article class="panel activity-center">
+            <div class="panel-heading"><div><p class="eyebrow">WORKSPACE UPDATES</p><h2 id="activity-center-title">Activity and notifications</h2><p class="muted">Changes and updates from your selected workspace.</p></div><span class="count-pill" id="activity-unread-count">0 unread</span></div>
             <div class="activity-toolbar">
               <span id="activity-center-status" class="muted" role="status">Your workspace activity will appear here.</span>
               <div><button type="button" class="text-button" id="activity-mark-read">Mark all read</button><button type="button" class="text-button" id="activity-clear">Clear history</button></div>
             </div>
             <div id="activity-feed" class="activity-feed" aria-live="polite"><p class="empty-state">No activity yet. Saving a goal, updating an experiment or importing data will appear here.</p></div>
-          </details>
-
-          <div class="content-grid">
-            <article class="panel">
-              <h2>Revenue performance</h2>
-              <p class="muted">The imported revenue total is shown above. A time-series trend requires reliable date and revenue mappings.</p>
-              <div class="chart chart-empty" role="status">
-                <p class="empty-state">No verified revenue trend is available yet. Check the date and revenue mappings in your imported dataset.</p>
-              </div>
-              <p class="chart-disclaimer">Imported snapshot only. This is not a live revenue feed.</p>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <div><h2>Business goals</h2><p class="muted">Track what matters.</p></div>
-                <button type="button" class="text-button" data-go-to="goals">View all</button>
-              </div>
-              <div id="goal-list" class="goal-list"></div>
-              <p class="muted" data-storage-status role="status">Checking browser storage…</p>
-            </article>
-          </div>
-
-          <article class="panel">
-            <h2>Recent experiments</h2>
-            <p class="muted">Your saved experiments, not sample records.</p>
-            <div id="overview-experiment-list" class="simple-list">
-              <p class="empty-state">Loading saved experiments…</p>
-            </div>
           </article>
-
-          <footer class="app-footer">BusinessFlow · Business workspace</footer>
+          <footer class="app-footer">BusinessFlow · Workspace activity</footer>
         </section>
 
         <section class="page" id="analytics">
@@ -633,7 +590,7 @@
     <a href="#overview" class="mobile-tab active" data-page="overview" aria-current="page"><span aria-hidden="true">⌂</span><small>Home</small></a>
     <a href="#analytics" class="mobile-tab" data-page="analytics"><span aria-hidden="true">▥</span><small>Analytics</small></a>
     <a href="#goals" class="mobile-tab" data-page="goals"><span aria-hidden="true">◎</span><small>Goals</small></a>
-    <a href="#experiments" class="mobile-tab" data-page="experiments"><span aria-hidden="true">◇</span><small>Experiments</small></a>
+    <a href="#grey" class="mobile-tab" data-page="grey"><span aria-hidden="true">✦</span><small>Grey</small></a>
     <a href="#settings" class="mobile-tab" data-page="settings"><span aria-hidden="true">⚙</span><small>Settings</small></a>
   </nav>
   <div class="bf-route-progress" id="bf-route-progress" aria-hidden="true"><span></span></div>

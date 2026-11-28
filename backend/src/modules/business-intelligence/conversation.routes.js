@@ -270,13 +270,15 @@ function buildDatasetAnalysisReply(context) {
     Number(coverage.recordsAnalysed || 0).toLocaleString() + " imported records across " +
       Number(coverage.datasetCount || 0).toLocaleString() + " dataset(s). This is an imported snapshot, not a live feed."
   ];
-  lines.push("", "BUSINESS OBJECTIVE",
-    business.primary_goal
-      ? String(business.primary_goal) + " (the onboarding objective; this is separate from a saved, tracked goal)."
-      : "No primary business objective has been recorded.");
-  lines.push("", "SAVED GOALS",
+  const objective = context.businessObjective?.value;
+  lines.push("", "BUSINESS OBJECTIVE (NOT A SAVED GOAL)",
+    objective
+      ? String(objective) + " (an onboarding objective only; it is not a saved or tracked goal)."
+      : "No onboarding business objective has been recorded.");
+  lines.push("", "SAVED GOALS (AUTHORITATIVE WORKSPACE STATE)",
     Number(coverage.goalsCount || 0).toLocaleString() + " saved goal(s), including " +
-    Number(coverage.activeGoalsCount || 0).toLocaleString() + " active goal(s).");
+    Number(coverage.activeGoalsCount || 0).toLocaleString() + " active goal(s). " +
+    (Number(coverage.goalsCount || 0) === 0 ? "There are currently no saved or tracked goals. Do not describe the onboarding objective as an existing goal." : "Only the saved goal records listed in workspace context are tracked goals."));
 
   if (metrics.revenueTotal !== null && metrics.revenueTotal !== undefined) {
     lines.push("", "REVENUE", Number(metrics.revenueTotal).toLocaleString("en-US", { maximumFractionDigits: 2 }) +
@@ -323,17 +325,40 @@ async function buildWorkspaceContext(supabase, businessId) {
   }
   if (!profileResult.data) throw new GreyIntegrationError("Business workspace not found.", 404);
 
+  const profile = { ...profileResult.data };
+  const businessObjective = profile.primary_goal
+    ? { value: String(profile.primary_goal), source: "onboarding", isSavedGoal: false }
+    : null;
+  delete profile.primary_goal;
+  const savedGoals = goalsResult.data ?? [];
+  const analysis = buildBusinessInsights({
+    profile: {
+      id: businessId,
+      name: profile.name,
+      currency_code: profile.currency_code
+    },
+    imports: importsResult.data ?? [],
+    goals: savedGoals,
+    experiments: experimentsResult.data ?? [],
+    memory: memoryResult.data ?? []
+  });
   const context = {
     source: "BusinessFlow workspace records",
-    profile: profileResult.data,
-    analysis: buildBusinessInsights({
-      profile: { id: businessId, ...profileResult.data },
-      imports: importsResult.data ?? [],
-      goals: goalsResult.data ?? [],
-      experiments: experimentsResult.data ?? [],
-      memory: memoryResult.data ?? []
-    }),
-    goals: goalsResult.data ?? [],
+    instructions: [
+      "Treat savedGoalState as the authoritative source for tracked goals.",
+      "The onboarding business objective is not a saved goal and must never be described as an existing tracked goal.",
+      "Do not infer a goal from the business description or onboarding objective.",
+      "Do not invent goals, customer segments, service rankings, or dataset facts not present in this context."
+    ],
+    profile,
+    businessObjective,
+    savedGoalState: {
+      count: savedGoals.length,
+      activeCount: savedGoals.filter(goal => goal.status === "active").length,
+      goals: savedGoals
+    },
+    analysis,
+    goals: savedGoals,
     experiments: experimentsResult.data ?? [],
     importedDatasets: (importsResult.data ?? []).map(item => ({
       name: item.name, sourceFilename: item.source_filename,
@@ -359,7 +384,7 @@ async function buildWorkspaceContext(supabase, businessId) {
     else {
       context.profile.business_description = String(context.profile.business_description ?? "").slice(0, 500);
       context.profile.name = String(context.profile.name ?? "").slice(0, 100);
-      context.profile.primary_goal = String(context.profile.primary_goal ?? "").slice(0, 300);
+      context.businessObjective = context.businessObjective ? { ...context.businessObjective, value: String(context.businessObjective.value ?? "").slice(0, 300) } : null;
       break;
     }
   }

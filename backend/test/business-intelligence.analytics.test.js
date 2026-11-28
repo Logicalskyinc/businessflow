@@ -94,3 +94,17 @@ test("does not call a unique job code the most frequent service", () => {
   assert.ok(finding);
   assert.match(finding.summary, /does not support naming a most frequent service/);
 });
+
+
+test("revenue insight uses the detected source currency and flags a workspace mismatch", () => {
+  const result = buildBusinessInsights({
+    profile: { ...profile, currency_code: "XOF" },
+    imports: [{ id: "currency-2", name: "USD sales", row_count: 1,
+      column_mapping: { Total_Amount_USD: "revenue" },
+      rows: [{ Total_Amount_USD: "540212.56" }] }]
+  });
+  const revenueInsight = result.insights.find(item => item.type === "revenue");
+  assert.match(revenueInsight.summary, /540,212\.56 USD/);
+  assert.match(revenueInsight.evidence, /workspace currency is XOF/);
+  assert.match(revenueInsight.recommendedAction, /Confirm whether the imported amounts are in USD or XOF/);
+});
