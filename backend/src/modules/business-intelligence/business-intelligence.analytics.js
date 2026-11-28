@@ -95,6 +95,9 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       currentValue: Number.isFinite(current) ? current : null, targetValue: Number.isFinite(target) ? target : null,
       progressPercent: Number.isFinite(target) && target > 0 && Number.isFinite(current) ? Math.max(0, Math.min(100, Math.round(current / target * 100))) : null };
   });
+  const revenueSources = [...revenueSourceColumns];
+  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
+  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
   const insights = [];
   if (additionalColumnFindings.length) {
     const selected = additionalColumnFindings.slice(0, 5);
@@ -117,10 +120,14 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
       evidence: datasetNames.map(item => item.name + " (" + item.rowCount + " rows)").join("; "),
       recommendedAction: "Review the mapped fields and keep this dataset updated as new business activity occurs." });
     if (revenueMapped && revenueValueCount) insights.push({
-      type: "revenue", priority: "normal", title: "Revenue recorded in imported data",
-      summary: "The imported records contain " + revenueValueCount + " readable revenue values totalling " + revenueTotal.toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + (profile.currency_code || "currency units") + ".",
-      evidence: invalidRevenueValues ? invalidRevenueValues + " revenue cells could not be interpreted as numbers." : "All mapped revenue cells were numeric.",
-      recommendedAction: invalidRevenueValues ? "Review blank or non-numeric revenue cells before relying on the total." : "Compare this total with the next reporting period after importing updated records."
+      type: "revenue", priority: currencyMismatch ? "high" : "normal", title: "Revenue recorded in imported data",
+      summary: "The imported records contain " + revenueValueCount + " readable revenue values totalling " + revenueTotal.toLocaleString("en-US", { maximumFractionDigits: 2 }) + " " + (sourceCurrency || profile.currency_code || "currency units") + ".",
+      evidence: currencyMismatch
+        ? "The mapped amount column indicates " + sourceCurrency + " while the workspace currency is " + profile.currency_code + ". Confirm the source currency before comparing totals."
+        : invalidRevenueValues ? invalidRevenueValues + " revenue cells could not be interpreted as numbers." : "All mapped revenue cells were numeric.",
+      recommendedAction: currencyMismatch
+        ? "Confirm whether the imported amounts are in " + sourceCurrency + " or " + profile.currency_code + " before making financial comparisons."
+        : invalidRevenueValues ? "Review blank or non-numeric revenue cells before relying on the total." : "Compare this total with the next reporting period after importing updated records."
     });
     else if (!revenueMapped) insights.push({
       type: "mapping", priority: "high", title: "Revenue is not mapped yet",
@@ -171,9 +178,6 @@ export function buildBusinessInsights({ profile, imports = [], goals = [], exper
     evidence: "Completed experiment records", recommendedAction: "Add the observed result so future decisions can use what the business learned."
   });
   const sortedMonths = [...monthlyRevenue.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const revenueSources = [...revenueSourceColumns];
-  const sourceCurrency = revenueSources.length === 1 && /(?:^|_)USD$/i.test(revenueSources[0]) ? "USD" : null;
-  const currencyMismatch = Boolean(sourceCurrency && profile.currency_code && profile.currency_code !== sourceCurrency);
   const sortedDates = dateValues.sort();
   return {
     status: "ok", engine: "businessflow_rules_v1", generatedAt: new Date().toISOString(),
